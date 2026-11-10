@@ -1,64 +1,109 @@
-import { useMemo } from 'react';
-import { SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
-import { createEngine, createScenario, unitFootprints } from '../engine/index.js';
+/** The app shell: top bar, battlefield, bottom sheet, drawers and prompts. */
+import { useEffect } from 'react';
+import { Board } from './board/Board.js';
+import { ArmyRules } from './drawers/ArmyRules.js';
+import { LogDrawer } from './drawers/LogDrawer.js';
+import { Menu } from './drawers/Menu.js';
+import { Roster } from './drawers/Roster.js';
+import { startAttack } from './game/actions.js';
+import { beginDraft } from './game/draftActions.js';
+import { engine } from './game/engine.js';
+import { useDecision, useGameState, useHuman } from './game/hooks.js';
+import { useGame } from './game/instance.js';
+import { useUi } from './game/uiStore.js';
+import { TopBar } from './hud/TopBar.js';
+import { createNpcClient } from './npc/npcClient.js';
+import { Chooser, ConfirmDialog, DecisionPrompts, GameEnd } from './prompts/Prompts.js';
+import { Sheet } from './sheet/Sheet.js';
 
-/** Placeholder shell: a static picture of the deployed armies. The real board replaces it. */
+const npc = createNpcClient(engine);
+const NPC_DELAY_MS = 550;
+
+/** Keeps drafts and attack panels in step with the engine's decision. */
+function useDecisionSync(): void {
+  const state = useGameState();
+  const d = useDecision();
+  const human = useHuman();
+  useEffect(() => {
+    const ui = useUi.getState();
+    const mine = !!d && d.player === human;
+    if (mine && d.kind === 'place') {
+      if (!ui.draft || ui.draft.unit !== d.unit) {
+        beginDraft(state, d.unit);
+        ui.select(d.unit);
+      }
+    } else if (ui.draft) {
+      ui.setDraft(null);
+    }
+    if (mine && d.kind === 'targets') {
+      if (!ui.attack || ui.attack.unit !== d.unit || ui.attack.mode !== d.mode)
+        startAttack(d.unit, d.mode);
+    } else if (ui.attack && (ui.attack.mode === 'fight' || !mine || d.kind !== 'main')) {
+      ui.setAttack(null);
+    }
+  }, [state, d, human]);
+}
+
+/** Lets the computer answer its decisions, one at a time, slowly enough to follow. */
+function useNpc(): void {
+  const state = useGameState();
+  const human = useHuman();
+  const fast = useGame((s) => s.fast);
+  useEffect(() => {
+    const d = engine.decision(state);
+    if (!d || d.player === human) return;
+    let cancelled = false;
+    const timer = setTimeout(
+      () => {
+        void npc.chooseAction(state).then((action) => {
+          if (cancelled || useGame.getState().session.state !== state) return;
+          useGame.getState().dispatch(action);
+        });
+      },
+      fast ? 0 : NPC_DELAY_MS,
+    );
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [state, human, fast]);
+}
+
+/** Follows what the opponent does with the camera. */
+function useNpcCamera(): void {
+  const focus = useGame((s) => s.lastFocus);
+  useEffect(() => {
+    if (!focus) return;
+    const { session } = useGame.getState();
+    const last = session.history[session.history.length - 1];
+    if (!last || last.actor === session.humanPlayer) return;
+    useUi
+      .getState()
+      .moveCamera({ kind: 'unit', unit: focus.unit, zoom: false, onlyIfHidden: true });
+  }, [focus]);
+}
+
 export function App() {
-  const { scenario, state } = useMemo(() => {
-    const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
-    return { scenario, state: createEngine(scenario).newGame(1) };
-  }, []);
-  const { battlefield } = scenario;
+  useDecisionSync();
+  useNpc();
+  useNpcCamera();
+  const drawer = useUi((s) => s.drawer);
+  const gameId = useGame((s) => s.gameId);
   return (
-    <main className="shell">
-      <h1>AoS Mobile</h1>
-      <p>
-        {scenario.armies[0].factionName} vs {scenario.armies[1].factionName} · {battlefield.name}
-      </p>
-      <svg
-        data-testid="board"
-        viewBox={`0 0 ${battlefield.height} ${battlefield.width}`}
-        className="board"
-      >
-        {/* Portrait: the 60" axis runs down the screen. */}
-        <g transform={`translate(${battlefield.height} 0) rotate(90)`}>
-          <rect width={battlefield.width} height={battlefield.height} className="table" />
-          {battlefield.terrain.map((t) => (
-            <polygon
-              key={t.id}
-              points={t.polygon.map((p) => p.join(',')).join(' ')}
-              className="terrain"
-            />
-          ))}
-          {battlefield.objectives.map((o) => (
-            <circle key={o.id} cx={o.x} cy={o.y} r={o.radius} className="objective" />
-          ))}
-          {state.unitOrder.map((id) => {
-            const unit = state.units[id]!;
-            return unitFootprints(scenario, unit).map((fp, i) =>
-              fp.kind === 'circle' ? (
-                <circle
-                  key={`${id}-${i}`}
-                  cx={fp.cx}
-                  cy={fp.cy}
-                  r={fp.r}
-                  className={`p${unit.owner}`}
-                />
-              ) : (
-                <ellipse
-                  key={`${id}-${i}`}
-                  cx={fp.cx}
-                  cy={fp.cy}
-                  rx={fp.kind === 'ellipse' ? fp.rx : fp.hw}
-                  ry={fp.kind === 'ellipse' ? fp.ry : fp.hh}
-                  transform={`rotate(${fp.rotation} ${fp.cx} ${fp.cy})`}
-                  className={`p${unit.owner}`}
-                />
-              ),
-            );
-          })}
-        </g>
-      </svg>
+    <main className="app" key={gameId}>
+      <TopBar />
+      <div className="stage">
+        <Board />
+        <Sheet />
+      </div>
+      <Chooser />
+      <DecisionPrompts />
+      <GameEnd />
+      <ConfirmDialog />
+      {drawer === 'roster' && <Roster />}
+      {drawer === 'log' && <LogDrawer />}
+      {drawer === 'army' && <ArmyRules />}
+      {drawer === 'menu' && <Menu />}
     </main>
   );
 }
