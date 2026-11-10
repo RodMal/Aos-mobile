@@ -110,6 +110,13 @@ test('pinch-zoom and the zoom buttons change the scale', async ({ page }) => {
   await pinch(page, await boardPoint(page), 80, 240);
   const s1 = await boardScale(page);
   expect(s1).toBeGreaterThan(s0 * 2);
+  // One finger pans without zooming.
+  const p = await boardPoint(page);
+  const anchor = await modelCentre(page, '0:0', 0);
+  await touchDrag(page, p, { x: p.x + 60, y: p.y + 40 });
+  const moved = await modelCentre(page, '0:0', 0);
+  expect(moved.x - anchor.x).toBeCloseTo(60, -1);
+  expect(await boardScale(page)).toBeCloseTo(s1, 3);
   await page.getByRole('button', { name: 'Zoom out' }).click();
   await expect.poll(() => boardScale(page)).toBeLessThan(s1);
   await page.getByRole('button', { name: 'Zoom in' }).click();
@@ -155,4 +162,33 @@ test('playing as Seraphon puts their army at the bottom', async ({ page }) => {
   expect(ours.y).toBeGreaterThan(theirs.y);
   // The opponent (Sylvaneth) takes the first turn and passes it to us.
   await expect(page.getByTestId('turn')).toHaveText('Your turn', { timeout: 10_000 });
+});
+
+test('undo reverts a move that rolled no dice', async ({ page }) => {
+  await startGame(page);
+  await endPhaseUntil(page, /Movement/);
+  await selectFromRoster(page, '0:6');
+  const before = await modelTablePos(page, '[data-unit-id="0:6"] [data-model="0"]');
+  await page.locator('[data-action="normal"]').click();
+  const scale = await boardScale(page);
+  const from = await boardPoint(page);
+  await touchDrag(page, from, { x: from.x, y: from.y - 2 * scale });
+  await page.getByTestId('place-confirm').click();
+  await page.getByRole('button', { name: 'Undo' }).click();
+  // Back to placing the unit, which is where it started.
+  await expect(page.getByTestId('place-panel')).toBeVisible();
+  expect(await modelTablePos(page, '[data-unit-id="0:6"] [data-model="0"]')).toEqual(before);
+});
+
+test('ending a movement phase with nothing moved asks first', async ({ page }) => {
+  await startGame(page);
+  await page.getByTestId('end-phase').click();
+  await expect(page.getByTestId('phase').locator('[aria-current="step"]')).toHaveText('Movement');
+  await page.getByTestId('end-phase').click();
+  await expect(page.getByTestId('confirm')).toContainText('No unit has moved');
+  await page.getByRole('button', { name: 'Go back' }).click();
+  await expect(page.getByTestId('phase').locator('[aria-current="step"]')).toHaveText('Movement');
+  await page.getByTestId('end-phase').click();
+  await page.getByTestId('confirm-ok').click();
+  await expect(page.getByTestId('phase').locator('[aria-current="step"]')).toHaveText('Shooting');
 });

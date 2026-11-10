@@ -1,7 +1,7 @@
 /** A selected unit: compact card, actions from the engine, and the expandable warscroll. */
 import { useMemo } from 'react';
 import { engine, playerName } from '../game/engine.js';
-import { optionLabel, runOption } from '../game/actions.js';
+import { endPhase, optionLabel, phaseName, runOption } from '../game/actions.js';
 import { useGameState, useHuman, useHumanDecision } from '../game/hooks.js';
 import { useUi } from '../game/uiStore.js';
 import { Icon } from '../components/Icon.js';
@@ -66,6 +66,11 @@ export function UnitPanel({ unitId }: { unitId: string }) {
             </button>
           ))}
         </div>
+      )}
+      {options.length === 0 && decision?.kind === 'main' && (
+        <button className="btn primary wide" onClick={endPhase} data-testid="end-phase">
+          End {phaseName(decision.phase).toLowerCase()} phase
+        </button>
       )}
       <button
         className="btn ghost-btn wide details-toggle"
