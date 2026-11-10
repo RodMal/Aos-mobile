@@ -11,6 +11,7 @@ A phone-first web app for playing Warhammer Age of Sigmar 4 against a computer o
 - **Never hand-edit** `data/factions/*.json`, `data/lores.json` or `data/ruleset.json` (see `data/SOURCE.md`). Rule behaviour goes in `src/rules`.
 - **Faction abilities are hand-written and tested**, one test per ability. Do not generate behaviour from ability text.
 - Record every rules interpretation or simplification in `docs/RULES-DECISIONS.md`.
+- **Subagent models (owner's instruction, 2026-11-10):** run subagents on Opus, Sonnet or Haiku as the task warrants; use Fable only where required.
 
 ## Commands
 
