@@ -19,6 +19,10 @@ pnpm build        # static site in dist/
 pnpm preview      # serve dist/ on http://localhost:4173
 ```
 
+## Install and play offline
+
+The site is a PWA. Open it once online, then use "Add to Home Screen" (iOS Safari: Share, then Add to Home Screen; Android Chrome: menu, then Install app). The app is cached on first visit and works with no connection; a new deploy replaces the cached copy on the next visit. `scripts/make-icons.mjs` regenerates the PNG icons in `public/` from `public/icon.svg`.
+
 ## Check it
 
 | Command         | What it does                                                                           |
