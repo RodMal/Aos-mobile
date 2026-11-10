@@ -39,7 +39,7 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
         : { title: `${who} won the priority roll`, hint: 'The opponent is choosing…' };
     case 'reaction':
       return mine
-        ? { title: 'Reaction', hint: d.trigger }
+        ? { title: 'Reaction', hint: 'Use a command, or skip.' }
         : { title: `${who} may react`, hint: 'The opponent is deciding…' };
   }
 }

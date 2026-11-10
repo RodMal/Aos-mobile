@@ -17,6 +17,8 @@ export interface LogLine {
   player?: PlayerId;
   /** Extra lines shown when the entry is expanded (attack dice). */
   detail?: string[];
+  /** How much the line deserves the toast: higher wins (default 1 for major lines). */
+  weight?: number;
 }
 
 export const PHASE_NAMES: Record<string, string> = {
@@ -111,6 +113,7 @@ export function eventLine(ev: GameEvent, ctx: LogContext): LogLine | null {
       return {
         text: `${ctx.weaponName(ev.attacker, ev.weapon)} → ${ctx.unitName(ev.target)}: ${parts.join(', ')}`,
         kind: 'major',
+        weight: 2,
         detail: [
           `Attacker: ${ctx.unitName(ev.attacker)}${ev.crits > 0 ? ` · ${plural(ev.crits, 'critical hit')}` : ''}`,
           `Hit rolls: ${diceList(ev.dice.hit)}`,
@@ -122,10 +125,11 @@ export function eventLine(ev: GameEvent, ctx: LogContext): LogLine | null {
     }
     case 'damage': {
       const name = ctx.unitName(ev.unit);
-      if (ev.destroyed) return { text: `${name} destroyed`, kind: 'major' };
+      const detail = [`Source: ${ev.source}`];
+      if (ev.destroyed) return { text: `${name} destroyed`, kind: 'major', weight: 3, detail };
       if (ev.slain > 0)
-        return { text: `${name} lost ${plural(ev.slain, 'model')} (${ev.source})`, kind: 'major' };
-      return { text: `${name} took ${ev.amount} damage (${ev.source})`, kind: 'major' };
+        return { text: `${name} lost ${plural(ev.slain, 'model')}`, kind: 'major', detail };
+      return { text: `${name} took ${ev.amount} damage`, kind: 'major', weight: 0.5, detail };
     }
     case 'command':
       return {
@@ -161,6 +165,7 @@ export function eventLine(ev: GameEvent, ctx: LogContext): LogLine | null {
             ? `Game over: a draw, ${ev.vp[0]}–${ev.vp[1]}`
             : `Game over: ${ctx.playerName(ev.winner)} win ${ev.vp[0]}–${ev.vp[1]}`,
         kind: 'heading',
+        weight: 4,
       };
     case 'note':
       return { text: ev.text, kind: 'minor' };
@@ -169,8 +174,29 @@ export function eventLine(ev: GameEvent, ctx: LogContext): LogLine | null {
 
 /** The line worth a toast from one batch of events: the last major one, else the last one. */
 export function toastLine(lines: readonly LogLine[]): LogLine | null {
-  for (let i = lines.length - 1; i >= 0; i--) if (lines[i]!.kind !== 'minor') return lines[i]!;
-  return lines[lines.length - 1] ?? null;
+  let best: LogLine | null = null;
+  let bestWeight = -Infinity;
+  for (const line of lines) {
+    const w = line.weight ?? (line.kind === 'minor' ? 0 : 1);
+    if (w >= bestWeight) {
+      best = line;
+      bestWeight = w;
+    }
+  }
+  return best;
+}
+
+/** A reaction trigger such as "shoot:1:5" in words. */
+export function reactionText(trigger: string, ctx: LogContext): string {
+  const m = /^(shoot|fight|charge|move):(.+)$/.exec(trigger);
+  if (!m) return trigger;
+  const verb = {
+    shoot: 'is about to shoot',
+    fight: 'is about to fight',
+    charge: 'is charging',
+    move: 'is moving',
+  }[m[1] as 'shoot' | 'fight' | 'charge' | 'move'];
+  return `${ctx.unitName(m[2]!)} ${verb}.`;
 }
 
 /** Display name of an objective id such as "golden-lions-1". */

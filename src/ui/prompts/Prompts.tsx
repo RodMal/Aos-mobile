@@ -1,8 +1,8 @@
 /** Modal prompts: priority, reactions, confirmations, the unit chooser and the result screen. */
 import type { ReactNode } from 'react';
 import { dispatch } from '../game/actions.js';
-import { COMMAND_NAMES } from '../game/eventText.js';
-import { playerName } from '../game/engine.js';
+import { COMMAND_NAMES, reactionText } from '../game/eventText.js';
+import { logContext, playerName } from '../game/engine.js';
 import { useGame } from '../game/instance.js';
 import { useGameState, useHuman, useHumanDecision } from '../game/hooks.js';
 import { randomSeed } from '../game/store.js';
@@ -73,7 +73,7 @@ export function DecisionPrompts() {
     const cp = state.players[human].cp;
     return (
       <Modal title="Reaction" testId="reaction">
-        <p>{d.trigger}</p>
+        <p>{reactionText(d.trigger, logContext(state.units))}</p>
         <div className="stack">
           {d.options.map((o, i) => (
             <button

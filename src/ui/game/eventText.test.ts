@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { eventLine, objectiveLabel, toastLine, type LogContext } from './eventText.js';
+import {
+  eventLine,
+  objectiveLabel,
+  reactionText,
+  toastLine,
+  type LogContext,
+} from './eventText.js';
 
 const ctx: LogContext = {
   unitName: (id) => ({ a: 'Dryads', b: 'Saurus Warriors', k: 'Belthanos' })[id] ?? id,
@@ -54,7 +60,7 @@ describe('eventLine', () => {
         { t: 'damage', unit: 'b', amount: 4, slain: 2, destroyed: false, source: 'attacks' },
         ctx,
       )?.text,
-    ).toBe('Saurus Warriors lost 2 models (attacks)');
+    ).toBe('Saurus Warriors lost 2 models');
     expect(eventLine({ t: 'priority', rolls: [5, 2], winner: 0 }, ctx)?.text).toContain(
       'Sylvaneth choose',
     );
@@ -75,5 +81,24 @@ describe('eventLine', () => {
     expect(toastLine([a, b])).toBe(a);
     expect(toastLine([b])).toBe(b);
     expect(toastLine([])).toBeNull();
+  });
+
+  it('prefers destroyed units and attack summaries for the toast', () => {
+    const dmg = eventLine(
+      { t: 'damage', unit: 'b', amount: 2, slain: 0, destroyed: false, source: 'x' },
+      ctx,
+    )!;
+    const moved = eventLine({ t: 'moved', unit: 'a', kind: 'normal', dice: [], distance: 3 }, ctx)!;
+    const dead = eventLine(
+      { t: 'damage', unit: 'b', amount: 9, slain: 5, destroyed: true, source: 'x' },
+      ctx,
+    )!;
+    expect(toastLine([moved, dmg])).toBe(moved);
+    expect(toastLine([dead, moved])).toBe(dead);
+  });
+
+  it('describes reaction triggers', () => {
+    expect(reactionText('shoot:b', ctx)).toBe('Saurus Warriors is about to shoot.');
+    expect(reactionText('something else', ctx)).toBe('something else');
   });
 });

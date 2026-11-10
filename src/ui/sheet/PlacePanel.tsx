@@ -57,9 +57,11 @@ export function PlacePanel() {
   const passLabel =
     d.reason === 'pileIn'
       ? 'Skip'
-      : d.reason === 'normal' || d.reason === 'retreat'
-        ? 'Cancel'
-        : 'Stay put';
+      : d.reason === 'charge'
+        ? 'Give up'
+        : d.reason === 'run'
+          ? 'Stay put'
+          : 'Cancel';
   const note =
     d.reason === 'charge'
       ? 'The unit must end within ½" of an enemy unit.'
