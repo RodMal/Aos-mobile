@@ -14,6 +14,7 @@ export default tseslint.config(
   {
     ignores: [
       'node_modules/**',
+      '.claude/**',
       'dist/**',
       'data/**',
       'playwright-report/**',

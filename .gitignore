@@ -10,3 +10,6 @@ coverage/
 *.log
 .env
 .env.*
+
+# Agent worktrees
+.claude/worktrees/
