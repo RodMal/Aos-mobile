@@ -1,11 +1,11 @@
 # CLAUDE.md
 
-A phone-first web app for playing Warhammer Age of Sigmar 4 against a computer opponent. Start with `README.md`, `docs/ARCHITECTURE.md` and `docs/ROADMAP.md`.
+A phone-first web app for playing Warhammer Age of Sigmar 4 against a computer opponent. Start with `docs/HANDOVER.md` (current state and what comes next), then `docs/ARCHITECTURE.md` and `docs/ROADMAP.md`.
 
 ## Rules of the road
 
 - **Playable first.** Every change should move toward, or keep, a game a person can play on a phone. Do not polish a layer that no player can reach yet.
-- **Keep the process light.** No ADR mill, no hook maze, no backlog bureaucracy. The docs are the four files in `docs/` plus `data/SOURCE.md`.
+- **Keep the process light.** No ADR mill, no hook maze, no backlog bureaucracy. The docs are the files in `docs/` plus `data/SOURCE.md`; keep `docs/HANDOVER.md` current when a milestone lands.
 - **The core is pure.** `src/geom`, `src/engine`, `src/rules`, `src/ai` and `src/data` take no DOM, React, `Math.random` or `Date.now`. All dice come from `GameState.rng`.
 - **`src/engine/types.ts` is the contract** between engine, UI and NPC. Change it deliberately and update all three.
 - **Never hand-edit** `data/factions/*.json`, `data/lores.json` or `data/ruleset.json` (see `data/SOURCE.md`). Rule behaviour goes in `src/rules`.
