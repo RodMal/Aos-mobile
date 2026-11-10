@@ -1,4 +1,4 @@
-/** Placement legality for moves (normal, run, retreat). Charges and pile-ins extend this. */
+/** Placement legality for moves, runs, retreats, charges and pile-ins. */
 import {
   checkCoherencyFootprints,
   footprintGap,

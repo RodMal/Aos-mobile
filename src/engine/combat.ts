@@ -36,6 +36,49 @@ export function mayShoot(unit: UnitState): boolean {
   );
 }
 
+/**
+ * Model indices that carry `weapon`, or null when every model does. An army list entry can
+ * say how many models carry each weapon where the warscroll offers a choice (`weapons`):
+ * the named weapons go to the first models by index, in the order listed, and the other
+ * weapons of the same kind go to the rest.
+ */
+export function weaponCarriers(
+  scenario: Scenario,
+  unit: UnitState,
+  weapon: Weapon,
+): Set<number> | null {
+  const loadout = scenario.armies[unit.owner].list.units[unit.armyIndex]?.weapons;
+  if (!loadout) return null;
+  const profile = profileOf(scenario, unit);
+  const named = profile.weapons.filter((w) => loadout[w.name] !== undefined);
+  if (!named.some((w) => w.kind === weapon.kind)) return null;
+  const carriers = new Map<string, Set<number>>();
+  let next = 0;
+  for (const w of named) {
+    const set = new Set<number>();
+    for (let k = 0; k < loadout[w.name]! && next < profile.models.length; k++) set.add(next++);
+    carriers.set(w.id, set);
+  }
+  const own = carriers.get(weapon.id);
+  if (own) return own;
+  const rest = new Set<number>();
+  for (let i = next; i < profile.models.length; i++) rest.add(i);
+  return rest;
+}
+
+/** Living models of `attacker` that carry `weapon` and are within `range` of `target`. */
+function attackingModels(
+  scenario: Scenario,
+  attacker: UnitState,
+  target: UnitState,
+  weapon: Weapon,
+  range: number,
+): number[] {
+  const indices = modelsWithinRangeOf(scenario, attacker, target, range);
+  const carriers = weaponCarriers(scenario, attacker, weapon);
+  return carriers ? indices.filter((i) => carriers.has(i)) : indices;
+}
+
 function championsAmong(scenario: Scenario, unit: UnitState, indices: number[]): number {
   const models = profileOf(scenario, unit).models;
   return indices.filter((i) => models[i]!.champion).length;
@@ -117,7 +160,7 @@ export function weaponTargets(
     const range = mode === 'shoot' ? weapon.range : COMBAT_RANGE;
     const targets: WeaponTargets['targets'] = [];
     for (const target of candidates) {
-      const indices = modelsWithinRangeOf(scenario, unit, target, range);
+      const indices = attackingModels(scenario, unit, target, weapon, range);
       if (indices.length === 0) continue;
       targets.push({
         unit: target.id,
@@ -156,7 +199,7 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
     const target = s.units[alloc.target]!;
     if (target.status !== 'battlefield') continue;
     const range = frame.mode === 'shoot' ? weapon.range : COMBAT_RANGE;
-    const indices = modelsWithinRangeOf(scenario, attacker, target, range);
+    const indices = attackingModels(scenario, attacker, target, weapon, range);
     if (indices.length === 0) continue;
     const tp = profileOf(scenario, target);
     const attacks = rollAttackCount(
