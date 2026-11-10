@@ -1,7 +1,7 @@
 /** What the buttons do. Browser only: reads and writes the stores. */
 import { unitsOf, type UnitId, type UnitOption } from '../../engine/index.js';
 import { diceText } from '../../data/profile.js';
-import { emptyPlan, assignAll, targetSummary, toAllocations } from './attackPlan.js';
+import { bestPlan, targetSummary, toAllocations } from './attackPlan.js';
 import { engine, profileFor } from './engine.js';
 import { COMMAND_NAMES, PHASE_NAMES, inches } from './eventText.js';
 import { useGame } from './instance.js';
@@ -81,10 +81,11 @@ export function startAttack(unitId: UnitId, mode: 'shoot' | 'fight'): void {
     game().showToast('No enemy unit is in range of this unit’s weapons.', 'error');
     return;
   }
-  let plan = emptyPlan(options);
-  const targets = [...targetSummary(options).keys()];
-  if (targets.length === 1) plan = assignAll(plan, options, targets[0]!);
-  useUi.getState().setAttack({ unit: unitId, mode, options, plan, allOutAttack: false });
+  // Start from the best target for each weapon, so one tap on Roll is enough, and show the
+  // attacker together with everything it can hit.
+  const ui = useUi.getState();
+  ui.setAttack({ unit: unitId, mode, options, plan: bestPlan(options), allOutAttack: false });
+  ui.moveCamera({ kind: 'frame', units: [unitId, ...targetSummary(options).keys()] });
 }
 
 /** Rolls the attacks in the allocation panel. */

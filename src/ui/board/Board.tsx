@@ -22,6 +22,7 @@ import {
 import { useGestures, type GestureHandlers, type GestureRefs } from './useGestures.js';
 import {
   centreOn,
+  frameView,
   clampScale,
   clampView,
   fitView,
@@ -247,6 +248,18 @@ export function Board() {
     } else if (camera.kind === 'zoom') {
       userMoved.current = true;
       setView(zoomAbout(v, camera.factor, visibleCentre(vp), vp, TABLE), true);
+    } else if (camera.kind === 'frame') {
+      const units = useGame.getState().session.state.units;
+      const points = camera.units.flatMap((id) => {
+        const u = units[id];
+        return u && u.status === 'battlefield' ? u.models.filter((m) => m.alive) : [];
+      });
+      if (points.length === 0) return;
+      userMoved.current = true;
+      const framed = frameView(v, points, vp, FOCUS_SCALE);
+      const scale = clampScale(framed.scale, vp, TABLE, rot);
+      // Clamping can only zoom in (to the minimum scale); re-centre on the same middle point.
+      setView(scale === framed.scale ? framed : frameView(v, points, vp, scale, 0), true);
     } else {
       const unit = useGame.getState().session.state.units[camera.unit];
       if (!unit || unit.status !== 'battlefield') return;

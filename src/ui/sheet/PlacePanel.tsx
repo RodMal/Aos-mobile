@@ -1,9 +1,10 @@
 /** Placing a unit (move, run, retreat, charge, pile-in): status, re-form tools, confirm. */
 import { dispatch } from '../game/actions.js';
-import { beginDraft, editDraft } from '../game/draftActions.js';
+import { beginDraft, editDraft, engageDraft } from '../game/draftActions.js';
 import { scenario } from '../game/engine.js';
 import { inches } from '../game/eventText.js';
 import { useDecision, useGameState } from '../game/hooks.js';
+import { useGame } from '../game/instance.js';
 import { faceEnemy, maxDistance, reformDraft, rotateDraft } from '../game/placementEdit.js';
 import { useUi } from '../game/uiStore.js';
 import { Icon } from '../components/Icon.js';
@@ -64,9 +65,9 @@ export function PlacePanel() {
           : 'Cancel';
   const note =
     d.reason === 'charge'
-      ? 'The unit must end within ½" of an enemy unit.'
+      ? 'Placed in contact with the nearest enemy. Drag to choose another spot within ½" of an enemy unit.'
       : d.reason === 'pileIn'
-        ? 'Each model may move up to 3" and must end closer to the nearest enemy.'
+        ? 'Piled in towards the nearest enemy. Each model may move up to 3" and must not end further from it.'
         : draft.adjust
           ? 'Tap a model, then drag anywhere to move it.'
           : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
@@ -100,6 +101,16 @@ export function PlacePanel() {
       </p>
       {first && <p className="panel-hint small">{note}</p>}
       <div className="tools" role="toolbar" aria-label="Formation">
+        {(d.reason === 'charge' || d.reason === 'pileIn') && (
+          <Tool
+            icon="engage"
+            label="Engage"
+            onClick={() => {
+              if (!engageDraft())
+                useGame.getState().showToast('No legal position found. Drag the unit.', 'error');
+            }}
+          />
+        )}
         <Tool icon="rotl" label="−15°" onClick={() => editDraft((x) => rotateDraft(x, -15))} />
         <Tool icon="rotr" label="+15°" onClick={() => editDraft((x) => rotateDraft(x, 15))} />
         <Tool

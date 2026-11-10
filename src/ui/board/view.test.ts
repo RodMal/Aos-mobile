@@ -5,6 +5,7 @@ import {
   clampView,
   fitScale,
   fitView,
+  frameView,
   isVisible,
   panBy,
   rotationFor,
@@ -125,5 +126,32 @@ describe('fit, zoom and clamp', () => {
     close(tableToScreen(v, { x: 10, y: 10 }), { x: 206, y: 300 });
     expect(isVisible(v, { x: 10, y: 10 }, vp)).toBe(true);
     expect(isVisible(v, { x: 50, y: 40 }, vp)).toBe(false);
+  });
+});
+
+describe('frameView', () => {
+  const vp: Viewport = { w: 400, h: 800, insetTop: 0, insetBottom: 200 };
+
+  it('fits every point in the visible area and centres them', () => {
+    const points = [
+      { x: 10, y: 10 },
+      { x: 30, y: 20 },
+    ];
+    const v = frameView({ scale: 5, tx: 0, ty: 0, rot: 0 }, points, vp, 100, 50);
+    for (const p of points) {
+      const s = tableToScreen(v, p);
+      expect(s.x).toBeGreaterThanOrEqual(50 - 1e-9);
+      expect(s.x).toBeLessThanOrEqual(350 + 1e-9);
+      expect(s.y).toBeGreaterThanOrEqual(50 - 1e-9);
+      expect(s.y).toBeLessThanOrEqual(550 + 1e-9);
+    }
+    const mid = tableToScreen(v, { x: 20, y: 15 });
+    expect(mid.x).toBeCloseTo(200);
+    expect(mid.y).toBeCloseTo(300);
+  });
+
+  it('never zooms in beyond the maximum scale, even for a single point', () => {
+    const v = frameView({ scale: 5, tx: 0, ty: 0, rot: 0 }, [{ x: 10, y: 10 }], vp, 34);
+    expect(v.scale).toBe(34);
   });
 });

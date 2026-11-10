@@ -128,6 +128,37 @@ export function fitView(vp: Viewport, table: TableSize, rot: Rot, pad = 8): View
   return centreOn({ scale, tx: 0, ty: 0, rot }, { x: table.w / 2, y: table.h / 2 }, vp, scale);
 }
 
+/**
+ * A view that shows all of `points` (table coordinates) in the visible area, zoomed in as far
+ * as fits but never beyond `maxScale`. Used to frame an attacker together with its targets.
+ */
+export function frameView(
+  v: View,
+  points: readonly Pt[],
+  vp: Viewport,
+  maxScale: number,
+  pad = 56,
+): View {
+  if (points.length === 0) return v;
+  const rotated = points.map((p) => rotate(v.rot, p));
+  const xs = rotated.map((p) => p.x);
+  const ys = rotated.map((p) => p.y);
+  const [minX, maxX] = [Math.min(...xs), Math.max(...xs)];
+  const [minY, maxY] = [Math.min(...ys), Math.max(...ys)];
+  const scale = Math.min(
+    maxScale,
+    Math.max(1, vp.w - 2 * pad) / Math.max(maxX - minX, 1e-6),
+    Math.max(1, visibleHeight(vp) - 2 * pad) / Math.max(maxY - minY, 1e-6),
+  );
+  const c = visibleCentre(vp);
+  return {
+    ...v,
+    scale,
+    tx: c.x - (scale * (minX + maxX)) / 2,
+    ty: c.y - (scale * (minY + maxY)) / 2,
+  };
+}
+
 export function clampScale(
   scale: number,
   vp: Viewport,

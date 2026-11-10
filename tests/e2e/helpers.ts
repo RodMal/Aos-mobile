@@ -1,5 +1,5 @@
 /** Touch helpers for the e2e tests: real touch input through the Chrome DevTools Protocol. */
-import { expect, type CDPSession, type Page } from '@playwright/test';
+import { expect, type CDPSession, type Locator, type Page } from '@playwright/test';
 
 export interface P {
   x: number;
@@ -126,4 +126,33 @@ export async function selectFromRoster(page: Page, unit: string): Promise<void> 
 export async function boardPoint(page: Page): Promise<P> {
   const box = (await page.getByTestId('board').boundingBox())!;
   return { x: box.x + box.width / 2, y: box.y + box.height * 0.3 };
+}
+
+/** True when a control is on screen and can be clicked. */
+export const usable = async (l: Locator): Promise<boolean> =>
+  (await l.isVisible().catch(() => false)) && (await l.isEnabled().catch(() => false));
+
+/**
+ * One step of a minimal player: ends its own phases, answers the priority roll, skips
+ * reactions, and fights back when it must. Returns what it clicked, or null if nothing applied.
+ */
+export async function minimalPlayerStep(page: Page): Promise<string | null> {
+  const controls: [string, Locator][] = [
+    ['confirm', page.getByTestId('confirm-ok')],
+    ['priority', page.getByRole('button', { name: 'Take first turn' })],
+    ['skip reaction', page.getByRole('button', { name: 'Skip', exact: true })],
+    ['roll', page.getByTestId('roll-attacks')],
+    ['confirm placement', page.getByTestId('place-confirm')],
+    ['cancel placement', page.getByTestId('place-cancel')],
+    ['fight', page.locator('[data-action="fight"]')],
+    ['end phase', page.getByTestId('end-phase')],
+    ['pick unit', page.locator('[data-testid="ready-units"] .chip').first()],
+  ];
+  for (const [name, control] of controls) {
+    if (await usable(control)) {
+      await control.click({ timeout: 3000 });
+      return name;
+    }
+  }
+  return null;
 }

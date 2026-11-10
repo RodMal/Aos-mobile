@@ -22,7 +22,10 @@ export function AttackPanel() {
         <h2 className="panel-title">
           {attack.mode === 'shoot' ? 'Shoot with' : 'Fight with'} {unit.name}
         </h2>
-        <p className="panel-hint">Tap a highlighted enemy to aim every weapon that can reach it.</p>
+        <p className="panel-hint">
+          Each weapon is aimed at its best target. Tap a highlighted enemy to switch every weapon
+          that can reach it.
+        </p>
       </header>
       <ul className="weapon-list">
         {attack.options.map((o) => {

@@ -7,6 +7,7 @@ import {
   boardPoint,
   boardScale,
   endPhaseUntil,
+  minimalPlayerStep,
   modelCentre,
   pinch,
   selectFromRoster,
@@ -80,14 +81,9 @@ test('stages', async ({ page }, info) => {
 test('end screen', async ({ page }, info) => {
   test.skip(info.project.name !== 'pixel-7', 'one viewport is enough');
   await startGame(page, 'seed=8&side=0&fast=1&new=1');
-  for (let i = 0; i < 80; i++) {
-    if (await page.getByTestId('game-end').isVisible()) break;
-    const end = page.getByTestId('end-phase');
-    if (await end.isVisible()) {
-      await end.click();
-      const ok = page.getByTestId('confirm-ok');
-      if (await ok.isVisible()) await ok.click();
-    } else await page.waitForTimeout(50);
+  test.setTimeout(180_000);
+  for (let i = 0; i < 4000 && !(await page.getByTestId('game-end').isVisible()); i++) {
+    if (!(await minimalPlayerStep(page))) await page.waitForTimeout(100);
   }
   await expect(page.getByTestId('game-end')).toBeVisible();
   await shot(page, '14-game-end');

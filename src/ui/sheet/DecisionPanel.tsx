@@ -61,7 +61,7 @@ export function ReadyUnits({ label }: { label: string }) {
   const choose = (id: string) => {
     const ui = useUi.getState();
     ui.select(id);
-    ui.moveCamera({ kind: 'unit', unit: id, zoom: true, onlyIfHidden: false });
+    ui.moveCamera({ kind: 'unit', unit: id, zoom: false, onlyIfHidden: false });
   };
   return (
     <div className="ready" data-testid="ready-units">

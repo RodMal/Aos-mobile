@@ -8,6 +8,8 @@ export type Drawer = 'roster' | 'log' | 'army' | 'menu' | null;
 
 export type CameraRequest =
   | { kind: 'unit'; unit: UnitId; zoom: boolean; onlyIfHidden: boolean }
+  /** Show all of these units at once, e.g. an attacker and its targets. */
+  | { kind: 'frame'; units: UnitId[] }
   | { kind: 'zoom'; factor: number }
   | { kind: 'fit' };
 

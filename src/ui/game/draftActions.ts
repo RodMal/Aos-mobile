@@ -1,5 +1,6 @@
 /** Edits to the placement draft, checked against the engine on each change. Browser only. */
-import type { GameState, UnitState } from '../../engine/index.js';
+import { chargePlacement, pileInPlacement } from '../../ai/placement.js';
+import type { GameState, Placement, UnitState } from '../../engine/index.js';
 import { engine } from './engine.js';
 import { useGame } from './instance.js';
 import { startDraft, type PlacementDraft } from './placementEdit.js';
@@ -18,15 +19,44 @@ export function editDraft(
   ui.setDraft({ ...d, ...next, violations: engine.checkPlacement(state, next.placement) });
 }
 
-/** Starts a fresh draft for the unit being placed. */
-export function beginDraft(state: GameState, unitId: string): void {
+/**
+ * A legal position that brings the unit into contact for the pending charge or pile-in, or
+ * null if there is none (or the pending placement is something else).
+ */
+export function engagePlacement(state: GameState, unitId: string): Placement | null {
+  const d = engine.decision(state);
+  if (!d || d.kind !== 'place' || d.unit !== unitId) return null;
+  if (d.reason === 'charge') return chargePlacement(engine, state, unitId);
+  if (d.reason === 'pileIn') return pileInPlacement(engine, state, unitId);
+  return null;
+}
+
+/**
+ * Starts a fresh draft for the unit being placed. With `suggest`, a charge or pile-in starts
+ * from a legal engaged position, so the player can confirm at once or adjust it.
+ */
+export function beginDraft(state: GameState, unitId: string, suggest = false): void {
   const unit = state.units[unitId];
   if (!unit) return;
   const d = startDraft(state, unit);
+  const placement = (suggest ? engagePlacement(state, unitId) : null) ?? d.placement;
   useUi.getState().setDraft({
     ...d,
-    violations: engine.checkPlacement(state, d.placement),
+    placement,
+    violations: engine.checkPlacement(state, placement),
     adjust: false,
     activeModel: null,
   });
+}
+
+/** Moves the draft to the engaged position for a charge or pile-in. */
+export function engageDraft(): boolean {
+  const ui = useUi.getState();
+  const d = ui.draft;
+  if (!d) return false;
+  const state = useGame.getState().session.state;
+  const placement = engagePlacement(state, d.unit);
+  if (!placement) return false;
+  ui.setDraft({ ...d, placement, violations: engine.checkPlacement(state, placement) });
+  return true;
 }

@@ -11,6 +11,7 @@ const PATHS: Record<string, string> = {
   rotl: 'M4 12a8 8 0 1 0 3-6.2M4 4v5h5',
   rotr: 'M20 12a8 8 0 1 1-3-6.2M20 4v5h-5',
   face: 'M12 3l7 18-7-4-7 4z',
+  engage: 'M4 12h9M10 8l4 4-4 4M17 5v14M20 8v8',
   narrow: 'M9 6v12M15 6v12M4 12h3M17 12h3',
   wide: 'M4 6v12M20 6v12M7 12h10M10 9l-3 3 3 3M14 9l3 3-3 3',
   adjust: 'M12 3v4M12 17v4M3 12h4M17 12h4M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0',

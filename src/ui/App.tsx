@@ -29,7 +29,7 @@ function useDecisionSync(): void {
     const mine = !!d && d.player === human;
     if (mine && d.kind === 'place') {
       if (!ui.draft || ui.draft.unit !== d.unit) {
-        beginDraft(state, d.unit);
+        beginDraft(state, d.unit, true);
         ui.select(d.unit);
       }
     } else if (ui.draft) {
