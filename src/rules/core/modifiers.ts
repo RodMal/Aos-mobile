@@ -40,7 +40,8 @@ export function antiRend(scenario: Scenario, weapon: Weapon, target: UnitState):
   let rend = 0;
   for (const a of weapon.abilities) {
     if (a.t !== 'anti') continue;
-    const applies = a.keyword === 'CHARGE' ? target.charged : hasKeyword(scenario, target, a.keyword);
+    const applies =
+      a.keyword === 'CHARGE' ? target.charged : hasKeyword(scenario, target, a.keyword);
     if (applies) rend += a.rend;
   }
   return rend;

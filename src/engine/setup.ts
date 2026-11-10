@@ -96,6 +96,9 @@ export function deployArmies(scenario: Scenario): UnitState[] {
         charged: false,
         shot: false,
         fought: false,
+        chargeDeclared: false,
+        commandUsed: null,
+        allOutAttack: false,
       });
     }
   }

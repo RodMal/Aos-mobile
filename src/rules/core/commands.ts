@@ -146,7 +146,12 @@ export function commandBlocker(
 }
 
 /** Spends the cost and records the use against the army and the unit. Mutates `state`. */
-export function payCommand(state: GameState, player: PlayerId, command: CommandId, unit: UnitState) {
+export function payCommand(
+  state: GameState,
+  player: PlayerId,
+  command: CommandId,
+  unit: UnitState,
+) {
   const p = state.players[player];
   p.cp -= COMMANDS[command].cost;
   p.commandsUsed = [...(p.commandsUsed ?? []), command];

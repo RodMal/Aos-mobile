@@ -76,7 +76,8 @@ describe('turn sequence', () => {
       s = engine.apply(s, engine.defaultAction(s)).state;
       steps++;
     }
-    expect(steps).toBe(5 * 2 * 6);
+    // Six phase passes per turn, plus a priority choice in rounds 2 to 5.
+    expect(steps).toBe(5 * 2 * 6 + 4);
     expect(s.status).toBe('ended');
     expect(s.round).toBe(5);
   });
@@ -99,9 +100,10 @@ describe('movement', () => {
   const dryads = unitsOf(start, 0).find((u) => u.name === 'Dryads')!;
 
   it('offers a normal move and a run in the movement phase only', () => {
-    expect(engine.unitOptions(start, dryads.id).map((o) => o.t === 'move' && o.kind)).toEqual([
-      'normal',
-      'run',
+    expect(engine.unitOptions(start, dryads.id)).toEqual([
+      { t: 'move', kind: 'normal', allowance: 6 },
+      { t: 'move', kind: 'run', allowance: 6 },
+      { t: 'command', command: 'atTheDouble', cost: 1 },
     ]);
     expect(engine.unitOptions(engine.newGame(11), dryads.id)).toEqual([]);
     const enemy = unitsOf(start, 1)[0]!;
@@ -157,7 +159,7 @@ describe('movement', () => {
     const s = engine.apply(start, { t: 'move', unit: dryads.id, kind: 'normal' }).state;
     const back = engine.apply(s, { t: 'pass' }).state;
     expect(back.units[dryads.id]!.moved).toBeNull();
-    expect(engine.unitOptions(back, dryads.id)).toHaveLength(2);
+    expect(engine.unitOptions(back, dryads.id)).toHaveLength(3);
   });
 
   it('cannot move within 3" of an enemy unit', () => {

@@ -20,7 +20,12 @@ export interface RallySpend {
  * Returns as many slain models as the points buy, then heals the damage pool with the rest.
  * `slain` is how many models can come back (slain and with room to be set up).
  */
-export function rallySpend(points: number, health: number, slain: number, damage: number): RallySpend {
+export function rallySpend(
+  points: number,
+  health: number,
+  slain: number,
+  damage: number,
+): RallySpend {
   const returnModels = health > 0 ? Math.min(slain, Math.floor(points / health)) : 0;
   const left = points - returnModels * health;
   return { returnModels, heal: Math.min(left, damage) };

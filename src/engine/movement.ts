@@ -1,6 +1,7 @@
 /** Placement legality for moves (normal, run, retreat). Charges and pile-ins extend this. */
 import {
   checkCoherencyFootprints,
+  footprintGap,
   footprintGapAtLeast,
   footprintInsidePolygon,
   footprintsOverlap,
@@ -9,8 +10,10 @@ import {
 } from '../geom/index.js';
 import {
   aliveIndices,
+  CHARGE_END_RANGE,
   COMBAT_RANGE,
   DIST_EPS,
+  unitBounds,
   hasKeyword,
   modelFootprint,
   opponent,
@@ -92,9 +95,12 @@ export function checkMovePlacement(
 
   // Overlaps: with the unit's own models, and with every other model on the battlefield.
   const others: Footprint[] = [];
+  const own = unitBounds(scenario, unit);
   for (const id of state.unitOrder) {
     const other = state.units[id]!;
     if (other.id === unit.id || other.status !== 'battlefield') continue;
+    const b = unitBounds(scenario, other);
+    if (Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r > rules.allowance + 1) continue;
     others.push(...unitFootprints(scenario, other));
   }
   const overlapping = new Set<number>();
@@ -128,10 +134,45 @@ export function checkMovePlacement(
     });
   }
 
-  if (rules.reason === 'normal' || rules.reason === 'run' || rules.reason === 'retreat') {
-    const enemies = unitsOf(state, opponent(unit.owner)).flatMap((e) =>
-      unitFootprints(scenario, e),
+  if (rules.reason === 'charge') {
+    // At least one model must end within 1/2" of an enemy unit.
+    const enemies = nearbyEnemyFootprints(scenario, state, unit, rules.allowance + 1);
+    const reaches = placement.models.some((m) =>
+      enemies.some((e) => !footprintGapAtLeast(ends.get(m.i)!, e, CHARGE_END_RANGE + DIST_EPS)),
     );
+    if (!reaches) {
+      violations.push({
+        code: 'NOT_IN_CHARGE_RANGE',
+        message: 'A charge must end with a model within ½" of an enemy unit.',
+      });
+    }
+  }
+
+  if (rules.reason === 'pileIn') {
+    // No model may end further from the nearest enemy unit than it started.
+    const enemies = nearbyEnemyFootprints(
+      scenario,
+      state,
+      unit,
+      PILE_IN_DISTANCE + COMBAT_RANGE * 4,
+    );
+    const further: number[] = [];
+    for (const m of placement.models) {
+      const before = minGap(modelFootprint(scenario, unit, m.i), enemies);
+      const after = minGap(ends.get(m.i)!, enemies);
+      if (after > before + DIST_EPS) further.push(m.i);
+    }
+    if (further.length > 0) {
+      violations.push({
+        code: 'PILE_IN_FURTHER',
+        message: 'A pile-in cannot end further from the nearest enemy unit.',
+        models: further,
+      });
+    }
+  }
+
+  if (rules.reason === 'normal' || rules.reason === 'run' || rules.reason === 'retreat') {
+    const enemies = nearbyEnemyFootprints(scenario, state, unit, rules.allowance + COMBAT_RANGE);
     const fly = hasKeyword(scenario, unit, 'FLY');
     const inRange = (fp: Footprint): boolean =>
       enemies.some((e) => !footprintGapAtLeast(fp, e, COMBAT_RANGE + DIST_EPS));
@@ -176,6 +217,38 @@ export function checkMovePlacement(
     }
   }
   return violations;
+}
+
+/** Pile-in moves are up to 3". */
+export const PILE_IN_DISTANCE = 3;
+
+/**
+ * Footprints of enemy models that could matter for a unit moving up to `reach` inches:
+ * enemy units whose bounding circle is beyond reach plus the unit's own extent are skipped.
+ */
+function nearbyEnemyFootprints(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  reach: number,
+): Footprint[] {
+  const own = unitBounds(scenario, unit);
+  const out: Footprint[] = [];
+  for (const e of unitsOf(state, opponent(unit.owner))) {
+    const b = unitBounds(scenario, e);
+    if (Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r > reach + COMBAT_RANGE) continue;
+    out.push(...unitFootprints(scenario, e));
+  }
+  return out;
+}
+
+function minGap(fp: Footprint, others: readonly Footprint[]): number {
+  let best = Infinity;
+  for (const o of others) {
+    const d = footprintGap(fp, o);
+    if (d < best) best = d;
+  }
+  return best;
 }
 
 /** The furthest any model moves in a placement. */

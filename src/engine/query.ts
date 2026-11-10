@@ -2,6 +2,7 @@
 import type { UnitProfile } from '../data/profile.js';
 import {
   baseFootprint,
+  boundingRadius,
   footprintGap,
   footprintGapAtLeast,
   layoutFormation,
@@ -115,16 +116,86 @@ export function footprintsWithin(
   return false;
 }
 
+/** A circle around all of the unit's living bases: centre and radius in inches. */
+export function unitBounds(
+  scenario: Scenario,
+  unit: UnitState,
+): { x: number; y: number; r: number } {
+  const c = unitCentre(unit);
+  let r = 0;
+  for (const i of aliveIndices(unit)) {
+    const m = unit.models[i]!;
+    const fp = modelFootprint(scenario, unit, i);
+    r = Math.max(r, Math.hypot(m.x - c.x, m.y - c.y) + boundingRadius(fp));
+  }
+  return { ...c, r };
+}
+
+/** True when any base of `a` is within `range` of any base of `b` (bounding-circle first). */
+export function unitsWithin(
+  scenario: Scenario,
+  a: UnitState,
+  b: UnitState,
+  range: number,
+): boolean {
+  const ba = unitBounds(scenario, a);
+  const bb = unitBounds(scenario, b);
+  if (Math.hypot(ba.x - bb.x, ba.y - bb.y) - ba.r - bb.r > range + DIST_EPS) return false;
+  return footprintsWithin(unitFootprints(scenario, a), unitFootprints(scenario, b), range);
+}
+
+/** Enemy units within `range` of `unit`. */
+export function enemiesWithin(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  range: number,
+): UnitState[] {
+  return unitsOf(state, opponent(unit.owner)).filter((enemy) =>
+    unitsWithin(scenario, unit, enemy, range),
+  );
+}
+
 /** Enemy units in combat with `unit` (within 3"). */
 export function enemiesInCombat(
   scenario: Scenario,
   state: GameState,
   unit: UnitState,
 ): UnitState[] {
-  const own = unitFootprints(scenario, unit);
-  return unitsOf(state, opponent(unit.owner)).filter((enemy) =>
-    footprintsWithin(own, unitFootprints(scenario, enemy), COMBAT_RANGE),
-  );
+  return enemiesWithin(scenario, state, unit, COMBAT_RANGE);
+}
+
+/** Indices of `attacker`'s living models within `range` of any living model of `target`. */
+export function modelsWithinRangeOf(
+  scenario: Scenario,
+  attacker: UnitState,
+  target: UnitState,
+  range: number,
+): number[] {
+  const targets = unitFootprints(scenario, target);
+  const out: number[] = [];
+  for (const i of aliveIndices(attacker)) {
+    const fp = modelFootprint(scenario, attacker, i);
+    if (footprintsWithin([fp], targets, range)) out.push(i);
+  }
+  return out;
+}
+
+/** Smallest edge-to-edge gap from a footprint to any living enemy model of `owner`. */
+export function gapToEnemies(
+  scenario: Scenario,
+  state: GameState,
+  owner: PlayerId,
+  fp: Footprint,
+): number {
+  let best = Infinity;
+  for (const enemy of unitsOf(state, opponent(owner))) {
+    for (const efp of unitFootprints(scenario, enemy)) {
+      const d = footprintGap(fp, efp);
+      if (d < best) best = d;
+    }
+  }
+  return best;
 }
 
 export function inCombat(scenario: Scenario, state: GameState, unit: UnitState): boolean {
