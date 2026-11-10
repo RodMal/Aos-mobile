@@ -106,6 +106,8 @@ export async function endPhaseUntil(page: Page, phase: RegExp): Promise<void> {
       )
     )
       return;
+    const card = page.getByTestId('unit-panel');
+    if (await card.isVisible()) await card.getByRole('button', { name: 'Close' }).click();
     await page.getByTestId('end-phase').click();
     const ok = page.getByTestId('confirm-ok');
     if (await ok.isVisible()) await ok.click();

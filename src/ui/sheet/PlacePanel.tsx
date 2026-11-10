@@ -102,7 +102,7 @@ export function PlacePanel() {
         <Tool icon="rotr" label="+15°" onClick={() => editDraft((x) => rotateDraft(x, 15))} />
         <Tool
           icon="face"
-          label="Face foe"
+          label="Face"
           onClick={() => editDraft((x, u, s) => faceEnemy(scenario, s, u, x))}
         />
         {n > 1 && (

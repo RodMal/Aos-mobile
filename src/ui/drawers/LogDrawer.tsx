@@ -1,5 +1,5 @@
-/** Everything that happened, newest first; attack lines expand to show the dice. */
-import { useMemo, useState } from 'react';
+/** Everything that happened, oldest first (opened at the newest); attack lines expand to show the dice. */
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGame } from '../game/instance.js';
 import { useHuman } from '../game/hooks.js';
 import { buildLog, type LogEntry } from '../game/store.js';
@@ -29,10 +29,16 @@ function Line({ e, human }: { e: LogEntry; human: 0 | 1 }) {
 export function LogDrawer() {
   const session = useGame((s) => s.session);
   const human = useHuman();
-  const lines = useMemo(() => [...buildLog(session)].reverse(), [session]);
+  const lines = useMemo(() => buildLog(session), [session]);
+  const list = useRef<HTMLOListElement>(null);
+  // Oldest first, like a chronicle; open at the newest line.
+  useEffect(() => {
+    const body = list.current?.parentElement;
+    if (body) body.scrollTop = body.scrollHeight;
+  }, [lines]);
   return (
     <Drawer title="Battle log" testId="log">
-      <ol className="log-list" data-testid="log-list">
+      <ol ref={list} className="log-list" data-testid="log-list">
         {lines.map((e) => (
           <Line key={e.id} e={e} human={human} />
         ))}

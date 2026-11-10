@@ -164,7 +164,7 @@ export function UnitsLayer() {
         ].join(' ');
         return (
           <g key={id} data-unit-id={id} className={cls}>
-            {(id === selected || canAct.has(id) || targets.has(id)) &&
+            {((id === selected && id !== draftUnit) || canAct.has(id) || targets.has(id)) &&
               fps.map((fp, k) => <Shape key={`h${k}`} fp={fp} grow={0.12} className="halo" />)}
             {fps.map((fp, k) => (
               <Shape key={alive[k]} fp={fp} data-model={alive[k]} className="model" />
