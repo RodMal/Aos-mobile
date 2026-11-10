@@ -21,6 +21,12 @@ export interface ArmyListUnit {
   general?: boolean;
   /** Heroic trait, artefact or other enhancement names. */
   enhancements?: string[];
+  /**
+   * How many models carry each weapon, by weapon name, where the warscroll gives a choice
+   * (e.g. 2 Moonstone Hammers in a unit of 6 Kroxigor; the rest carry the other weapon).
+   * Not applied by the engine yet.
+   */
+  weapons?: Record<string, number>;
 }
 
 export interface ArmyList {
@@ -80,6 +86,9 @@ export function resolveArmy(list: ArmyList): Army {
     .flatMap((u) => u.enhancements ?? [])
     .map((name) => enhancementCost(list.faction, name))
     .reduce((a, b) => a + b, 0);
+  const lorePoints = [list.spellLore, list.prayerLore, list.manifestationLore]
+    .map((name) => (name ? loreCost(list.faction, name) : 0))
+    .reduce((a, b) => a + b, 0);
   return {
     list,
     faction: list.faction,
@@ -96,7 +105,7 @@ export function resolveArmy(list: ArmyList): Army {
     factionTerrain: list.factionTerrain
       ? buildProfile(findWarscroll(list.faction, list.factionTerrain))
       : null,
-    points: units.reduce((n, u) => n + u.profile.points, 0) + enhancementPoints,
+    points: units.reduce((n, u) => n + u.profile.points, 0) + enhancementPoints + lorePoints,
   };
 }
 
@@ -107,6 +116,11 @@ function enhancementCost(faction: FactionSlug, name: string): number {
     if (option) return option.points ?? 0;
   }
   return 0;
+}
+
+function loreCost(faction: FactionSlug, name: string): number {
+  const want = name.toLowerCase();
+  return FACTIONS[faction].lores.find((l) => l.name.toLowerCase() === want)?.points ?? 0;
 }
 
 /**
@@ -161,4 +175,36 @@ export const SERAPHON_PLACEHOLDER: ArmyList = {
   placeholder: true,
 };
 
-export const ARMY_LISTS: ArmyList[] = [SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER];
+/**
+ * The owner's Seraphon list (Sigdex export, data v42): Sunclaw Starhost, 2000 points,
+ * 3 drops, 137 wounds. Sigdex lists unit costs without enhancements: Coatl Familiar (20),
+ * Armour Cruncher (10) and Morbid Conjuration (20) make up the last 50 points.
+ */
+export const SERAPHON_SUNCLAW_STARHOST: ArmyList = {
+  id: 'seraphon-sunclaw-starhost',
+  title: 'Seraphon: Sunclaw Starhost',
+  faction: 'seraphon',
+  formation: 'Sunclaw Starhost',
+  spellLore: 'Lore of Celestial Manipulation',
+  manifestationLore: 'Morbid Conjuration',
+  tacticCards: ['Siege of Ashes', 'Legend of the Parch'],
+  units: [
+    { name: 'Lord Kroak', regiment: 0, general: true },
+    { name: 'Kroxigor', regiment: 0, reinforced: true, weapons: { 'Moonstone Hammer': 2 } },
+    { name: 'Sunblood Pack', regiment: 0, enhancements: ['Beastmaster'] },
+    { name: 'Saurus Guard', regiment: 0, reinforced: true },
+    { name: 'Saurus Astrolith Bearer', regiment: 1 },
+    { name: 'Saurus Warriors', regiment: 1 },
+    { name: 'Skink Starseer', regiment: 2, enhancements: ['Coatl Familiar'] },
+    { name: 'Bastiladon with Ark of Sotek', regiment: 2, enhancements: ['Armour Cruncher'] },
+    { name: 'Hunters of Huanchi with Dartpipes', regiment: 2 },
+    { name: 'Hunters of Huanchi with Dartpipes', regiment: 2 },
+  ],
+  factionTerrain: 'Realmshaper Engine',
+};
+
+export const ARMY_LISTS: ArmyList[] = [
+  SYLVANETH_LORDS_OF_THE_CLAN,
+  SERAPHON_SUNCLAW_STARHOST,
+  SERAPHON_PLACEHOLDER,
+];

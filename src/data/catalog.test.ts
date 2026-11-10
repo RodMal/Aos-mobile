@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { INTO_THE_FIRE } from './battlefield.js';
 import { DATA_VERSION, FACTIONS, LORES, TACTIC_CARDS, UNIVERSAL } from './catalog.js';
-import { ARMY_LISTS, resolveArmy, SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from './lists.js';
+import {
+  ARMY_LISTS,
+  resolveArmy,
+  SERAPHON_PLACEHOLDER,
+  SERAPHON_SUNCLAW_STARHOST,
+  SYLVANETH_LORDS_OF_THE_CLAN,
+} from './lists.js';
 import { buildProfile, parseDice, parseWeaponAbility } from './profile.js';
 import { FactionSchema, LoresFileSchema } from './schema/index.js';
 import loresJson from '../../data/lores.json';
@@ -82,6 +88,22 @@ describe('army lists', () => {
     expect(alarielle.wizard).toBe(3);
     expect(alarielle.keywords).toContain('FLY');
     expect(army.manifestationLore?.summons?.length).toBe(3);
+  });
+
+  it("the owner's Seraphon list is exactly 2000 points with 43 models and 137 wounds", () => {
+    const army = resolveArmy(SERAPHON_SUNCLAW_STARHOST);
+    expect(army.points).toBe(2000);
+    expect(army.units.reduce((n, u) => n + u.profile.models.length, 0)).toBe(43);
+    expect(
+      army.units.reduce((n, u) => n + u.profile.models.length * u.profile.health, 0),
+    ).toBe(137);
+    expect(army.formation.abilities.map((a) => a.name)).toEqual(['Vengeance of Azyr']);
+    expect(army.manifestationLore?.summons?.length).toBe(4);
+    expect(army.units.flatMap((u) => u.enhancements.map((e) => e.ability.name))).toEqual([
+      'Beastmaster',
+      'Coatl Familiar',
+      'Armour Cruncher',
+    ]);
   });
 
   it('the placeholder Seraphon list is 2000 points', () => {
