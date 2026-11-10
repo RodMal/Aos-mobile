@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "ghb-2026-27-into-the-fire",
+  "name": "Into the Fire",
+  "placeholder": false,
+  "source": {
+    "book": "GHB 2026-27",
+    "battleplan": "Into the Fire",
+    "url": "https://wahapedia.ru/aos4/the-rules/general-s-handbook-2026-27/"
+  },
+  "board": {
+    "width": 60,
+    "height": 44
+  },
+  "territories": [
+    {
+      "side": "A",
+      "shape": {
+        "type": "polygon",
+        "points": [
+          [30, 11],
+          [60, 11],
+          [60, 44],
+          [45, 44],
+          [45, 33],
+          [30, 33]
+        ]
+      }
+    },
+    {
+      "side": "B",
+      "shape": {
+        "type": "polygon",
+        "points": [
+          [0, 0],
+          [15, 0],
+          [15, 11],
+          [30, 11],
+          [30, 33],
+          [0, 33]
+        ]
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "sun-seekers",
+      "x": 30,
+      "y": 5.5,
+      "kind": "sun-seekers",
+      "radius": 3.79
+    },
+    {
+      "id": "golden-lions-1",
+      "x": 15,
+      "y": 22,
+      "kind": "golden-lions",
+      "radius": 3.79
+    },
+    {
+      "id": "scions-of-the-comet",
+      "x": 30,
+      "y": 22,
+      "kind": "scions-of-the-comet",
+      "radius": 3.79
+    },
+    {
+      "id": "golden-lions-2",
+      "x": 45,
+      "y": 22,
+      "kind": "golden-lions",
+      "radius": 3.79
+    },
+    {
+      "id": "heldenhain",
+      "x": 30,
+      "y": 38.5,
+      "kind": "heldenhain",
+      "radius": 3.79
+    }
+  ],
+  "deploymentRules": {
+    "attackerSide": "B",
+    "firstToDeploy": "attacker",
+    "alternation": "regiment",
+    "minDistanceFromEnemyTerritory": 9,
+    "whollyWithin": true,
+    "remainingDeployAtOnce": true,
+    "reserves": {
+      "allowed": true,
+      "notes": "Only through DEPLOY abilities that allow it; the battleplan sets no limit. Units still in reserve at the start of battle round 4 are destroyed (Core Rules 24.1)."
+    },
+    "special": [
+      "GHB 2026-27: the roll-off winner chooses attacker or defender; the defender sets up the objectives and terrain, then the attacker picks a territory and begins deployment.",
+      "Core Rules 10.0: players alternate DEPLOY abilities; Deploy Regiment sets up a whole regiment without alternating.",
+      "Faction terrain is set up before units, starting with the player who deploys first."
+    ]
+  },
+  "notes": "GHB 2026-27 battleplan 1 (Table 1), transcribed from the Wahapedia map image, which has no dimension annotations. Territory edges follow the map's quarter grid (x = 15/30/45, y = 11/22/33), so they are exact; they match the community cheat sheet by TheProducer, Barker and Oldtown Throwdown, via RodMal/aos-guru commit 4ba2dc6 (data/curated/battleplans/ghb-2026-27/into-the-fire.json). Stated objective centres (M5-T13), taken from the dimension labels printed on that cheat sheet (aos-guru into-the-fire.json:74-78, labelSeen; TRANSCRIPTION.md:19-24): sun-seekers (30, 5.5), from the printed \"30x5.5\" label (it mirrors heldenhain at 44 - 5.5 = 38.5); measuring had rounded it to y = 5. The other objective centres were measured from the Wahapedia image (about 0.15\" accuracy) and rounded to the nearest 0.5\": golden-lions-1 (15, 22), scions-of-the-comet (30, 22), golden-lions-2 (45, 22) and heldenhain (30, 38.5); each agrees with its printed cheat-sheet label. Both sources use the 60x44 board scale, confirmed by owner from the printed GHB (2026-10-27). Objective radius 3.79\" = the 3\" control zone around a 40mm marker. The map labels the red territory (side B) as the attacker's and the blue one (side A) as the defender's; attackerSide follows those labels, although the GHB text lets the attacker pick either territory. The terrain locations on the map are an optional suggested layout, so they are not included."
+}

@@ -1,0 +1,14 @@
+{
+  "battleplan": "into-the-fire",
+  "note": "Authored layout. Positions follow the terrain icons on the community cheat sheet (transcribed in aos-guru as terrainHints, accurate to about 1-2 inches); footprint sizes and rotations are approximations chosen for this app. The two spires are the Places of Power, one wholly within each territory.",
+  "features": [
+    { "id": "ruin-nw", "name": "Ruin", "kind": "ruin", "x": 15, "y": 4.5, "w": 7, "h": 4, "rot": 0 },
+    { "id": "ruin-n", "name": "Ruin", "kind": "ruin", "x": 38, "y": 12, "w": 7, "h": 4, "rot": 30 },
+    { "id": "spire-e", "name": "Place of Power", "kind": "spire", "x": 53, "y": 17, "w": 5, "h": 5, "rot": 0 },
+    { "id": "outcrop-w", "name": "Outcrop", "kind": "outcrop", "x": 22, "y": 17, "w": 5, "h": 3.5, "rot": -20 },
+    { "id": "spire-w", "name": "Place of Power", "kind": "spire", "x": 7, "y": 28, "w": 5, "h": 5, "rot": 0 },
+    { "id": "outcrop-e", "name": "Outcrop", "kind": "outcrop", "x": 37, "y": 28, "w": 5, "h": 3.5, "rot": -20 },
+    { "id": "ruin-s", "name": "Ruin", "kind": "ruin", "x": 22, "y": 33, "w": 7, "h": 4, "rot": 30 },
+    { "id": "ruin-se", "name": "Ruin", "kind": "ruin", "x": 44, "y": 40, "w": 7, "h": 4, "rot": 0 }
+  ]
+}

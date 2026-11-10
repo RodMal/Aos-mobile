@@ -1,0 +1,10 @@
+{
+  // The whole app, including the UI and worker entry points, with DOM and WebWorker libs.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "WebWorker"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "data/**/*.json"]
+}

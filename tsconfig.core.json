@@ -1,0 +1,17 @@
+{
+  // The game core: geometry, engine, rules, NPC and data. No DOM lib, so anything here runs
+  // unchanged in a Web Worker and in Node tests. A DOM reference fails typecheck.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": [
+    "src/geom/**/*.ts",
+    "src/engine/**/*.ts",
+    "src/rules/**/*.ts",
+    "src/ai/**/*.ts",
+    "src/data/**/*.ts",
+    "data/**/*.json"
+  ]
+}

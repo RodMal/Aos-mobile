@@ -1,0 +1,5 @@
+{
+  // Editor entry point. `pnpm typecheck` runs the three project configs separately.
+  "extends": "./tsconfig.app.json",
+  "include": ["src", "data/**/*.json", "tests", "scripts", "*.config.ts"]
+}
