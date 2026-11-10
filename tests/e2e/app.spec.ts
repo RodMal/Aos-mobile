@@ -14,7 +14,7 @@ import {
 test('loads with both armies on the table', async ({ page }) => {
   await startGame(page);
   await expect(page.locator('[data-unit-id^="0:"] [data-model]')).toHaveCount(30);
-  await expect(page.locator('[data-unit-id^="1:"] [data-model]')).toHaveCount(51);
+  await expect(page.locator('[data-unit-id^="1:"] [data-model]')).toHaveCount(43);
   await expect(page.getByTestId('round')).toContainText('Round 1');
   await expect(page.getByTestId('decision')).toContainText('Your hero phase');
 });
@@ -133,9 +133,9 @@ test('passing every phase reaches battle round 2', async ({ page }) => {
     const ok = page.getByTestId('confirm-ok');
     if (await ok.isVisible()) await ok.click();
   }
-  // The opponent passes through its turn on its own.
-  await expect(page.getByTestId('round')).toContainText('Round 2', { timeout: 10_000 });
-  await expect(page.getByTestId('turn')).toHaveText('Your turn');
+  // The opponent plays its turn on its own; round 2 then starts with a priority roll, so
+  // either player may have the first turn.
+  await expect(page.getByTestId('round')).toContainText('Round 2', { timeout: 30_000 });
 });
 
 test('reloading the page resumes the same game', async ({ page }) => {

@@ -1,8 +1,10 @@
 /** Nothing selected: the current decision in words and its one obvious button. */
-import type { Decision } from '../../engine/index.js';
+import { useMemo } from 'react';
+import { aliveCount, unitsOf, type Decision } from '../../engine/index.js';
 import { dispatch, endPhase, phaseName } from '../game/actions.js';
-import { playerName } from '../game/engine.js';
-import { useDecision, useHuman } from '../game/hooks.js';
+import { engine, playerName } from '../game/engine.js';
+import { useDecision, useGameState, useHuman } from '../game/hooks.js';
+import { useUi } from '../game/uiStore.js';
 
 function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
   const mine = d.player === human;
@@ -23,7 +25,7 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
     }
     case 'fightPick':
       return mine
-        ? { title: 'Pick a unit to fight', hint: 'Highlighted units can fight now.' }
+        ? { title: 'Pick a unit to fight', hint: 'These units can fight now.' }
         : { title: `${who} pick a unit to fight`, hint: 'The opponent is choosing…' };
     case 'place':
       return mine
@@ -44,6 +46,36 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
   }
 }
 
+/**
+ * The human's units that can do something under the current decision, as one-tap chips.
+ * Finding a highlighted unit on a small screen is slow; this is the shortcut.
+ */
+export function ReadyUnits({ label }: { label: string }) {
+  const state = useGameState();
+  const human = useHuman();
+  const ready = useMemo(
+    () => unitsOf(state, human).filter((u) => engine.unitOptions(state, u.id).length > 0),
+    [state, human],
+  );
+  if (ready.length === 0) return null;
+  const choose = (id: string) => {
+    const ui = useUi.getState();
+    ui.select(id);
+    ui.moveCamera({ kind: 'unit', unit: id, zoom: true, onlyIfHidden: false });
+  };
+  return (
+    <div className="ready" data-testid="ready-units">
+      <span className="ready-label">{label}</span>
+      {ready.map((u) => (
+        <button key={u.id} className="chip" data-ready-unit={u.id} onClick={() => choose(u.id)}>
+          {u.name}
+          {u.models.length > 1 && <span className="chip-count">{aliveCount(u)}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function DecisionPanel() {
   const d = useDecision();
   const human = useHuman();
@@ -62,6 +94,8 @@ export function DecisionPanel() {
         <h2 className="panel-title">{title}</h2>
         <p className="panel-hint">{hint}</p>
       </div>
+      {mine && d.kind === 'main' && <ReadyUnits label="Can act" />}
+      {mine && d.kind === 'fightPick' && <ReadyUnits label="Can fight" />}
       {mine && d.kind === 'main' && (
         <button className="btn primary wide" onClick={endPhase} data-testid="end-phase">
           End {phaseName(d.phase).toLowerCase()} phase

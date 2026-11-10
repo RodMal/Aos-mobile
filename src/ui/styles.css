@@ -722,6 +722,50 @@ button {
   gap: 8px;
 }
 
+/* Units that can act now, as a row of chips that scrolls sideways. */
+.ready {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0 10px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.ready::-webkit-scrollbar {
+  display: none;
+}
+.ready-label {
+  flex: none;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 2px;
+}
+.chip {
+  flex: none;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--friendly);
+  background: rgba(90, 169, 255, 0.1);
+  font-size: 13.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.chip:active {
+  background: rgba(90, 169, 255, 0.25);
+}
+.chip-count {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
 .details-toggle {
   justify-content: space-between;
   padding: 0 4px;

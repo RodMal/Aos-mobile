@@ -6,6 +6,7 @@ import { useGameState, useHuman, useHumanDecision } from '../game/hooks.js';
 import { useUi } from '../game/uiStore.js';
 import { Icon } from '../components/Icon.js';
 import { FullCard, StatLine } from '../components/UnitCard.js';
+import { ReadyUnits } from './DecisionPanel.js';
 
 export function UnitPanel({ unitId }: { unitId: string }) {
   const state = useGameState();
@@ -66,6 +67,10 @@ export function UnitPanel({ unitId }: { unitId: string }) {
             </button>
           ))}
         </div>
+      )}
+      {/* This unit has nothing to do: point at the ones that do, so the prompt is not hidden. */}
+      {options.length === 0 && (decision?.kind === 'main' || decision?.kind === 'fightPick') && (
+        <ReadyUnits label={decision.kind === 'fightPick' ? 'Can fight' : 'Can act'} />
       )}
       {options.length === 0 && decision?.kind === 'main' && (
         <button className="btn primary wide" onClick={endPhase} data-testid="end-phase">

@@ -150,8 +150,8 @@ export const SYLVANETH_LORDS_OF_THE_CLAN: ArmyList = {
 };
 
 /**
- * Stand-in Seraphon list so the game is playable before the owner supplies theirs.
- * Replace with the real list; no Seraphon faction rules are written against this one.
+ * A second legal Seraphon army, kept as a fixture for the engine's unit tests. The app and
+ * the simulations play the owner's list, `SERAPHON_SUNCLAW_STARHOST`.
  */
 export const SERAPHON_PLACEHOLDER: ArmyList = {
   id: 'seraphon-placeholder',

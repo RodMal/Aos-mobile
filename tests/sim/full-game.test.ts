@@ -5,7 +5,7 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { chooseAction } from '../../src/ai/baseline.js';
-import { SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from '../../src/data/lists.js';
+import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../../src/data/lists.js';
 import {
   createEngine,
   createScenario,
@@ -103,7 +103,7 @@ const results: { seed: number; winner: GameState['winner']; vp: [number, number]
   [];
 
 describe('full games, baseline NPC against itself', () => {
-  const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
+  const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
   const engine = createEngine(scenario);
   engine.newGame(0); // warm the set-up cache
 
