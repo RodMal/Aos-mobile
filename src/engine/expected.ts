@@ -96,7 +96,8 @@ function perAttack(
 ): ExpectedDamage {
   const dmg = Math.max(0, diceMean(weapon.damage) + mods.damage);
   const ph = pHit(weapon.hit, mods.hit);
-  const pc = pCrit();
+  // Without a Crit ability a 6 is an ordinary hit roll: it hits if the modified roll does.
+  const pc = crit !== null ? pCrit() : 6 + mods.hit >= weapon.hit ? 1 / 6 : 0;
   const pw = pWound(weapon.wound, mods.wound);
   const pUnsaved = 1 - pSave(target.save, weapon.rend + mods.rend, mods.save);
   const pwf = pWardFail(target.ward);

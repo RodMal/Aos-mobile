@@ -48,8 +48,7 @@ export const COMMANDS: Record<CommandId, CommandDefinition> = {
     phases: ['shooting', 'combat'],
     turn: 'any',
     implemented: true,
-    effect:
-      'Add 1 to hit rolls for that attack, including Companion weapons. For the rest of the turn, subtract 1 from save rolls for that unit.',
+    effect: 'Add 1 to hit rolls for that attack, including Companion weapons.',
   },
   allOutDefence: {
     id: 'allOutDefence',

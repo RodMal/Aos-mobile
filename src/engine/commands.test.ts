@@ -112,7 +112,7 @@ describe('At the Double', () => {
 });
 
 describe('All-out Attack', () => {
-  it('costs 1 CP, adds 1 to hit for those attacks and -1 save for the rest of the turn', () => {
+  it('costs 1 CP and adds 1 to hit for those attacks, with no save penalty', () => {
     const s = passTo(engine, arena(), 'shooting');
     s.players[1].cp = 0;
     const weaponId = engine.targetOptions(s, DURTHU, 'shoot')[0]!.weaponId;
@@ -125,9 +125,11 @@ describe('All-out Attack', () => {
     expect(r.events[0]).toEqual({ t: 'command', player: 0, command: 'allOutAttack', unit: DURTHU });
     expect(r.state.players[0].cp).toBe(3);
     expect(r.state.units[DURTHU]!.allOutAttack).toBe(true);
-    // An enemy shooting Durthu now sees the save penalty in its expected damage.
+    // All-out Attack does not make the unit easier to hurt (owner's ruling: +1 to hit only).
+    // Compare the same position with and without the flag, so casualties do not interfere.
     const plain = editable(s);
-    const flagged = editable(r.state);
+    const flagged = editable(s);
+    flagged.units[DURTHU]!.allOutAttack = true;
     for (const st of [plain, flagged]) {
       st.active = 1;
       st.units[SKINKS]!.shot = false;
@@ -135,7 +137,7 @@ describe('All-out Attack', () => {
     const exp = (st: GameState): number =>
       engine.targetOptions(st, SKINKS, 'shoot')[0]!.targets.find((t) => t.unit === DURTHU)!
         .expectedDamage;
-    expect(exp(flagged)).toBeGreaterThan(exp(plain));
+    expect(exp(flagged)).toBeCloseTo(exp(plain));
   });
 
   it('cannot be used without CP', () => {

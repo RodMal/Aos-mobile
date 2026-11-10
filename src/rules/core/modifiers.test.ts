@@ -97,7 +97,7 @@ describe('attackModifiers', () => {
     expect(mods).toMatchObject({ hit: 1, save: 1 });
   });
 
-  it('a unit that used All-out Attack this turn saves at -1', () => {
+  it('a unit that used All-out Attack this turn takes no save penalty', () => {
     const mods = sumModifiers(
       attackModifiers(scenario, state, {
         attacker: dryads,
@@ -107,6 +107,6 @@ describe('attackModifiers', () => {
       }),
       w,
     );
-    expect(mods.save).toBe(-1);
+    expect(mods.save).toBe(0);
   });
 });

@@ -21,10 +21,9 @@ export function clampSaveModifier(m: number): number {
   return Math.min(1, m);
 }
 
-/** A hit roll succeeds on an unmodified 6 (a critical hit) or a modified roll that reaches
- * the target; an unmodified 1 always fails. */
+/** A hit roll succeeds when the modified roll reaches the target; an unmodified 1 always
+ * fails. A 6 has no special effect unless the weapon has a Crit ability (owner's ruling). */
 export function hitSucceeds(die: number, hit: number, mod: number): boolean {
-  if (die === 6) return true;
   return die !== 1 && die + mod >= hit;
 }
 
@@ -89,14 +88,15 @@ export function rollAttackSequence(rng: RngCursor, input: AttackInput): AttackRo
   const crit = input.crit !== undefined ? input.crit : chooseCrit(weapon, mods, target);
   const damageRoll = (): number => Math.max(0, rollDice(rng, weapon.damage) + mods.damage);
 
-  // 1. Hit rolls. An unmodified 6 is a critical hit.
+  // 1. Hit rolls. An unmodified 6 is a critical hit only for a weapon with a Crit ability;
+  // otherwise it is an ordinary roll.
   const hitDice: number[] = [];
   let hits = 0;
   let crits = 0;
   for (let i = 0; i < input.attacks; i++) {
     const die = rng.int(1, 6);
     hitDice.push(die);
-    if (die === 6) crits++;
+    if (die === 6 && crit !== null) crits++;
     else if (hitSucceeds(die, weapon.hit, mods.hit)) hits++;
   }
   let toWound = hits;

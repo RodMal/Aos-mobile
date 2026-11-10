@@ -72,7 +72,7 @@ export interface UnitState {
   chargeDeclared?: boolean;
   /** The command this unit has used in the current phase (a unit may use one per phase). */
   commandUsed?: CommandId | null;
-  /** The unit used All-out Attack this turn: subtract 1 from its save rolls until the turn ends. */
+  /** The unit used All-out Attack this turn. */
   allOutAttack?: boolean;
 }
 

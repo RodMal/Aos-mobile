@@ -71,9 +71,6 @@ export function attackModifiers(
     out.push({ stat: 'hit', value: 1, source: 'All-out Attack', appliesToCompanion: true });
   }
   if (a.allOutDefence) out.push({ stat: 'save', value: 1, source: 'All-out Defence' });
-  if (a.target.allOutAttack) {
-    out.push({ stat: 'save', value: -1, source: 'All-out Attack (this turn)' });
-  }
   return out;
 }
 

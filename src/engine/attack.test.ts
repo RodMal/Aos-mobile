@@ -36,8 +36,9 @@ describe('roll success', () => {
     expect(saveSucceeds(1, 2, 0, 1)).toBe(false);
   });
 
-  it('an unmodified 6 always hits (it is a critical hit)', () => {
-    expect(hitSucceeds(6, 6, -1)).toBe(true);
+  it('a 6 is an ordinary hit roll: modifiers can make it miss', () => {
+    expect(hitSucceeds(6, 6, 0)).toBe(true);
+    expect(hitSucceeds(6, 6, -1)).toBe(false);
   });
 
   it('applies the modifier to the roll', () => {
