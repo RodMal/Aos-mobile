@@ -68,6 +68,12 @@ export interface UnitState {
   charged: boolean;
   shot: boolean;
   fought: boolean;
+  /** Set once the unit has declared a charge this turn, whether or not the charge succeeded. */
+  chargeDeclared?: boolean;
+  /** The command this unit has used in the current phase (a unit may use one per phase). */
+  commandUsed?: CommandId | null;
+  /** The unit used All-out Attack this turn: subtract 1 from its save rolls until the turn ends. */
+  allOutAttack?: boolean;
 }
 
 export interface PlayerState {
@@ -75,6 +81,8 @@ export interface PlayerState {
   vp: number;
   /** Victory points scored in each battle round so far (index 0 is round 1). */
   vpByRound: number[];
+  /** Commands this army has used in the current phase (each command once per army per phase). */
+  commandsUsed?: CommandId[];
 }
 
 export interface ObjectiveState {
@@ -98,7 +106,20 @@ export type Frame =
       dice: number[];
     }
   | { t: 'targets'; unit: UnitId; mode: AttackMode }
-  | { t: 'reaction'; player: PlayerId; options: ReactionOption[]; trigger: string };
+  | { t: 'reaction'; player: PlayerId; options: ReactionOption[]; trigger: string }
+  /**
+   * Attacks declared and waiting to be rolled, kept under a `reaction` frame while the
+   * defender decides on All-out Defence. Never the top frame when a decision is asked for.
+   */
+  | {
+      t: 'resolve';
+      unit: UnitId;
+      mode: AttackMode;
+      allocations: Allocation[];
+      allOutAttack: boolean;
+      /** Target units that use All-out Defence against these attacks. */
+      defended: UnitId[];
+    };
 
 export type PlaceReason = MoveKind | 'charge' | 'pileIn';
 export type AttackMode = 'shoot' | 'fight';
@@ -127,6 +148,11 @@ export interface GameState {
    * the player whose pick is next, or null outside the combat phase. */
   fightPicker: PlayerId | null;
   winner: PlayerId | 'draw' | null;
+  /**
+   * The player who last seized the initiative. Their opponent counts as the underdog until
+   * that opponent seizes in turn. Absent or null when nobody has.
+   */
+  seizedBy?: PlayerId | null;
 }
 
 // ─── Decisions ──────────────────────────────────────────────────────────────────
@@ -194,7 +220,13 @@ export type Action =
   /** Answer a choice: priority takes 'first' or 'second'. */
   | { t: 'choose'; value: string }
   /** Declare a move. Run rolls a D6 and retreat rolls its damage; then a `place` follows. */
-  | { t: 'move'; unit: UnitId; kind: MoveKind }
+  | {
+      t: 'move';
+      unit: UnitId;
+      kind: MoveKind;
+      /** With `kind: 'run'`: spend 1 CP on At the Double, so the run roll counts as 6. */
+      atTheDouble?: boolean;
+    }
   /** Answer a `place` decision. */
   | { t: 'place'; placement: Placement }
   /** Shoot: each ranged weapon at one target. Set `allOutAttack` to spend the command. */
@@ -205,7 +237,10 @@ export type Action =
   | { t: 'fight'; unit: UnitId }
   /** Answer a `targets` decision. */
   | { t: 'targets'; allocations: Allocation[]; allOutAttack?: boolean }
-  /** Use a command, in your hero phase (rally) or as a reaction. */
+  /**
+   * Use a command: Rally in your hero phase, At the Double in your movement phase (declares a
+   * run whose roll counts as 6), or All-out Defence as a reaction.
+   */
   | { t: 'command'; command: CommandId; unit: UnitId };
 
 /** What a unit may do under the current `main` or `fightPick` decision. */
