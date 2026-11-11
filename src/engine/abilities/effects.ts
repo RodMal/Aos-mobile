@@ -216,6 +216,11 @@ export function abilityAttackModifiers(
       );
     }
   }
+  // A unit that used All-out Attack this turn has -1 to its save rolls until the end of the
+  // turn (corrected by the owner, 2026-11-11).
+  if (sit.target.allOutAttack) {
+    out.push({ stat: 'save', value: -1, source: 'All-out Attack' });
+  }
   if (sit.allOutDefence) {
     const def = REGISTRY.get('allOutDefence');
     if (def?.effectModifiers) {
