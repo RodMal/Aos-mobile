@@ -192,3 +192,26 @@ test('ending a movement phase with nothing moved asks first', async ({ page }) =
   await page.getByTestId('confirm-ok').click();
   await expect(page.getByTestId('phase').locator('[aria-current="step"]')).toHaveText('Shooting');
 });
+
+test('adapts layout and scales the battlefield when resized to desktop dimensions', async ({
+  page,
+}) => {
+  await startGame(page);
+  const mobileScale = await boardScale(page);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect.poll(() => boardScale(page)).toBeGreaterThan(mobileScale * 1.25);
+  const desktopScale = await boardScale(page);
+
+  const boardBox = (await page.getByTestId('board').boundingBox())!;
+  const sheetBox = (await page.getByTestId('sheet').boundingBox())!;
+  expect(boardBox.width).toBeGreaterThan(950);
+  expect(sheetBox.x).toBeGreaterThanOrEqual(boardBox.x + boardBox.width - 2);
+
+  // Even after zooming or selecting a unit, resizing the window scales the board proportionally.
+  await selectFromRoster(page, '0:6');
+  const zoomedScale = await boardScale(page);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await expect.poll(() => boardScale(page)).toBeGreaterThan(zoomedScale * 1.15);
+  expect(await boardScale(page)).toBeGreaterThan(desktopScale);
+});

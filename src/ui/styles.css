@@ -1356,6 +1356,77 @@ button {
   line-height: 1.4;
 }
 
+/* ── Desktop & wide screens ────────────────────────────────────────────── */
+
+@media (min-width: 820px) {
+  .stage {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .board {
+    position: relative;
+    inset: auto;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+  }
+
+  .sheet {
+    position: relative;
+    inset: auto;
+    width: clamp(340px, 30vw, 420px);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    background: var(--panel);
+    border-left: 1px solid #2b323a;
+  }
+
+  .rail {
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid #262d34;
+    background: #14181d;
+  }
+
+  .rail-col {
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .toast-slot {
+    order: 3;
+    flex: 1 0 100%;
+    justify-content: stretch;
+  }
+
+  .toast-slot:empty {
+    display: none;
+  }
+
+  .toast {
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  .sheet-body,
+  .sheet.expanded .sheet-body {
+    flex: 1;
+    max-height: none;
+    border-radius: 0;
+    border-top: none;
+    box-shadow: none;
+    padding: 14px;
+  }
+
+  .sheet-body::before {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

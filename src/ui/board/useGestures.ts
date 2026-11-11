@@ -24,7 +24,9 @@ export interface GestureHandlers {
   /** A ghost or model drag moved by (dx, dy) inches in table space. */
   onDrag(kind: Exclude<DragKind, 'pan'>, dx: number, dy: number): void;
   onDragEnd(): void;
-  /** The user moved the view, so any camera animation should stop. */
+  /** Pointer touched down on the board, so any in-flight camera animation should stop. */
+  onPointerDown?(): void;
+  /** The user panned or zoomed the view manually. */
   onUserView(): void;
 }
 
@@ -85,12 +87,13 @@ export function useGestures(target: RefObject<SVGSVGElement | null>, refs: Gestu
       el.setPointerCapture?.(e.pointerId);
       const p = local(e);
       pointers.set(e.pointerId, p);
-      refs.handlers.current?.onUserView();
+      refs.handlers.current?.onPointerDown?.();
       if (pointers.size === 1) {
         const kind = refs.handlers.current?.dragKindAt(p) ?? 'pan';
         mode = { t: 'pending', kind, start: p, at: e.timeStamp, last: p };
       } else if (pointers.size === 2) {
         endDrag();
+        refs.handlers.current?.onUserView();
         mode = pinchStart();
       }
       e.preventDefault();
@@ -106,7 +109,12 @@ export function useGestures(target: RefObject<SVGSVGElement | null>, refs: Gestu
         case 'pending': {
           if (Math.hypot(p.x - mode.start.x, p.y - mode.start.y) < TAP_SLOP_PX) return;
           const last = mode.start;
-          mode = mode.kind === 'pan' ? { t: 'pan', last } : { t: 'drag', kind: mode.kind, last };
+          if (mode.kind === 'pan') {
+            refs.handlers.current?.onUserView();
+            mode = { t: 'pan', last };
+          } else {
+            mode = { t: 'drag', kind: mode.kind, last };
+          }
           move(e);
           return;
         }

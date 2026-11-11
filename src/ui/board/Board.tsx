@@ -25,6 +25,7 @@ import {
   frameView,
   clampScale,
   clampView,
+  fitScale,
   fitView,
   isVisible,
   lerpView,
@@ -147,6 +148,9 @@ export function Board() {
         });
       },
       onDragEnd() {},
+      onPointerDown() {
+        cancelAnimationFrame(anim.current);
+      },
       onUserView() {
         userMoved.current = true;
         cancelAnimationFrame(anim.current);
@@ -205,6 +209,7 @@ export function Board() {
     if (!svg) return;
     const measure = () => {
       const r = svg.getBoundingClientRect();
+      const prevVp = vpRef.current;
       const vp: Viewport = {
         w: r.width,
         h: r.height,
@@ -215,6 +220,11 @@ export function Board() {
       const v = viewRef.current;
       if (!v || !userMoved.current || v.rot !== rot) {
         viewRef.current = fitView(vp, TABLE, rot);
+      } else if (prevVp && (Math.abs(prevVp.w - vp.w) > 1 || Math.abs(prevVp.h - vp.h) > 1)) {
+        const focus = screenToTable(v, visibleCentre(prevVp));
+        const ratio = fitScale(vp, TABLE, rot) / Math.max(1e-6, fitScale(prevVp, TABLE, rot));
+        const scale = clampScale(v.scale * ratio, vp, TABLE, rot);
+        viewRef.current = clampView(centreOn(v, focus, vp, scale), vp, TABLE);
       } else {
         viewRef.current = clampView(
           { ...v, scale: clampScale(v.scale, vp, TABLE, rot) },

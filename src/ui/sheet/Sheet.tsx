@@ -20,12 +20,22 @@ export function Sheet() {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
+    const update = () => {
+      if (getComputedStyle(el).position !== 'absolute') {
+        setSheetHeight(0);
+        return;
+      }
       // Only the collapsed height counts for the board: an expanded card is a temporary overlay.
       if (!useUi.getState().sheetExpanded) setSheetHeight(el.getBoundingClientRect().height);
-    });
+    };
+    update();
+    const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener('resize', update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', update);
+    };
   }, [setSheetHeight]);
 
   let content;
