@@ -81,6 +81,8 @@ export function useGestures(target: RefObject<SVGSVGElement | null>, refs: Gestu
     const endDrag = () => {
       if (mode.t === 'drag') refs.handlers.current?.onDragEnd();
     };
+    // The cursor shows a closed hand while the board is being dragged (mouse only matters).
+    const grabbing = (on: boolean) => el.classList.toggle('grabbing', on);
 
     const down = (e: PointerEvent) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -109,6 +111,7 @@ export function useGestures(target: RefObject<SVGSVGElement | null>, refs: Gestu
         case 'pending': {
           if (Math.hypot(p.x - mode.start.x, p.y - mode.start.y) < TAP_SLOP_PX) return;
           const last = mode.start;
+          grabbing(true);
           if (mode.kind === 'pan') {
             refs.handlers.current?.onUserView();
             mode = { t: 'pan', last };
@@ -151,6 +154,7 @@ export function useGestures(target: RefObject<SVGSVGElement | null>, refs: Gestu
         refs.handlers.current?.onTap(mode.start);
       }
       endDrag();
+      if (pointers.size === 0) grabbing(false);
       if (pointers.size === 0) mode = { t: 'idle' };
       else if (pointers.size === 1) mode = { t: 'done' };
       else if (pointers.size >= 2) mode = pinchStart();

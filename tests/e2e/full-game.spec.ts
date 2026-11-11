@@ -5,7 +5,7 @@
  * the engine can raise during a game has a way through the touch UI to the result screen.
  */
 import { expect, test } from '@playwright/test';
-import { minimalPlayerStep as step, startGame, usable } from './helpers.js';
+import { isDesktop, minimalPlayerStep as step, startGame, usable } from './helpers.js';
 
 test('a full five-round game can be played to the result screen', async ({ page }) => {
   test.setTimeout(180_000);
@@ -46,6 +46,7 @@ test('a full five-round game can be played to the result screen', async ({ page 
 });
 
 test('a charge can be declared, placed in contact and fought', async ({ page }) => {
+  test.skip(isDesktop(), 'the full game above already runs on desktop; the charge flow is clicks');
   test.setTimeout(180_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));

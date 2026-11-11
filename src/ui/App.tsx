@@ -12,6 +12,7 @@ import { useDecision, useGameState, useHuman } from './game/hooks.js';
 import { useGame } from './game/instance.js';
 import { useUi } from './game/uiStore.js';
 import { TopBar } from './hud/TopBar.js';
+import { useKeyboard } from './hud/useKeyboard.js';
 import { createNpcClient } from './npc/npcClient.js';
 import { Chooser, ConfirmDialog, DecisionPrompts, GameEnd } from './prompts/Prompts.js';
 import { Sheet } from './sheet/Sheet.js';
@@ -87,6 +88,7 @@ export function App() {
   useDecisionSync();
   useNpc();
   useNpcCamera();
+  useKeyboard();
   const drawer = useUi((s) => s.drawer);
   const gameId = useGame((s) => s.gameId);
   return (

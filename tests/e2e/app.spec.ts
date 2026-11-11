@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
+  ahead,
   boardPoint,
   boardScale,
   endPhaseUntil,
@@ -8,7 +9,9 @@ import {
   pinch,
   selectFromRoster,
   startGame,
-  touchDrag,
+  drag,
+  isDesktop,
+  tapAt,
 } from './helpers.js';
 
 test('loads with both armies on the table', async ({ page }) => {
@@ -19,15 +22,15 @@ test('loads with both armies on the table', async ({ page }) => {
   await expect(page.getByTestId('decision')).toContainText('Your hero phase');
 });
 
-test('tapping a unit on the board opens its card with full ability text', async ({ page }) => {
+test('tapping or clicking a unit on the board opens its card with full ability text', async ({
+  page,
+}) => {
   await startGame(page);
   // Zoom in on the Dryads first so the tap is unambiguous, then tap one of their models.
   await selectFromRoster(page, '0:6');
   await page.getByRole('button', { name: 'Close' }).click();
   await expect(page.getByTestId('unit-panel')).toHaveCount(0);
-  await page.touchscreen.tap(
-    ...(Object.values(await modelCentre(page, '0:6', 4)) as [number, number]),
-  );
+  await tapAt(page, await modelCentre(page, '0:6', 4));
   await expect(page.getByTestId('unit-panel')).toHaveAttribute('data-unit', '0:6');
   await expect(page.getByTestId('unit-name')).toHaveText('Dryads');
   await expect(page.getByTestId('stat-line')).toContainText('6"');
@@ -45,17 +48,16 @@ test('the roster selects enemy units too, without actions', async ({ page }) => 
   await expect(page.locator('[data-unit-id="1:5"]')).toHaveClass(/selected/);
 });
 
-test('a full move: select, Move, drag the ghost by touch, confirm', async ({ page }) => {
+test('a full move: select, Move, drag the ghost, confirm', async ({ page }) => {
   await startGame(page);
   await endPhaseUntil(page, /Movement/);
   await selectFromRoster(page, '0:6');
   const before = await modelTablePos(page, '[data-unit-id="0:6"] [data-model="0"]');
   await page.locator('[data-action="normal"]').click();
   await expect(page.getByTestId('place-panel')).toBeVisible();
-  const scale = await boardScale(page);
   const from = await boardPoint(page);
   // Player 0 sits at the bottom: screen up is towards the enemy (+x on the table).
-  await touchDrag(page, from, { x: from.x, y: from.y - 3 * scale });
+  await drag(page, from, await ahead(page, from, 3));
   await expect(page.getByTestId('place-status')).toContainText('Ready to confirm');
   await expect(page.getByTestId('measure')).toContainText('3');
   await page.getByTestId('place-confirm').click();
@@ -73,9 +75,8 @@ test('an illegal move shows the reason and cannot be confirmed', async ({ page }
   await endPhaseUntil(page, /Movement/);
   await selectFromRoster(page, '0:6');
   await page.locator('[data-action="normal"]').click();
-  const scale = await boardScale(page);
   const from = await boardPoint(page);
-  await touchDrag(page, from, { x: from.x, y: Math.max(5, from.y - 9 * scale) });
+  await drag(page, from, await ahead(page, from, 9));
   await expect(page.getByTestId('place-status')).toContainText('Models can move up to 6"');
   await expect(page.getByTestId('place-confirm')).toBeDisabled();
   await expect(page.locator('.ghost.bad').first()).toBeVisible();
@@ -96,8 +97,7 @@ test('a single model can be adjusted', async ({ page }) => {
   const others = await modelTablePos(page, '[data-ghost-model="1"]');
   const before = await modelTablePos(page, '[data-ghost-model="0"]');
   const start = await modelCentre(page, '0:6', 0, true);
-  const scale = await boardScale(page);
-  await touchDrag(page, start, { x: start.x, y: start.y - 0.5 * scale });
+  await drag(page, start, await ahead(page, start, 0.5));
   const after = await modelTablePos(page, '[data-ghost-model="0"]');
   expect(after.x - before.x).toBeGreaterThan(0.3);
   expect(await modelTablePos(page, '[data-ghost-model="1"]')).toEqual(others);
@@ -105,6 +105,7 @@ test('a single model can be adjusted', async ({ page }) => {
 });
 
 test('pinch-zoom and the zoom buttons change the scale', async ({ page }) => {
+  test.skip(isDesktop(), 'touch gesture; desktop.spec covers the wheel');
   await startGame(page);
   const s0 = await boardScale(page);
   await pinch(page, await boardPoint(page), 80, 240);
@@ -113,7 +114,7 @@ test('pinch-zoom and the zoom buttons change the scale', async ({ page }) => {
   // One finger pans without zooming.
   const p = await boardPoint(page);
   const anchor = await modelCentre(page, '0:0', 0);
-  await touchDrag(page, p, { x: p.x + 60, y: p.y + 40 });
+  await drag(page, p, { x: p.x + 60, y: p.y + 40 });
   const moved = await modelCentre(page, '0:0', 0);
   expect(moved.x - anchor.x).toBeCloseTo(60, -1);
   expect(await boardScale(page)).toBeCloseTo(s1, 3);
@@ -143,9 +144,8 @@ test('reloading the page resumes the same game', async ({ page }) => {
   await endPhaseUntil(page, /Movement/);
   await selectFromRoster(page, '0:7');
   await page.locator('[data-action="normal"]').click();
-  const scale = await boardScale(page);
   const from = await boardPoint(page);
-  await touchDrag(page, from, { x: from.x, y: from.y - 2 * scale });
+  await drag(page, from, await ahead(page, from, 2));
   await page.getByTestId('place-confirm').click();
   const moved = await modelTablePos(page, '[data-unit-id="0:7"] [data-model="0"]');
   await page.reload();
@@ -156,6 +156,7 @@ test('reloading the page resumes the same game', async ({ page }) => {
 });
 
 test('playing as Seraphon puts their army at the bottom', async ({ page }) => {
+  test.skip(isDesktop(), 'the desktop table is shown flat, not turned bottom-up');
   await startGame(page, 'seed=3&side=1&fast=1&new=1');
   const ours = await modelCentre(page, '1:5', 0);
   const theirs = await modelCentre(page, '0:6', 0);
@@ -170,9 +171,8 @@ test('undo reverts a move that rolled no dice', async ({ page }) => {
   await selectFromRoster(page, '0:6');
   const before = await modelTablePos(page, '[data-unit-id="0:6"] [data-model="0"]');
   await page.locator('[data-action="normal"]').click();
-  const scale = await boardScale(page);
   const from = await boardPoint(page);
-  await touchDrag(page, from, { x: from.x, y: from.y - 2 * scale });
+  await drag(page, from, await ahead(page, from, 2));
   await page.getByTestId('place-confirm').click();
   await page.getByRole('button', { name: 'Undo' }).click();
   // Back to placing the unit, which is where it started.
@@ -196,6 +196,7 @@ test('ending a movement phase with nothing moved asks first', async ({ page }) =
 test('adapts layout and scales the battlefield when resized to desktop dimensions', async ({
   page,
 }) => {
+  test.skip(isDesktop(), 'already desktop sized');
   await startGame(page);
   const mobileScale = await boardScale(page);
 

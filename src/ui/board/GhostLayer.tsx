@@ -69,7 +69,9 @@ export function GhostLayer({ rot }: { rot: Rot }) {
             dy="0.35em"
             data-testid="measure"
           >
-            {`${inches(Math.round(dist * 10) / 10)} / ${inches(allowance)}`}
+            {Number.isFinite(allowance)
+              ? `${inches(Math.round(dist * 10) / 10)} / ${inches(allowance)}`
+              : inches(Math.round(dist * 10) / 10)}
           </text>
         </g>
       )}

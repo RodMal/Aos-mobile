@@ -10,6 +10,7 @@ import { COMMAND_NAMES } from '../game/eventText.js';
 import { useGameState, useHumanDecision } from '../game/hooks.js';
 import { useUi } from '../game/uiStore.js';
 import { AbilityView } from '../components/AbilityView.js';
+import { tapWord } from '../components/pointer.js';
 
 /** A line on how the roll works, for abilities with no printed text of their own. */
 const HOW: Record<string, string> = {
@@ -78,7 +79,9 @@ export function AbilityPanel() {
         <p className="panel-hint">
           {unit.name}
           {needsTarget &&
-            (pick.target ? ' · target chosen' : ' · tap a highlighted unit or a name')}
+            (pick.target
+              ? ' · target chosen'
+              : ` · ${tapWord().toLowerCase()} a highlighted unit or a name`)}
         </p>
       </header>
       <div className="ability-text">
