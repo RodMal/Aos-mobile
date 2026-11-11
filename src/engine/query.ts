@@ -160,7 +160,19 @@ export function unitsWithin(
   return footprintsWithin(unitFootprints(scenario, a), unitFootprints(scenario, b), range);
 }
 
-/** `unitsWithin(unit, enemy)` for each enemy, building the unit's own circle and bases once. */
+/**
+ * True for faction terrain (Awakened Wyldwood, Realmshaper Engine). Owner's ruling,
+ * 2026-11-11: it never acts, cannot be charged, never puts units in combat, and is a unit
+ * only in the combat phase, where units within 3" of it may attack it.
+ */
+export function isFactionTerrainUnit(scenario: Scenario, unit: UnitState): boolean {
+  return profileOf(scenario, unit).isFactionTerrain;
+}
+
+/**
+ * `unitsWithin(unit, enemy)` for each enemy, building the unit's own circle and bases once.
+ * Enemy faction terrain is skipped unless `includeTerrain`.
+ */
 function forEnemiesWithin(
   scenario: Scenario,
   state: GameState,
@@ -168,10 +180,12 @@ function forEnemiesWithin(
   range: number,
   /** Return false to stop early. */
   visit: (enemy: UnitState) => boolean,
+  includeTerrain = false,
 ): void {
   const bu = unitBounds(scenario, unit);
   let fps: Footprint[] | null = null;
   for (const enemy of unitsOf(state, opponent(unit.owner))) {
+    if (!includeTerrain && isFactionTerrainUnit(scenario, enemy)) continue;
     const be = unitBounds(scenario, enemy);
     if (Math.hypot(bu.x - be.x, bu.y - be.y) - bu.r - be.r > range + DIST_EPS) continue;
     fps ??= unitFootprints(scenario, unit);
@@ -180,19 +194,38 @@ function forEnemiesWithin(
   }
 }
 
-/** Enemy units within `range` of `unit`. */
+/** Enemy units within `range` of `unit` (enemy faction terrain only with `includeTerrain`). */
 export function enemiesWithin(
   scenario: Scenario,
   state: GameState,
   unit: UnitState,
   range: number,
+  includeTerrain = false,
 ): UnitState[] {
   const out: UnitState[] = [];
-  forEnemiesWithin(scenario, state, unit, range, (enemy) => {
-    out.push(enemy);
-    return true;
-  });
+  forEnemiesWithin(
+    scenario,
+    state,
+    unit,
+    range,
+    (enemy) => {
+      out.push(enemy);
+      return true;
+    },
+    includeTerrain,
+  );
   return out;
+}
+
+/** True when `unit` is within 3" of enemy faction terrain, so it may attack it. */
+export function nearEnemyFactionTerrain(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+): boolean {
+  return enemiesWithin(scenario, state, unit, COMBAT_RANGE, true).some((e) =>
+    isFactionTerrainUnit(scenario, e),
+  );
 }
 
 /** Enemy units in combat with `unit` (within 3"). */
@@ -229,6 +262,7 @@ export function gapToEnemies(
 ): number {
   let best = Infinity;
   for (const enemy of unitsOf(state, opponent(owner))) {
+    if (isFactionTerrainUnit(scenario, enemy)) continue;
     for (const efp of unitFootprints(scenario, enemy)) {
       const d = footprintGap(fp, efp);
       if (d < best) best = d;

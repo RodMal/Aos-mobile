@@ -159,6 +159,8 @@ export function weaponTargets(
     );
     const own = unitBounds(scenario, unit);
     candidates = unitsOf(state, opponent(unit.owner)).filter((e) => {
+      // Faction terrain is a unit only in the combat phase (owner's ruling).
+      if (profileOf(scenario, e).isFactionTerrain) return false;
       if (!isUnitVisible(scenario, state, unit, e)) return false;
       const b = unitBounds(scenario, e);
       return Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r <= maxRange + 1e-6;
@@ -166,7 +168,8 @@ export function weaponTargets(
   } else {
     weapons = profile.weapons.filter((w) => w.kind === 'melee');
     if (weapons.length === 0) return [];
-    candidates = enemiesWithin(scenario, state, unit, COMBAT_RANGE);
+    // Units within 3" of enemy faction terrain may attack it.
+    candidates = enemiesWithin(scenario, state, unit, COMBAT_RANGE, true);
   }
   const out: WeaponTargets[] = [];
   for (const weapon of weapons) {

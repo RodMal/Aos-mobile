@@ -21,6 +21,8 @@ import {
   enemiesInCombat,
   enemiesWithin,
   inCombat,
+  isFactionTerrainUnit,
+  nearEnemyFactionTerrain,
   opponent,
   profileOf,
   unitById,
@@ -303,7 +305,7 @@ function advancePhase(ctx: Ctx): void {
 // ─── Eligibility ────────────────────────────────────────────────────────────────
 
 function moveOptions(scenario: Scenario, state: GameState, unit: UnitState): UnitOption[] {
-  if (unit.moved !== null || unit.setUpThisTurn) return [];
+  if (unit.moved !== null || unit.setUpThisTurn || isFactionTerrainUnit(scenario, unit)) return [];
   const profile = profileOf(scenario, unit);
   if (profile.move <= 0 && !profile.moveDice) return [];
   if (inCombat(scenario, state, unit)) {
@@ -320,12 +322,24 @@ function moveOptions(scenario: Scenario, state: GameState, unit: UnitState): Uni
 
 function rawEligibleFighters(scenario: Scenario, state: GameState, player: PlayerId): UnitState[] {
   return unitsOf(state, player).filter((u) => {
-    if (u.fought) return false;
+    if (u.fought || isFactionTerrainUnit(scenario, u)) return false;
     if (u.isManifestation && !profileOf(scenario, u).weapons.some((w) => w.kind === 'melee')) {
       return false;
     }
-    return u.charged || inCombat(scenario, state, u);
+    return u.charged || inCombat(scenario, state, u) || optionalFighter(scenario, state, u);
   });
+}
+
+/**
+ * A unit that may fight only because it is within 3" of enemy faction terrain: it is not
+ * obliged to (owner's ruling, 2026-11-11), so the picker may pass for it.
+ */
+function optionalFighter(scenario: Scenario, state: GameState, unit: UnitState): boolean {
+  if (unit.charged || inCombat(scenario, state, unit)) return false;
+  return (
+    profileOf(scenario, unit).weapons.some((w) => w.kind === 'melee') &&
+    nearEnemyFactionTerrain(scenario, state, unit)
+  );
 }
 
 export function currentFightTier(scenario: Scenario, state: GameState): FightTier | null {
@@ -359,6 +373,7 @@ export function eligibleFighters(
 
 function canCharge(scenario: Scenario, state: GameState, unit: UnitState): boolean {
   if (unit.chargeDeclared || unit.moved === 'retreat') return false;
+  if (isFactionTerrainUnit(scenario, unit)) return false;
   if (unit.isManifestation && !profileOf(scenario, unit).weapons.some((w) => w.kind === 'melee')) {
     return false;
   }
@@ -370,6 +385,7 @@ function canCharge(scenario: Scenario, state: GameState, unit: UnitState): boole
 
 function canRally(scenario: Scenario, state: GameState, unit: UnitState): boolean {
   if (commandBlocker(state, unit.owner, 'rally', unit)) return false;
+  if (isFactionTerrainUnit(scenario, unit)) return false;
   if (inCombat(scenario, state, unit)) return false;
   return unit.damage > 0 || unit.models.some((m) => !m.alive);
 }
@@ -377,6 +393,7 @@ function canRally(scenario: Scenario, state: GameState, unit: UnitState): boolea
 function canRedeploy(scenario: Scenario, state: GameState, unit: UnitState): boolean {
   if (commandBlocker(state, unit.owner, 'redeploy', unit)) return false;
   if (inCombat(scenario, state, unit) || unit.moved !== null) return false;
+  if (isFactionTerrainUnit(scenario, unit)) return false;
   return profileOf(scenario, unit).move > 0;
 }
 
@@ -391,6 +408,7 @@ function coveringFireAllocations(
   unit: UnitState,
 ): Allocation[] {
   if (commandBlocker(state, unit.owner, 'coveringFire', unit)) return [];
+  if (isFactionTerrainUnit(scenario, unit)) return [];
   const wts = weaponTargets(scenario, state, unit, 'shoot');
   if (wts.length === 0) return [];
   const allEnemies = unitsOf(state, opponent(unit.owner));
@@ -510,7 +528,14 @@ export function createEngine(scenario: Scenario): Engine {
     }
     if (state.phase === 'combat') {
       const picker = fightPickerFor(state);
-      if (picker !== null) return { kind: 'fightPick', player: picker, canPass: false };
+      if (picker !== null) {
+        // Passing is allowed only when every unit the picker could fight with is merely
+        // near enemy faction terrain.
+        const canPass = eligibleFighters(scenario, state, picker).every((u) =>
+          optionalFighter(scenario, state, u),
+        );
+        return { kind: 'fightPick', player: picker, canPass };
+      }
     }
     return { kind: 'main', player: state.active, phase: state.phase };
   }
@@ -519,6 +544,7 @@ export function createEngine(scenario: Scenario): Engine {
     const d = decision(state);
     const unit = state.units[unitId];
     if (!d || !unit || unit.status !== 'battlefield' || unit.owner !== d.player) return [];
+    if (isFactionTerrainUnit(scenario, unit)) return [];
     const top = state.stack[state.stack.length - 1];
     if (top?.t === 'magicalIntervention') {
       if (top.unit !== unitId) return [];
@@ -1220,6 +1246,9 @@ export function createEngine(scenario: Scenario): Engine {
     const unit = state.units[unitId];
     if (!unit) illegal(`There is no unit "${unitId}".`);
     if (unit.owner !== player) illegal(`${unit.name} belongs to the other player.`);
+    if (isFactionTerrainUnit(scenario, unit)) {
+      illegal(`${unit.name} is faction terrain: it cannot move, shoot, charge or fight.`);
+    }
     return unit;
   }
 
@@ -1345,7 +1374,10 @@ export function createEngine(scenario: Scenario): Engine {
         break;
       case 'fightPick':
         if (action.t === 'fight') declareFight(ctx, d.player, action.unit);
-        else if (action.t === 'pass' && d.canPass) advancePhase(ctx);
+        else if (action.t === 'pass' && d.canPass) {
+          // Declines to attack faction terrain with every optional fighter of this tier.
+          for (const u of eligibleFighters(scenario, s, d.player)) s.units[u.id]!.fought = true;
+        }
         else illegal('Pick a unit to fight.');
         break;
       case 'targets':

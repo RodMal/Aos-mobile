@@ -183,7 +183,12 @@ export function buildProfile(warscroll: Warscroll, reinforced = false): UnitProf
     banishment: warscroll.stats.banishment ? parseTarget(warscroll.stats.banishment, 7) : null,
     weapons: warscroll.weapons.map(buildWeapon),
     abilities: warscroll.abilities,
-    models: resolved.models.map((m) => ({ base: m.base, champion: m.champion })),
+    // Faction terrain is one piece set up with its curated footprint (ADR 0030 §2), not the
+    // 32mm fallback base its "Use model" entry resolves to.
+    models:
+      bareKeywords.includes('FACTION TERRAIN') && warscroll.terrainFootprint
+        ? [{ base: warscroll.terrainFootprint.shape, champion: false }]
+        : resolved.models.map((m) => ({ base: m.base, champion: m.champion })),
     points: (warscroll.points ?? 0) * (reinforced ? warscroll.reinforce.pointsMultiplier : 1),
     reinforced,
     isHero: warscroll.isHero,

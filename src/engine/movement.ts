@@ -19,6 +19,7 @@ import {
   unitBounds,
   modelFootprint,
   opponent,
+  profileOf,
   unitFootprints,
   unitsOf,
 } from './query.js';
@@ -306,6 +307,8 @@ function nearbyEnemyFootprints(
   const own = unitBounds(scenario, unit);
   const out: Footprint[] = [];
   for (const e of unitsOf(state, opponent(unit.owner))) {
+    // Faction terrain creates no combat range and cannot be charged (owner's ruling).
+    if (profileOf(scenario, e).isFactionTerrain) continue;
     const b = unitBounds(scenario, e);
     if (Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r > reach + COMBAT_RANGE) continue;
     out.push(...unitFootprints(scenario, e));

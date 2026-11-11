@@ -164,7 +164,7 @@ describe('movement', () => {
   });
 
   it('cannot move within 3" of an enemy unit', () => {
-    const enemy = unitsOf(start, 1)[0]!;
+    const enemy = unitsOf(start, 1).find((u) => u.armyIndex >= 0)!;
     const target = enemy.models[0]!;
     const s0: GameState = JSON.parse(JSON.stringify(start));
     // Leave one enemy unit on the table and stand the Dryads 8" to its left.
