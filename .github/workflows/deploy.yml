@@ -1,9 +1,12 @@
 name: Deploy to GitHub Pages
 
-# Builds the static site and publishes it to GitHub Pages.
+# Builds the static site and publishes it to GitHub Pages, but only after the CI workflow
+# has passed for the same commit, so a failing commit never reaches players.
 # One-time setup in the repository: Settings -> Pages -> Source: "GitHub Actions".
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches:
       - main
       - ccr-badc8dc5-cnbda7
@@ -20,10 +23,17 @@ concurrency:
 
 jobs:
   build:
+    # Deploy pushes that passed CI; a manual run deploys the branch it is started from.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: pnpm/action-setup@v4
 

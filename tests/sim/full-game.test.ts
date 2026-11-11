@@ -150,7 +150,10 @@ describe('full games, baseline NPC against itself', () => {
     let state = engine.newGame(SEEDS + 1);
     while (engine.decision(state)) state = engine.apply(state, chooseAction(engine, state)).state;
     expect(state.status).toBe('ended');
-    expect(performance.now() - t0).toBeLessThan(2000);
+    // A game takes about 0.4 s on a development machine. This budget leaves room for slower
+    // CI runners and still fails on a slowdown like the one that came with the first ability
+    // framework (1.6 s per game), which is what a phone would feel most.
+    expect(performance.now() - t0).toBeLessThan(1200);
   });
 });
 

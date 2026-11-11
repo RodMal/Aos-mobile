@@ -1,10 +1,12 @@
 /** Read-only questions about a game state: footprints, distances, who is in combat. */
 import type { UnitProfile } from '../data/profile.js';
 import {
+  BASE_POLYGON_SEGMENTS,
   baseFootprint,
   boundingRadius,
   footprintGap,
   footprintGapAtLeast,
+  footprintOuterRadius,
   footprintOverlapsPolygon,
   footprintPolygon,
   layoutFormation,
@@ -120,17 +122,30 @@ export function footprintsWithin(
   return false;
 }
 
+const baseRadiiCache = new WeakMap<UnitProfile, number[]>();
+
+/** Bounding radius of each model's base in a profile (static, so computed once). */
+function baseRadii(profile: UnitProfile): number[] {
+  let radii = baseRadiiCache.get(profile);
+  if (!radii) {
+    radii = profile.models.map((m) => boundingRadius(baseFootprint(m.base, 0, 0, 0)));
+    baseRadiiCache.set(profile, radii);
+  }
+  return radii;
+}
+
 /** A circle around all of the unit's living bases: centre and radius in inches. */
 export function unitBounds(
   scenario: Scenario,
   unit: UnitState,
 ): { x: number; y: number; r: number } {
   const c = unitCentre(unit);
+  const radii = baseRadii(profileOf(scenario, unit));
   let r = 0;
-  for (const i of aliveIndices(unit)) {
+  for (let i = 0; i < unit.models.length; i++) {
     const m = unit.models[i]!;
-    const fp = modelFootprint(scenario, unit, i);
-    r = Math.max(r, Math.hypot(m.x - c.x, m.y - c.y) + boundingRadius(fp));
+    if (!m.alive) continue;
+    r = Math.max(r, Math.hypot(m.x - c.x, m.y - c.y) + radii[i]!);
   }
   return { ...c, r };
 }
@@ -148,6 +163,26 @@ export function unitsWithin(
   return footprintsWithin(unitFootprints(scenario, a), unitFootprints(scenario, b), range);
 }
 
+/** `unitsWithin(unit, enemy)` for each enemy, building the unit's own circle and bases once. */
+function forEnemiesWithin(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  range: number,
+  /** Return false to stop early. */
+  visit: (enemy: UnitState) => boolean,
+): void {
+  const bu = unitBounds(scenario, unit);
+  let fps: Footprint[] | null = null;
+  for (const enemy of unitsOf(state, opponent(unit.owner))) {
+    const be = unitBounds(scenario, enemy);
+    if (Math.hypot(bu.x - be.x, bu.y - be.y) - bu.r - be.r > range + DIST_EPS) continue;
+    fps ??= unitFootprints(scenario, unit);
+    if (!footprintsWithin(fps, unitFootprints(scenario, enemy), range)) continue;
+    if (!visit(enemy)) return;
+  }
+}
+
 /** Enemy units within `range` of `unit`. */
 export function enemiesWithin(
   scenario: Scenario,
@@ -155,9 +190,12 @@ export function enemiesWithin(
   unit: UnitState,
   range: number,
 ): UnitState[] {
-  return unitsOf(state, opponent(unit.owner)).filter((enemy) =>
-    unitsWithin(scenario, unit, enemy, range),
-  );
+  const out: UnitState[] = [];
+  forEnemiesWithin(scenario, state, unit, range, (enemy) => {
+    out.push(enemy);
+    return true;
+  });
+  return out;
 }
 
 /** Enemy units in combat with `unit` (within 3"). */
@@ -203,11 +241,32 @@ export function gapToEnemies(
 }
 
 export function inCombat(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  return enemiesInCombat(scenario, state, unit).length > 0;
+  let found = false;
+  forEnemiesWithin(scenario, state, unit, COMBAT_RANGE, () => {
+    found = true;
+    return false; // one is enough
+  });
+  return found;
 }
 
 export function hasKeyword(scenario: Scenario, unit: UnitState, keyword: string): boolean {
   return profileOf(scenario, unit).keywords.includes(keyword);
+}
+
+/** How far the vertices of a base's outer polygon (`footprintPolygon`) reach from its centre. */
+const POLYGON_REACH = 1 / Math.cos(Math.PI / BASE_POLYGON_SEGMENTS);
+function polygonRadius(fp: Footprint): number {
+  if (fp.kind === 'rect') return Math.hypot(fp.hw, fp.hh);
+  return (fp.kind === 'circle' ? fp.r : Math.max(fp.rx, fp.ry)) * POLYGON_REACH;
+}
+
+/** Radius of the largest circle centred on the base that fits inside it. */
+function inscribedRadius(fp: Footprint): number {
+  return fp.kind === 'circle'
+    ? fp.r
+    : fp.kind === 'ellipse'
+      ? Math.min(fp.rx, fp.ry)
+      : Math.min(fp.hw, fp.hh);
 }
 
 /**
@@ -230,6 +289,20 @@ export function footprintWhollyWithin(
       }
     }
   }
+  // Cheap answers from circles before the exact test below, which is costly. The exact test
+  // samples the target's outer polygon against each source's outer polygon, so the circles
+  // here are sized to those polygons and the answers are identical:
+  // - yes, if every vertex of the target is within `range` of the largest circle inside one
+  //   source (which lies inside that source's polygon);
+  // - no, if no source's polygon can come within `range` of any vertex of the target.
+  const tr = polygonRadius(target);
+  let reachable = false;
+  for (const src of sources) {
+    const d = Math.hypot(target.cx - src.cx, target.cy - src.cy);
+    if (d + tr - inscribedRadius(src) <= range) return true;
+    if (d - tr - footprintOuterRadius(src) <= range + DIST_EPS) reachable = true;
+  }
+  if (!reachable) return false;
   const pts = footprintPolygon(target);
   return pts.every(([x, y]) => {
     const ptFp: Footprint = { kind: 'circle', cx: x, cy: y, r: 0 };

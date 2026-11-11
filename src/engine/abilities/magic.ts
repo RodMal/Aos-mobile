@@ -1,11 +1,16 @@
-import { baseFootprint, footprintGapAtLeast, footprintInsidePolygon } from '../../geom/index.js';
+import {
+  baseFootprint,
+  footprintGap,
+  footprintGapAtLeast,
+  footprintInsidePolygon,
+  footprintOuterRadius,
+} from '../../geom/index.js';
 import { applyMortalDamage, destroyUnit, type StepCtx } from '../damage.js';
 import { roll2D6, rollD3, rollD6 } from '../ctx.js';
 import { boardPolygon } from '../movement.js';
 import {
   DIST_EPS,
   footprintWhollyWithin,
-  gapToEnemies,
   opponent,
   profileOf,
   unitById,
@@ -117,9 +122,20 @@ export function findSummonPlacement(
 
   const enemies = unitsOf(state, opponent(caster.owner));
   const enemyCentres = enemies.map((e) => unitCentre(e));
+  const enemyFps = minEnemyGap > 0 ? enemies.flatMap((e) => unitFootprints(scenario, e)) : [];
+  const boardW = scenario.battlefield.width;
+  const boardH = scenario.battlefield.height;
 
   const candidates: { x: number; y: number; rot: number; score: number }[] = [];
   const radii = [2, 3.5, 5, 6.5, 8, 9.5, 11, 13, 15, 17].filter((r) => r <= range);
+  // Only bases near enough to the caster can touch a candidate position; drop the rest once
+  // instead of testing them against every candidate.
+  const maxRadius = radii[radii.length - 1] ?? 0;
+  const candidateReach = maxRadius + footprintOuterRadius(baseFootprint(base, 0, 0, 0)) + 0.05;
+  const nearbyFps = otherFps.filter(
+    (o) =>
+      Math.hypot(o.cx - c.x, o.cy - c.y) - footprintOuterRadius(o) <= candidateReach + DIST_EPS,
+  );
   for (const r of radii) {
     for (let deg = 0; deg < 360; deg += 15) {
       const rad = (deg * Math.PI) / 180;
@@ -127,12 +143,29 @@ export function findSummonPlacement(
       const y = c.y + Math.sin(rad) * r;
       for (const rot of [0, 90]) {
         const fp = baseFootprint(base, x, y, rot);
-        if (!footprintInsidePolygon(fp, board)) continue;
+        // The board is a rectangle: a base whose outer circle (the one the exact tests use)
+        // is inside it needs no polygon test, and one whose centre is off it is never inside.
+        const br = footprintOuterRadius(fp);
+        const clearOfEdges = x - br >= 0 && y - br >= 0 && x + br <= boardW && y + br <= boardH;
+        if (!clearOfEdges) {
+          if (x < 0 || y < 0 || x > boardW || y > boardH) continue;
+          if (!footprintInsidePolygon(fp, board)) continue;
+        }
         if (!footprintWhollyWithin(fp, casterFps, range)) continue;
-        if (otherFps.some((ofp) => !footprintGapAtLeast(fp, ofp, 0.05))) continue;
+        if (nearbyFps.some((ofp) => !footprintGapAtLeast(fp, ofp, 0.05))) continue;
         if (minEnemyGap > 0) {
-          const gap = gapToEnemies(scenario, state, caster.owner, fp);
-          if (gap <= minEnemyGap + DIST_EPS) continue;
+          // Circles first; the exact gap only for enemy bases that could be close enough.
+          const limit = minEnemyGap + DIST_EPS;
+          let tooClose = false;
+          for (const efp of enemyFps) {
+            const d = Math.hypot(fp.cx - efp.cx, fp.cy - efp.cy);
+            if (d - br - footprintOuterRadius(efp) > limit) continue;
+            if (footprintGap(fp, efp) <= limit) {
+              tooClose = true;
+              break;
+            }
+          }
+          if (tooClose) continue;
         }
         let distToEnemy = Infinity;
         for (const ec of enemyCentres) {
