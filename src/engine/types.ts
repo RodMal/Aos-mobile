@@ -72,7 +72,7 @@ export interface UnitState {
   chargeDeclared?: boolean;
   /** The command this unit has used in the current phase (a unit may use one per phase). */
   commandUsed?: CommandId | null;
-  /** The unit used All-out Attack this turn. */
+  /** The unit used All-out Attack this turn (a record only: the +1 applies to that attack alone). */
   allOutAttack?: boolean;
   /** Spell, prayer, unbind and banish abilities used by this unit in the current phase. */
   castsUsed?: number;

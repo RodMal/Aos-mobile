@@ -194,8 +194,9 @@ export function abilityAttackModifiers(
 ): Modifier[] {
   const out: Modifier[] = [];
 
-  // Legacy / convenience attack-flag bridges onto registered command definitions
-  if (sit.allOutAttack || sit.attacker.allOutAttack) {
+  // Attack-flag bridges onto registered command definitions. All-out Attack applies only to
+  // the attacks it was bought for (the `resolve` frame's flag), never to later attacks.
+  if (sit.allOutAttack) {
     const def = REGISTRY.get('allOutAttack');
     if (def?.effectModifiers) {
       out.push(
@@ -259,7 +260,7 @@ export function abilityAttackModifiers(
   for (const eff of state.effects ?? []) {
     // Avoid double-counting if allOutAttack/allOutDefence/coveringFire was also passed via `sit`
     if (
-      (eff.id === 'allOutAttack' && (sit.allOutAttack || sit.attacker.allOutAttack)) ||
+      (eff.id === 'allOutAttack' && sit.allOutAttack) ||
       (eff.id === 'allOutDefence' && sit.allOutDefence) ||
       (eff.id === 'coveringFire' && sit.coveringFire)
     ) {
