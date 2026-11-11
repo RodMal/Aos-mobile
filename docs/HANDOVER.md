@@ -4,20 +4,21 @@ Written 2026-11-10 so that another coding agent (or a person) can pick this proj
 
 ## The goal
 
-The owner wants to play a full game of Warhammer Age of Sigmar 4th edition (General's Handbook 2026-27) on a phone against a hard computer opponent. First matchup: their Sylvaneth list against their Seraphon list. Other factions come later. Their instruction: **make it playable first.**
+The owner wants to play a full game of Warhammer Age of Sigmar 4th edition (General's Handbook 2026-27) on a phone or a desktop browser against a hard computer opponent. First matchup: their Sylvaneth list against their Seraphon list. Other factions come later. Their instruction: **make it playable first.**
 
 Three earlier attempts failed by perfecting one layer (data, deployment, rules) without ever reaching a playable game. `docs/PRIOR-ATTEMPTS.md` explains what went wrong and what was reused. Do not repeat it: every milestone must end with something the owner can play on their phone.
 
 ## Decisions the owner has made
 
-| Topic      | Decision                                                                                                                                                                                                                       |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Hosting    | GitHub Pages, public repo. Live at `https://rodmal.github.io/Aos-mobile/`. Every push to the branch deploys.                                                                                                                   |
-| Army lists | Both supplied by the owner and encoded in `src/data/lists.ts`: Sylvaneth "Lords of the Clan" (player 0) and Seraphon "Sunclaw Starhost" (player 1). Only the rules on these two lists are in scope until the hard NPC is done. |
-| Movement   | Drag the whole unit with automatic formation, plus per-model adjustment. Both exist.                                                                                                                                           |
-| Rules text | Unit cards show the full ability text from the BSData data.                                                                                                                                                                    |
-| Rulings    | A hit roll of 6 is a critical hit only for a weapon with a Crit ability. All-out Attack is +1 to hit only. Both are in the code and in `docs/RULES-DECISIONS.md` (I6, I19).                                                    |
-| Process    | Keep it light. Parallel subagents are welcome; in Claude sessions, use the smaller models for subagents where they suffice.                                                                                                    |
+| Topic      | Decision                                                                                                                                                                                                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hosting    | GitHub Pages, public repo. Live at `https://rodmal.github.io/Aos-mobile/`. Every push to the branch deploys.                                                                                                                                                                                                                                |
+| Army lists | Both supplied by the owner and encoded in `src/data/lists.ts`: Sylvaneth "Lords of the Clan" (player 0) and Seraphon "Sunclaw Starhost" (player 1). Only the rules on these two lists are in scope until the hard NPC is done.                                                                                                              |
+| Movement   | Drag the whole unit with automatic formation, plus per-model adjustment. Both exist.                                                                                                                                                                                                                                                        |
+| Rules text | Unit cards show the full ability text from the BSData data.                                                                                                                                                                                                                                                                                 |
+| Devices    | Phone and desktop are both targets (decided 2026-11-11). One code path: CSS adapts the layout, and the flows are the same. Every UI change is checked on both: the phone projects and the `desktop` Playwright project (1280x800, mouse, wheel, keyboard), plus the screenshots in `docs/screenshots/phone` and `docs/screenshots/desktop`. |
+| Rulings    | A hit roll of 6 is a critical hit only for a weapon with a Crit ability. All-out Attack is +1 to hit only. Both are in the code and in `docs/RULES-DECISIONS.md` (I6, I19).                                                                                                                                                                 |
+| Process    | Keep it light. Parallel subagents are welcome; in Claude sessions, use the smaller models for subagents where they suffice.                                                                                                                                                                                                                 |
 
 ## Where the project stands
 
@@ -75,7 +76,7 @@ Read `docs/ARCHITECTURE.md` first. In short:
 | `src/ui`                                                             | React app: `board/` (SVG, view maths, gestures, hit testing), `sheet/` (decision, unit, place and attack panels), `prompts/`, `drawers/`, `game/` (stores, actions, log text). |
 | `src/data`                                                           | zod schemas, `UnitProfile` parsing, army lists, battlefield. `data/` holds the JSON; see `data/SOURCE.md`.                                                                     |
 | `src/geom`                                                           | Bases, distances, coherency, formations, in inches.                                                                                                                            |
-| `tests/sim`, `tests/e2e`                                             | Full-game simulations; Playwright at phone sizes.                                                                                                                              |
+| `tests/sim`, `tests/e2e`                                             | Full-game simulations; Playwright on two phones and a desktop.                                                                                                                 |
 
 The engine is deterministic and decision-driven: a game is a scenario, a seed and a list of actions. The core (`src/geom`, `engine`, `rules`, `ai`, `data`) takes no DOM, React, `Math.random` or `Date.now`; ESLint and a DOM-free tsconfig enforce it.
 
@@ -93,6 +94,8 @@ pnpm dev                    # http://localhost:5173
 Things that cost time before:
 
 - **Stale preview server.** Playwright reuses whatever is listening on port 4173. Stop it first with `pkill -f "vite.js preview"` (the pattern `vite preview` does not match the process), or the tests run against an old build.
+- **Desktop UI.** From 820px wide the sheet sits beside the board; when the board is wider than tall the table is shown flat (enemy to the right) instead of turned bottom-up as on a phone. Escape closes the topmost panel, drawer or dialog; Enter confirms a placement, an ability or a roll (never a phase). The `desktop` project reuses the phone specs through `drag`/`tapAt`/`ahead` in `tests/e2e/helpers.ts`; touch-only specs skip themselves and `tests/e2e/desktop.spec.ts` holds the mouse-only ones.
+- **Screenshots.** `SHOTS=docs/screenshots SHOTS_DSF=1 pnpm exec playwright test screenshots --project=pixel-7 --project=desktop` writes `phone/` and `desktop/` (add `SHOTS_VIEWPORT=1920x1080` to look at a bigger window). `--project` takes the file filter first, not after.
 - **Formatting is checked in CI.** Run `pnpm format` before committing.
 - **Deploys** happen on every push to the branch. Do not push a state where `pnpm check` or the e2e suite fails; the owner plays the deployed version.
 - **The service worker** applies a new deploy on the visit after it downloads, so the owner may need to open the app twice to see a change.

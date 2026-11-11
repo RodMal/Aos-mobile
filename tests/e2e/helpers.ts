@@ -1,9 +1,14 @@
 /** Touch helpers for the e2e tests: real touch input through the Chrome DevTools Protocol. */
-import { expect, type CDPSession, type Locator, type Page } from '@playwright/test';
+import { expect, test, type CDPSession, type Locator, type Page } from '@playwright/test';
 
 export interface P {
   x: number;
   y: number;
+}
+
+/** True in the mouse-and-keyboard project; the phone projects use touch. */
+export function isDesktop(): boolean {
+  return test.info().project.name === 'desktop';
 }
 
 const sessions = new WeakMap<Page, CDPSession>();
@@ -43,6 +48,22 @@ export async function touchDrag(page: Page, from: P, to: P, steps = 12): Promise
   await page.waitForTimeout(50);
 }
 
+/** A one-finger touch drag on the phone projects, a left-button mouse drag on desktop. */
+export async function drag(page: Page, from: P, to: P, steps = 12): Promise<void> {
+  if (!isDesktop()) return touchDrag(page, from, to, steps);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps });
+  await page.mouse.up();
+  await page.waitForTimeout(50);
+}
+
+/** A tap on the phone projects, a click on desktop. */
+export async function tapAt(page: Page, p: P): Promise<void> {
+  if (isDesktop()) await page.mouse.click(p.x, p.y);
+  else await page.touchscreen.tap(p.x, p.y);
+}
+
 /** A two-finger pinch around `centre`, from `startGap` to `endGap` pixels apart. */
 export async function pinch(page: Page, centre: P, startGap: number, endGap: number, steps = 10) {
   const pts = (gap: number): P[] => [
@@ -60,6 +81,22 @@ export async function pinch(page: Page, centre: P, startGap: number, endGap: num
 
 export async function boardScale(page: Page): Promise<number> {
   return Number(await page.getByTestId('board').getAttribute('data-scale'));
+}
+
+/**
+ * The screen point `inches` towards the enemy from `from` (for the player on the left or bottom
+ * of the table, as in side=0), plus `across` inches to the right of that direction. The phone
+ * shows the table turned so the enemy is up the screen; on a wide window it is shown flat with
+ * the enemy to the right.
+ */
+export async function ahead(page: Page, from: P, inches: number, across = 0): Promise<P> {
+  const scale = await boardScale(page);
+  const flat = (await page.getByTestId('board').getAttribute('data-rot')) === '0';
+  const p = flat
+    ? { x: from.x + inches * scale, y: from.y + across * scale }
+    : { x: from.x + across * scale, y: from.y - inches * scale };
+  // The drag may end past the board edge (the pointer is captured) but must stay in the window.
+  return { x: Math.max(5, p.x), y: Math.max(5, p.y) };
 }
 
 /** Screen centre of a model of a unit. */
@@ -97,6 +134,19 @@ export async function startGame(page: Page, query = 'seed=5&side=0&fast=1&new=1'
   await expect(page.locator('[data-unit-id] [data-model]').first()).toBeVisible();
 }
 
+/**
+ * Starts an alternating-deployment game (`?deploy=1`, the menu's "Alternating deploy"): nothing
+ * is on the table yet, and the player is asked to place a unit as soon as it is their turn.
+ */
+export async function startDeploy(
+  page: Page,
+  query = 'seed=5&side=0&new=1&deploy=1',
+): Promise<void> {
+  await page.goto(`./?${query}`);
+  await expect(page.getByTestId('board')).toBeVisible();
+  await expect(page.getByTestId('place-panel')).toBeVisible({ timeout: 20_000 });
+}
+
 /** Ends the human's phases until the given phase (current phase label) shows. */
 export async function endPhaseUntil(page: Page, phase: RegExp): Promise<void> {
   for (let i = 0; i < 20; i++) {
@@ -125,7 +175,8 @@ export async function selectFromRoster(page: Page, unit: string): Promise<void> 
 /** A point on the visible part of the board, away from the floating buttons. */
 export async function boardPoint(page: Page): Promise<P> {
   const box = (await page.getByTestId('board').boundingBox())!;
-  return { x: box.x + box.width / 2, y: box.y + box.height * 0.3 };
+  // On the phone the sheet covers the lower part of the board; on desktop it sits beside it.
+  return { x: box.x + box.width / 2, y: box.y + box.height * (isDesktop() ? 0.5 : 0.3) };
 }
 
 /** True when a control is on screen and can be clicked. */

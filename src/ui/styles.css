@@ -198,6 +198,9 @@ button {
   text-transform: uppercase;
 }
 
+.phase-long {
+  display: none;
+}
 .phases li.done {
   background: #232a31;
   color: #8b949c;
@@ -1387,9 +1390,110 @@ button {
   line-height: 1.4;
 }
 
+/* ── Pointer and keyboard affordances ──────────────────────────────────── */
+
+/* A visible keyboard focus ring on every control (not shown for mouse or touch presses). */
+:where(button, input, select, textarea, [role='radio']):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The board: an open hand to pan, a closed one while dragging, a move cursor on the ghost. */
+.board {
+  cursor: grab;
+}
+.board.grabbing,
+.board.grabbing * {
+  cursor: grabbing;
+}
+.board.placing .ghost {
+  cursor: move;
+}
+.unit {
+  cursor: pointer;
+}
+
+/* Hover states only where a hover exists, so a touch screen never sticks on one. */
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    background: #2a323a;
+    border-color: #4a5560;
+  }
+  .btn.primary:hover:not(:disabled) {
+    background: #e4c070;
+  }
+  .icon-btn:hover {
+    background: #262d34;
+  }
+  .fab:hover {
+    background: #2a3239;
+    border-color: #55616c;
+  }
+  .chip:hover {
+    background: rgba(90, 169, 255, 0.22);
+  }
+  .chip.enemy:hover {
+    background: rgba(255, 155, 66, 0.22);
+  }
+  .chip.chosen:hover {
+    background: #e4c070;
+  }
+  .tool:hover {
+    background: #262d34;
+    border-color: #4a5560;
+  }
+  .roster-item:hover {
+    background: #252c33;
+    border-color: #3a434c;
+  }
+  .seg-btn:hover:not(.on) {
+    background: #252c33;
+  }
+  .chooser-item:hover {
+    background: #252c33;
+  }
+  .toast:hover {
+    filter: brightness(1.15);
+  }
+  .unit:hover .model {
+    filter: brightness(1.15);
+  }
+}
+
 /* ── Desktop & wide screens ────────────────────────────────────────────── */
 
 @media (min-width: 820px) {
+  /* The phase track has room for whole names. */
+  .phase-short {
+    display: none;
+  }
+  .phase-long {
+    display: inline;
+  }
+
+  /* Chips wrap instead of scrolling sideways; there is room, and a mouse cannot swipe. */
+  .ready {
+    flex-wrap: wrap;
+    overflow: visible;
+    padding-bottom: 6px;
+  }
+  .ready-label {
+    flex-basis: 100%;
+  }
+
+  /* The printed ability text gets the sheet's height instead of a small scroll box. */
+  .ability-panel .ability-text {
+    max-height: none;
+  }
+
+  /* Buttons need not be thumb sized with a mouse. */
+  .btn {
+    min-height: 40px;
+  }
+  .chip {
+    min-height: 36px;
+  }
+
   .stage {
     display: flex;
     flex-direction: row;

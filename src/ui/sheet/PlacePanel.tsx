@@ -9,6 +9,7 @@ import { useGame } from '../game/instance.js';
 import { faceEnemy, maxDistance, reformDraft, rotateDraft } from '../game/placementEdit.js';
 import { useUi } from '../game/uiStore.js';
 import { Icon } from '../components/Icon.js';
+import { finePointer, tapWord } from '../components/pointer.js';
 
 const TITLES: Record<string, string> = {
   normal: 'Move',
@@ -79,8 +80,10 @@ export function PlacePanel() {
             : d.reason === 'powerThrough'
               ? 'Move up to your allowance and end out of combat.'
               : draft.adjust
-                ? 'Tap a model, then drag anywhere to move it.'
-                : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
+                ? `${tapWord()} a model, then drag anywhere to move it.`
+                : finePointer()
+                  ? 'Drag anywhere to move the unit. The wheel zooms; Enter confirms.'
+                  : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
   const canForwardToVictory =
     d.reason === 'charge' &&
     !commandBlocker(state, d.player, 'forwardToVictory', unit) &&

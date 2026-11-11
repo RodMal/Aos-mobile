@@ -67,7 +67,14 @@ export function TopBar() {
             className={i === phaseIndex ? 'current' : i < phaseIndex ? 'done' : ''}
             aria-current={i === phaseIndex ? 'step' : undefined}
           >
-            {i === phaseIndex ? phaseName(p) : phaseName(p)[0]}
+            {i === phaseIndex ? (
+              phaseName(p)
+            ) : (
+              <>
+                <span className="phase-short">{phaseName(p)[0]}</span>
+                <span className="phase-long">{phaseName(p)}</span>
+              </>
+            )}
           </li>
         ))}
       </ol>

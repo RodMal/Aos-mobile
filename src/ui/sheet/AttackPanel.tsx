@@ -4,6 +4,7 @@ import { rollAttack } from '../game/actions.js';
 import { useGameState, useHuman } from '../game/hooks.js';
 import { planDamage, setWeaponTarget, toAllocations } from '../game/attackPlan.js';
 import { useUi } from '../game/uiStore.js';
+import { tapWord } from '../components/pointer.js';
 
 export function AttackPanel() {
   const attack = useUi((s) => s.attack);
@@ -25,8 +26,8 @@ export function AttackPanel() {
           {attack.mode === 'shoot' ? 'Shoot with' : 'Fight with'} {unit.name}
         </h2>
         <p className="panel-hint">
-          Each weapon is aimed at its best target. Tap a highlighted enemy to switch every weapon
-          that can reach it.
+          Each weapon is aimed at its best target. {tapWord()} a highlighted enemy to switch every
+          weapon that can reach it.
         </p>
       </header>
       <ul className="weapon-list">
