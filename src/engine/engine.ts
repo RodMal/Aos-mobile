@@ -241,7 +241,9 @@ function endGame(ctx: Ctx): void {
 /** End of a turn: resolve objective control, then the player whose turn it was scores. */
 function endTurn(ctx: Ctx): void {
   const { s, scenario } = ctx;
+  // Endless Growth is used at the end of any turn by each army that has it.
   resolveEndlessGrowth(ctx, s.active);
+  resolveEndlessGrowth(ctx, opponent(s.active));
   clearExpiredEffects(s, 'turn');
   for (const change of resolveControl(scenario, s)) {
     s.objectives.find((o) => o.id === change.id)!.controller = change.controller;
