@@ -71,3 +71,29 @@ describe('ownership of acting units', () => {
     });
   });
 });
+
+describe('unknown units', () => {
+  it('every action naming a unit that does not exist throws IllegalActionError', () => {
+    const s = editable(engine.newGame(1));
+    const phases = ['hero', 'movement', 'shooting', 'charge', 'end'] as const;
+    const actions: Action[] = [
+      { t: 'ability', unit: 'nope', abilityId: 'place-of-power' },
+      { t: 'ability', unit: 'nope', abilityId: 'eruption-of-fury' },
+      { t: 'ability', unit: 'nope', abilityId: 'x' },
+      { t: 'command', command: 'rally', unit: 'nope' },
+      { t: 'command', command: 'powerThrough', unit: 'nope' },
+      { t: 'move', unit: 'nope', kind: 'normal' },
+      { t: 'shoot', unit: 'nope', allocations: [{ weaponId: 'w', target: 'x' }] },
+      { t: 'charge', unit: 'nope' },
+      { t: 'fight', unit: 'nope' },
+    ];
+    for (const phase of phases) {
+      const at = { ...s, phase };
+      for (const a of actions) {
+        expect(() => engine.apply(at, a), `${phase} ${JSON.stringify(a)}`).toThrow(
+          IllegalActionError,
+        );
+      }
+    }
+  });
+});
