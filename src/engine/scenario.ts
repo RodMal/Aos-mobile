@@ -1,7 +1,8 @@
+import { UNIVERSAL } from '../data/catalog.js';
 import { INTO_THE_FIRE, type Battlefield } from '../data/battlefield.js';
 import { resolveArmy, type ArmyList } from '../data/lists.js';
 import type { Side } from '../data/map-schema.js';
-import type { UnitProfile } from '../data/profile.js';
+import { buildProfile, type UnitProfile } from '../data/profile.js';
 import type { Scenario } from './types.js';
 
 export interface ScenarioOptions {
@@ -22,6 +23,11 @@ export function createScenario(
   for (const army of armies) {
     for (const unit of army.units) profiles[unit.profile.id] = unit.profile;
     if (army.factionTerrain) profiles[army.factionTerrain.id] = army.factionTerrain;
+  }
+  for (const ws of UNIVERSAL.warscrolls) {
+    if (ws.isManifestation && !profiles[ws.id]) {
+      profiles[ws.id] = buildProfile(ws);
+    }
   }
   const attackerSide = battlefield.attackerSide;
   const defenderSide: Side = attackerSide === 'A' ? 'B' : 'A';

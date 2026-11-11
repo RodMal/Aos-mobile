@@ -5,12 +5,15 @@
  * - Ranged units (more expected damage at range than in melee) head for objectives and shoot.
  * - Melee units close in on the nearest enemy when one is within reach, otherwise head for
  *   objectives, and charge when the roll needed is 7 or less.
- * - Weapons go to the target with the best expected damage; All-out Attack and All-out
- *   Defence are used when 2 or more CP are left; Rally when a unit has lost 2+ Health.
+ * - Wizards and Priests summon manifestations, banish enemy manifestations, cast spells and
+ *   chant prayers, and unbind enemy spells.
+ * - Weapons go to the target with the best expected damage; commands and reactions are used
+ *   when enough CP are in hand.
  */
 import {
   aliveIndices,
   controlScores,
+  currentPlacement,
   enemiesInCombat,
   opponent,
   profileOf,
@@ -24,6 +27,7 @@ import {
   type Engine,
   type GameState,
   type PlayerId,
+  type UnitOption,
   type UnitState,
 } from '../engine/index.js';
 import { diceMean } from '../data/profile.js';
@@ -45,11 +49,18 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       return { t: 'choose', value: me < them ? 'second' : 'first' };
     }
     case 'reaction': {
-      if (state.players[d.player].cp < SPARE_CP || d.options.length === 0) return { t: 'pass' };
-      const best = [...d.options].sort(
+      if (d.options.length === 0) return { t: 'pass' };
+      const unbindOpt = d.options.find((o) => o.ability === 'unbind');
+      if (unbindOpt) {
+        return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };
+      }
+      const cp = state.players[d.player].cp;
+      const affordable = d.options.filter((o) => o.command && cp >= Math.max(SPARE_CP, o.cost));
+      if (affordable.length === 0) return { t: 'pass' };
+      const best = [...affordable].sort(
         (a, b) => points(engine, state, b.unit) - points(engine, state, a.unit),
       )[0]!;
-      return { t: 'command', command: best.command, unit: best.unit };
+      return { t: 'command', command: best.command!, unit: best.unit };
     }
     case 'place':
       return placeAction(engine, state, d) ?? { t: 'pass' };
@@ -91,7 +102,12 @@ function maxBy<T>(items: readonly T[], score: (t: T) => number): T | undefined {
 
 function canAllOutAttack(state: GameState, unit: UnitState): boolean {
   const p = state.players[unit.owner];
-  return p.cp >= SPARE_CP && !(p.commandsUsed ?? []).includes('allOutAttack') && !unit.commandUsed;
+  return (
+    !unit.isManifestation &&
+    p.cp >= SPARE_CP &&
+    !(p.commandsUsed ?? []).includes('allOutAttack') &&
+    !unit.commandUsed
+  );
 }
 
 /** Each weapon at the target with the best expected damage. */
@@ -135,6 +151,7 @@ function nearestEnemy(
 }
 
 function contesting(engine: Engine, unit: UnitState): boolean {
+  if (unit.isManifestation) return false;
   return aliveIndices(unit).some((i) => contestedObjective(engine.scenario, unit, i) !== null);
 }
 
@@ -150,11 +167,11 @@ function destination(
 ): { x: number; y: number; distance: number } | null {
   const profile = profileOf(engine.scenario, unit);
   const near = nearestEnemy(engine, state, unit);
-  if (near && !isRanged(engine, unit) && near.gap <= profile.move + 12) {
+  if (near && (!isRanged(engine, unit) || unit.isManifestation) && near.gap <= profile.move + 12) {
     const distance = near.gap - 3.5;
     return distance >= 0.5 ? { ...unitCentre(near.enemy), distance } : null;
   }
-  if (contesting(engine, unit)) return null;
+  if (unit.isManifestation || contesting(engine, unit)) return null;
   const c = unitCentre(unit);
   const scores = controlScores(engine.scenario, state);
   const wanted = engine.scenario.battlefield.objectives.filter((o) => {
@@ -175,10 +192,17 @@ function placeAction(
   d: Extract<Decision, { kind: 'place' }>,
 ): Action | null {
   const unit = state.units[d.unit]!;
+  if (d.reason === 'summon') {
+    const cur = currentPlacement(unit);
+    if (engine.checkPlacement(state, cur).length === 0) {
+      return { t: 'place', placement: cur };
+    }
+    return null;
+  }
   let placement = null;
   if (d.reason === 'charge') placement = chargePlacement(engine, state, d.unit);
   else if (d.reason === 'pileIn') placement = pileInPlacement(engine, state, d.unit);
-  else if (d.reason === 'retreat') {
+  else if (d.reason === 'retreat' || d.reason === 'powerThrough') {
     const near = nearestEnemy(engine, state, unit);
     if (near) {
       const c = unitCentre(unit);
@@ -194,6 +218,58 @@ function placeAction(
   return placement ? { t: 'place', placement } : null;
 }
 
+function chooseHeroAbilityAction(
+  engine: Engine,
+  state: GameState,
+  units: UnitState[],
+): Action | null {
+  for (const unit of units) {
+    const abilOpts = engine
+      .unitOptions(state, unit.id)
+      .filter((o): o is Extract<UnitOption, { t: 'ability' }> => o.t === 'ability');
+    if (abilOpts.length === 0) continue;
+
+    // 1. Banish enemy manifestations first
+    const banish = abilOpts.find((o) => o.kind === 'banish');
+    if (banish && banish.targets.length > 0) {
+      return {
+        t: 'ability',
+        unit: unit.id,
+        abilityId: banish.abilityId,
+        target: banish.targets[0],
+      };
+    }
+
+    // 2. Summon manifestations
+    const summon = abilOpts.find((o) => o.kind === 'summon');
+    if (summon) {
+      return {
+        t: 'ability',
+        unit: unit.id,
+        abilityId: summon.abilityId,
+      };
+    }
+
+    // 3. Spells & Prayers: pick highest-points target that doesn't already have this effect
+    for (const opt of abilOpts) {
+      if (opt.kind !== 'spell' && opt.kind !== 'prayer') continue;
+      const unbuffedTargets = opt.targets.filter(
+        (tid) => !(state.effects ?? []).some((e) => e.id === opt.abilityId && e.targetUnit === tid),
+      );
+      const candidates = unbuffedTargets.length > 0 ? unbuffedTargets : opt.targets;
+      if (candidates.length === 0) continue;
+      const bestTarget = maxBy(candidates, (tid) => points(engine, state, tid))!;
+      return {
+        t: 'ability',
+        unit: unit.id,
+        abilityId: opt.abilityId,
+        target: bestTarget,
+      };
+    }
+  }
+  return null;
+}
+
 function mainAction(
   engine: Engine,
   state: GameState,
@@ -204,6 +280,8 @@ function mainAction(
   const cp = state.players[player].cp;
   switch (phase) {
     case 'hero': {
+      const abilityAct = chooseHeroAbilityAction(engine, state, units);
+      if (abilityAct) return abilityAct;
       if (cp < SPARE_CP) return null;
       const hurt = units.filter((u) =>
         engine.unitOptions(state, u.id).some((o) => o.t === 'command' && o.command === 'rally'),
@@ -236,11 +314,28 @@ function mainAction(
     case 'charge':
       for (const unit of units) {
         if (!engine.unitOptions(state, unit.id).some((o) => o.t === 'charge')) continue;
-        if (isRanged(engine, unit)) continue;
+        if (isRanged(engine, unit) && !unit.isManifestation) continue;
         const near = nearestEnemy(engine, state, unit);
         if (near && near.gap <= CHARGE_GAP) return { t: 'charge', unit: unit.id };
       }
       return null;
+    case 'end': {
+      if (cp < SPARE_CP) return null;
+      for (const unit of units) {
+        const pt = engine
+          .unitOptions(state, unit.id)
+          .find((o) => o.t === 'command' && o.command === 'powerThrough');
+        if (pt && pt.t === 'command' && pt.targets && pt.targets.length > 0) {
+          return {
+            t: 'command',
+            command: 'powerThrough',
+            unit: unit.id,
+            target: pt.targets[0],
+          };
+        }
+      }
+      return null;
+    }
     default:
       return null;
   }
@@ -266,7 +361,11 @@ function movementAction(engine: Engine, state: GameState, unit: UnitState): Acti
   if (!goal) return null;
   const move = profileOf(engine.scenario, unit).move;
   // Run when the goal is beyond a normal move and the unit will not charge this turn.
-  if (goal.distance > move + 2 && !isRanged(engine, unit)) {
+  if (
+    goal.distance > move + 2 &&
+    !isRanged(engine, unit) &&
+    options.some((o) => o.t === 'move' && o.kind === 'run')
+  ) {
     const near = nearestEnemy(engine, state, unit);
     if (!near || near.gap > move + CHARGE_GAP) return { t: 'move', unit: unit.id, kind: 'run' };
   }

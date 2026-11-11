@@ -50,10 +50,18 @@ export function optionLabel(unitId: UnitId, o: UnitOption): string {
       return 'Fight';
     case 'command':
       return `${COMMAND_NAMES[o.command]} · ${o.cost} CP`;
+    case 'ability': {
+      const tv = o.targetValue ? ` (${o.targetValue}+)` : '';
+      if (o.kind === 'spell') return `Cast ${o.name}${tv}`;
+      if (o.kind === 'summon') return `${o.name}${tv}`;
+      if (o.kind === 'prayer') return `Chant ${o.name}${tv}`;
+      if (o.kind === 'banish') return 'Banish Manifestation';
+      return o.name;
+    }
   }
 }
 
-export function runOption(unitId: UnitId, o: UnitOption): void {
+export function runOption(unitId: UnitId, o: UnitOption, target?: UnitId): void {
   switch (o.t) {
     case 'move':
       dispatch({ t: 'move', unit: unitId, kind: o.kind });
@@ -68,7 +76,24 @@ export function runOption(unitId: UnitId, o: UnitOption): void {
       dispatch({ t: 'fight', unit: unitId });
       return;
     case 'command':
-      dispatch({ t: 'command', command: o.command, unit: unitId });
+      if (o.command === 'rally' || o.command === 'atTheDouble') {
+        dispatch({ t: 'command', command: o.command, unit: unitId });
+      } else {
+        dispatch({
+          t: 'command',
+          command: o.command,
+          unit: unitId,
+          target: target ?? o.targets?.[0],
+        });
+      }
+      return;
+    case 'ability':
+      dispatch({
+        t: 'ability',
+        unit: unitId,
+        abilityId: o.abilityId,
+        target: target ?? o.targets[0],
+      });
       return;
   }
 }
@@ -97,7 +122,11 @@ export function rollAttack(): void {
     attack.mode === 'shoot'
       ? dispatch({ t: 'shoot', unit: attack.unit, allocations, allOutAttack: attack.allOutAttack })
       : dispatch({ t: 'targets', allocations, allOutAttack: attack.allOutAttack });
-  if (ok) useUi.getState().setAttack(null);
+  if (ok) {
+    const ui = useUi.getState();
+    ui.setAttack(null);
+    ui.select(null);
+  }
 }
 
 export function phaseName(phase: string): string {

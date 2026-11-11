@@ -43,7 +43,7 @@ export function controlScores(scenario: Scenario, state: GameState): Map<string,
     const unit = state.units[id]!;
     if (unit.status !== 'battlefield') continue;
     const profile = profileOf(scenario, unit);
-    if (profile.control <= 0 || profile.isFactionTerrain) continue;
+    if (profile.control <= 0 || profile.isFactionTerrain || profile.isManifestation) continue;
     unit.models.forEach((m, i) => {
       if (!m.alive) return;
       const o = contestedObjective(scenario, unit, i);

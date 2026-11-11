@@ -15,6 +15,7 @@ import {
   COHERENCY_RANGE_IN,
   type Footprint,
 } from '../geom/index.js';
+import { effectiveWard } from './abilities/effects.js';
 import { rollWard } from './attack.js';
 import type { Ctx } from './ctx.js';
 import { boardPolygon } from './movement.js';
@@ -29,6 +30,8 @@ import {
   unitsOf,
 } from './query.js';
 import type { GameState, Scenario, UnitState } from './types.js';
+
+export type StepCtx = Ctx;
 
 export interface DamageResult {
   taken: number;
@@ -53,7 +56,7 @@ export function allocateDamage(
   const onBattlefield = (): boolean => unit.status === 'battlefield';
   while (unit.damage >= health && onBattlefield()) {
     unit.damage -= health;
-    removeModel(unit, pickCasualty(ctx.scenario, ctx.s, unit));
+    removeModel(ctx.s, unit, pickCasualty(ctx.scenario, ctx.s, unit));
     slain++;
   }
   if (onBattlefield()) slain += restoreCoherency(ctx.scenario, ctx.s, unit);
@@ -69,7 +72,8 @@ export function inflictMortalDamage(
   amount: number,
   source: string,
 ): DamageResult {
-  const ward = rollWard(ctx.rng, amount, profileOf(ctx.scenario, unit).ward);
+  const wardVal = effectiveWard(ctx.scenario, ctx.s, unit) ?? null;
+  const ward = rollWard(ctx.rng, amount, wardVal);
   if (ward.dice.length > 0) {
     ctx.events.push({ t: 'roll', player: unit.owner, label: 'Ward', dice: ward.dice });
   }
@@ -80,11 +84,43 @@ export function inflictMortalDamage(
   return allocateDamage(ctx, unit, ward.taken, source);
 }
 
-function removeModel(unit: UnitState, i: number): void {
+export const applyMortalDamage = inflictMortalDamage;
+
+/** Heals up to `amount` damage points allocated to `unit`. */
+export function healUnit(ctx: Ctx, unit: UnitState, amount: number, source: string): number {
+  if (unit.status !== 'battlefield' || unit.damage <= 0 || amount <= 0) return 0;
+  const healed = Math.min(unit.damage, amount);
+  unit.damage -= healed;
+  ctx.events.push({ t: 'note', text: `${unit.name} heals ${healed} (${source}).` });
+  return healed;
+}
+
+/** Destroys or banishes a unit/manifestation immediately. */
+export function destroyUnit(ctx: Ctx, unit: UnitState, source: string): void {
+  if (unit.status !== 'battlefield') return;
+  let slain = 0;
+  for (const m of unit.models) {
+    if (m.alive) {
+      m.alive = false;
+      slain++;
+    }
+  }
+  unit.status = 'destroyed';
+  unit.damage = 0;
+  if (unit.isManifestation) {
+    ctx.s.banishedThisTurn = [...(ctx.s.banishedThisTurn ?? []), unit.profileId];
+  }
+  ctx.events.push({ t: 'damage', unit: unit.id, amount: 0, slain, destroyed: true, source });
+}
+
+function removeModel(state: GameState, unit: UnitState, i: number): void {
   unit.models[i]!.alive = false;
   if (aliveIndices(unit).length === 0) {
     unit.status = 'destroyed';
     unit.damage = 0;
+    if (unit.isManifestation) {
+      state.banishedThisTurn = [...(state.banishedThisTurn ?? []), unit.profileId];
+    }
   }
 }
 
@@ -177,7 +213,7 @@ export function restoreCoherency(scenario: Scenario, state: GameState, unit: Uni
       const lacking = new Set(result.lacking.map((k) => alive[k]!));
       victim = order.find((i) => lacking.has(i)) ?? order[0]!;
     }
-    removeModel(unit, victim);
+    removeModel(state, unit, victim);
     removed++;
   }
 }

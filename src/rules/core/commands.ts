@@ -65,7 +65,7 @@ export const COMMANDS: Record<CommandId, CommandDefinition> = {
     cost: 1,
     phases: ['charge'],
     turn: 'your',
-    implemented: false,
+    implemented: true,
     effect: 'Re-roll the charge roll.',
   },
   redeploy: {
@@ -74,7 +74,7 @@ export const COMMANDS: Record<CommandId, CommandDefinition> = {
     cost: 1,
     phases: ['movement'],
     turn: 'enemy',
-    implemented: false,
+    implemented: true,
     effect: 'A unit not in combat moves up to D6".',
   },
   counterCharge: {
@@ -83,16 +83,16 @@ export const COMMANDS: Record<CommandId, CommandDefinition> = {
     cost: 2,
     phases: ['charge'],
     turn: 'enemy',
-    implemented: false,
+    implemented: true,
     effect: 'A unit not in combat charges in the enemy charge phase.',
   },
   coveringFire: {
     id: 'coveringFire',
     name: 'Covering Fire',
     cost: 1,
-    phases: ['shooting', 'charge'],
+    phases: ['shooting'],
     turn: 'enemy',
-    implemented: false,
+    implemented: true,
     effect: 'A unit shoots the closest enemy unit with -1 to hit.',
   },
   magicalIntervention: {
@@ -101,7 +101,7 @@ export const COMMANDS: Record<CommandId, CommandDefinition> = {
     cost: 1,
     phases: ['hero'],
     turn: 'enemy',
-    implemented: false,
+    implemented: true,
     effect: 'A Wizard or Priest casts or chants in the enemy hero phase at -1.',
   },
   powerThrough: {
@@ -110,7 +110,7 @@ export const COMMANDS: Record<CommandId, CommandDefinition> = {
     cost: 1,
     phases: ['end'],
     turn: 'any',
-    implemented: false,
+    implemented: true,
     effect: 'A unit that charged inflicts D3 mortal damage on a weaker enemy and moves.',
   },
 };
@@ -133,7 +133,7 @@ export function commandBlocker(
   if (def.turn === 'enemy' && state.active === player) {
     return `${def.name} is used in the enemy turn.`;
   }
-  if (unit.owner !== player || unit.status !== 'battlefield') {
+  if (unit.owner !== player || unit.status !== 'battlefield' || unit.isManifestation) {
     return `${unit.name} cannot use commands.`;
   }
   if (state.players[player].cp < def.cost) return `${def.name} costs ${def.cost} CP.`;

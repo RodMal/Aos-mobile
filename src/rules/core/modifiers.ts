@@ -5,6 +5,8 @@
  * `attackModifiers`.
  */
 import type { Weapon } from '../../data/profile.js';
+import { abilityAttackModifiers } from '../../engine/abilities/effects.js';
+import '../../engine/abilities/commands.js';
 import type { AttackMods } from '../../engine/expected.js';
 import { hasKeyword } from '../../engine/query.js';
 import type { AttackMode, GameState, Scenario, UnitState } from '../../engine/types.js';
@@ -33,6 +35,8 @@ export interface AttackSituation {
   allOutAttack?: boolean;
   /** The target used All-out Defence against this attack. */
   allOutDefence?: boolean;
+  /** The attacking unit is shooting via Covering Fire (-1 to hit). */
+  coveringFire?: boolean;
 }
 
 /** Rend from Anti-X abilities that apply to this target; several are cumulative. */
@@ -54,10 +58,10 @@ export function chargeDamage(weapon: Weapon, attacker: UnitState): number {
   return dmg;
 }
 
-/** Every modifier that applies to this attack. Today: weapon abilities and commands. */
+/** Every modifier that applies to this attack: weapon abilities and registered abilities/commands. */
 export function attackModifiers(
   scenario: Scenario,
-  _state: GameState,
+  state: GameState,
   a: AttackSituation,
 ): Modifier[] {
   const out: Modifier[] = [];
@@ -67,10 +71,7 @@ export function attackModifiers(
   if (charge) {
     out.push({ stat: 'damage', value: charge, source: 'Charge', appliesToCompanion: true });
   }
-  if (a.allOutAttack) {
-    out.push({ stat: 'hit', value: 1, source: 'All-out Attack', appliesToCompanion: true });
-  }
-  if (a.allOutDefence) out.push({ stat: 'save', value: 1, source: 'All-out Defence' });
+  out.push(...abilityAttackModifiers(scenario, state, a));
   return out;
 }
 
@@ -79,7 +80,11 @@ export function attackModifiers(
  * damage modifiers unless marked `appliesToCompanion`. Hit and wound are capped at +1/-1,
  * save at +1; rend and damage are not capped.
  */
-export function sumModifiers(mods: readonly Modifier[], weapon: Weapon): AttackMods {
+export function sumModifiers(
+  mods: readonly Modifier[],
+  weapon: Weapon,
+  options?: { ignoreSaveModifiers?: boolean },
+): AttackMods {
   const companion = weapon.abilities.some((x) => x.t === 'companion');
   const total = { hit: 0, wound: 0, save: 0, rend: 0, damage: 0 };
   for (const m of mods) {
@@ -89,8 +94,8 @@ export function sumModifiers(mods: readonly Modifier[], weapon: Weapon): AttackM
   return {
     hit: Math.max(-1, Math.min(1, total.hit)),
     wound: Math.max(-1, Math.min(1, total.wound)),
-    save: Math.min(1, total.save),
-    rend: total.rend,
+    save: options?.ignoreSaveModifiers ? 0 : Math.min(1, total.save),
+    rend: options?.ignoreSaveModifiers ? Math.min(0, total.rend) : total.rend,
     damage: total.damage,
   };
 }

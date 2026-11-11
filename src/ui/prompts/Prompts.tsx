@@ -75,16 +75,32 @@ export function DecisionPrompts() {
       <Modal title="Reaction" testId="reaction">
         <p>{reactionText(d.trigger, logContext(state.units))}</p>
         <div className="stack">
-          {d.options.map((o, i) => (
-            <button
-              key={i}
-              className="btn wide"
-              disabled={o.cost > cp}
-              onClick={() => dispatch({ t: 'command', command: o.command, unit: o.unit })}
-            >
-              {COMMAND_NAMES[o.command]} · {state.units[o.unit]?.name ?? o.unit} · {o.cost} CP
-            </button>
-          ))}
+          {d.options.map((o, i) => {
+            const unitName = state.units[o.unit]?.name ?? o.unit;
+            if (o.ability === 'unbind') {
+              return (
+                <button
+                  key={i}
+                  className="btn wide"
+                  onClick={() => dispatch({ t: 'ability', unit: o.unit, abilityId: 'unbind' })}
+                >
+                  Unbind · {unitName} · Free
+                </button>
+              );
+            }
+            if (!o.command) return null;
+            const command = o.command;
+            return (
+              <button
+                key={i}
+                className="btn wide"
+                disabled={o.cost > cp}
+                onClick={() => dispatch({ t: 'command', command, unit: o.unit })}
+              >
+                {COMMAND_NAMES[command]} · {unitName} · {o.cost} CP
+              </button>
+            );
+          })}
           <button className="btn primary wide" onClick={() => dispatch({ t: 'pass' })}>
             Skip
           </button>

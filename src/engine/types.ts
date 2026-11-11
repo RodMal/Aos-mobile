@@ -74,6 +74,18 @@ export interface UnitState {
   commandUsed?: CommandId | null;
   /** The unit used All-out Attack this turn. */
   allOutAttack?: boolean;
+  /** Spell, prayer, unbind and banish abilities used by this unit in the current phase. */
+  castsUsed?: number;
+  /** Ritual points accumulated by a Priest across turns until a prayer is answered. */
+  ritualPoints?: number;
+  /** Ability IDs used by this unit in the current turn (Rule of One per unit). */
+  abilitiesUsed?: string[];
+  /** Set when a unit/manifestation was set up on the battlefield this turn (bars movement-phase moves). */
+  setUpThisTurn?: boolean;
+  /** True for summoned manifestation units. */
+  isManifestation?: boolean;
+  /** Set while the unit is casting/chanting via Magical Intervention (-1 to the roll). */
+  magicalIntervention?: boolean;
 }
 
 export interface PlayerState {
@@ -83,11 +95,27 @@ export interface PlayerState {
   vpByRound: number[];
   /** Commands this army has used in the current phase (each command once per army per phase). */
   commandsUsed?: CommandId[];
+  /** Non-UNLIMITED spell and prayer ability IDs attempted by this army in the current turn. */
+  spellsAttempted?: string[];
 }
 
 export interface ObjectiveState {
   id: string;
   controller: PlayerId | null;
+}
+
+export type EffectExpiry = 'attack' | 'phase' | 'turn' | 'startOfNextTurn' | 'battle';
+
+/** A timed buff or debuff in play, stored as plain JSON data. */
+export interface ActiveEffect {
+  /** BSData ability id or CommandId that created this effect. */
+  id: string;
+  name: string;
+  sourceUnit: UnitId;
+  targetUnit: UnitId;
+  owner: PlayerId;
+  expires: EffectExpiry;
+  data?: Record<string, number | string | boolean>;
 }
 
 /**
@@ -100,10 +128,14 @@ export type Frame =
       t: 'place';
       unit: UnitId;
       reason: PlaceReason;
-      /** Maximum distance in inches any model may move. */
+      /** Maximum distance in inches any model may move (or summon range from caster). */
       allowance: number;
       /** Dice behind the allowance (run: 1 die, charge: 2 dice). */
       dice: number[];
+      /** For `reason: 'summon'`: the caster the manifestation must be wholly within `allowance` of. */
+      caster?: UnitId;
+      /** For `reason: 'summon'`: minimum edge-to-edge distance from enemy units. */
+      minEnemyGap?: number;
     }
   | { t: 'targets'; unit: UnitId; mode: AttackMode }
   | { t: 'reaction'; player: PlayerId; options: ReactionOption[]; trigger: string }
@@ -119,10 +151,36 @@ export type Frame =
       allOutAttack: boolean;
       /** Target units that use All-out Defence against these attacks. */
       defended: UnitId[];
+      /** Set when the attack is made via Covering Fire (-1 to hit). */
+      coveringFire?: boolean;
+    }
+  /**
+   * A spell that met its casting value and is waiting under an Unbind `reaction` frame.
+   */
+  | {
+      t: 'spell';
+      unit: UnitId;
+      abilityId: string;
+      target?: UnitId;
+      roll: number;
+    }
+  /**
+   * A Wizard or Priest using Magical Intervention in the enemy hero phase to cast or chant once.
+   */
+  | {
+      t: 'magicalIntervention';
+      unit: UnitId;
+    }
+  /**
+   * Marker pushed under an end-of-phase reaction so the phase advances once the reaction finishes.
+   */
+  | {
+      t: 'endPhase';
     };
 
-export type PlaceReason = MoveKind | 'charge' | 'pileIn';
+export type PlaceReason = MoveKind | 'charge' | 'pileIn' | 'summon' | 'powerThrough';
 export type AttackMode = 'shoot' | 'fight';
+export type FightTier = 'strikeFirst' | 'normal' | 'strikeLast';
 
 export interface GameState {
   /** The seed the game started from; `rng` is the current generator state. */
@@ -147,12 +205,22 @@ export interface GameState {
   /** Units that have fought in the current combat phase are flagged on the unit; this holds
    * the player whose pick is next, or null outside the combat phase. */
   fightPicker: PlayerId | null;
+  /** Combat strike-order tier of the last pick in the current combat phase. */
+  fightTier?: FightTier | null;
   winner: PlayerId | 'draw' | null;
   /**
    * The player who last seized the initiative. Their opponent counts as the underdog until
    * that opponent seizes in turn. Absent or null when nobody has.
    */
   seizedBy?: PlayerId | null;
+  /** Timed effects currently in play. */
+  effects?: ActiveEffect[];
+  /** Warscroll IDs of manifestations removed/destroyed in the current turn. */
+  banishedThisTurn?: string[];
+  /** Reaction triggers already offered in the current phase. */
+  reactionsOffered?: string[];
+  /** Terrain feature IDs that have an overgrown token for each player (for Sylvaneth rules). */
+  overgrownTerrain?: string[];
 }
 
 // ─── Decisions ──────────────────────────────────────────────────────────────────
@@ -195,7 +263,8 @@ export type CommandId =
   | 'powerThrough';
 
 export interface ReactionOption {
-  command: CommandId;
+  command?: CommandId;
+  ability?: 'unbind';
   unit: UnitId;
   cost: number;
 }
@@ -238,10 +307,23 @@ export type Action =
   /** Answer a `targets` decision. */
   | { t: 'targets'; allocations: Allocation[]; allOutAttack?: boolean }
   /**
-   * Use a command: Rally in your hero phase, At the Double in your movement phase (declares a
-   * run whose roll counts as 6), or All-out Defence as a reaction.
+   * Use a command: Rally, At the Double, All-out Defence, Forward to Victory, Redeploy,
+   * Counter-charge, Covering Fire, Magical Intervention, or Power Through.
    */
-  | { t: 'command'; command: CommandId; unit: UnitId };
+  | { t: 'command'; command: CommandId; unit: UnitId; target?: UnitId }
+  /**
+   * Use a spell, prayer, summon, banish, unbind or activated ability.
+   */
+  | {
+      t: 'ability';
+      unit: UnitId;
+      abilityId: string;
+      target?: UnitId;
+      secondTarget?: UnitId;
+      choice?: string;
+    };
+
+export type AbilityOptionKind = 'spell' | 'prayer' | 'summon' | 'banish' | 'activated';
 
 /** What a unit may do under the current `main` or `fightPick` decision. */
 export type UnitOption =
@@ -254,7 +336,15 @@ export type UnitOption =
   | { t: 'shoot' }
   | { t: 'charge' }
   | { t: 'fight' }
-  | { t: 'command'; command: CommandId; cost: number };
+  | { t: 'command'; command: CommandId; cost: number; targets?: UnitId[] }
+  | {
+      t: 'ability';
+      abilityId: string;
+      name: string;
+      kind: AbilityOptionKind;
+      targetValue?: number;
+      targets: UnitId[];
+    };
 
 /** The legal targets of one weapon, for a `shoot` action or a `targets` decision. */
 export interface WeaponTargets {
@@ -317,6 +407,45 @@ export type GameEvent =
     }
   | { t: 'damage'; unit: UnitId; amount: number; slain: number; destroyed: boolean; source: string }
   | { t: 'command'; player: PlayerId; command: CommandId; unit: UnitId }
+  | {
+      t: 'cast';
+      unit: UnitId;
+      ability: string;
+      dice: [number, number];
+      total: number;
+      targetValue: number;
+      success: boolean;
+      miscast: boolean;
+    }
+  | {
+      t: 'unbind';
+      unit: UnitId;
+      caster: UnitId;
+      ability: string;
+      dice: [number, number];
+      total: number;
+      castTotal: number;
+      unbound: boolean;
+    }
+  | {
+      t: 'chant';
+      unit: UnitId;
+      ability: string;
+      die: number;
+      total: number;
+      targetValue: number;
+      answered: boolean;
+      ritualPoints: number;
+    }
+  | {
+      t: 'banish';
+      unit: UnitId;
+      target: UnitId;
+      dice: [number, number];
+      total: number;
+      targetValue: number;
+      banished: boolean;
+    }
   | { t: 'roll'; player: PlayerId; label: string; dice: number[] }
   | { t: 'objective'; objective: string; controller: PlayerId | null }
   | { t: 'score'; player: PlayerId; vp: number; reason: string }

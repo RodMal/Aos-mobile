@@ -4,6 +4,7 @@
  * range of the chosen target attack. Line of sight comes in M3.
  */
 import { attackModifiers, sumModifiers } from '../rules/core/modifiers.js';
+import { clearExpiredEffects, effectiveWard, unitGrants } from './abilities/effects.js';
 import { hasAbility, rollAttackCount, rollAttackSequence, rollWard } from './attack.js';
 import { illegal, type Ctx } from './ctx.js';
 import { allocateDamage } from './damage.js';
@@ -30,9 +31,12 @@ import type {
 } from './types.js';
 
 /** True when the unit may shoot this turn at all (weapons and targets aside). */
-export function mayShoot(unit: UnitState): boolean {
+export function mayShoot(unit: UnitState, runAndShoot = false): boolean {
   return (
-    unit.status === 'battlefield' && !unit.shot && unit.moved !== 'run' && unit.moved !== 'retreat'
+    unit.status === 'battlefield' &&
+    !unit.shot &&
+    (unit.moved !== 'run' || runAndShoot) &&
+    unit.moved !== 'retreat'
   );
 }
 
@@ -47,6 +51,7 @@ export function weaponCarriers(
   unit: UnitState,
   weapon: Weapon,
 ): Set<number> | null {
+  if (unit.isManifestation) return null;
   const loadout = scenario.armies[unit.owner].list.units[unit.armyIndex]?.weapons;
   if (!loadout) return null;
   const profile = profileOf(scenario, unit);
@@ -92,11 +97,13 @@ export function weaponMods(
   target: UnitState,
   weapon: Weapon,
   mode: AttackMode,
-  extra: { allOutAttack?: boolean; allOutDefence?: boolean } = {},
+  extra: { allOutAttack?: boolean; allOutDefence?: boolean; coveringFire?: boolean } = {},
 ): AttackMods {
+  const targetGrants = unitGrants(scenario, state, target);
   return sumModifiers(
     attackModifiers(scenario, state, { attacker, target, weapon, mode, ...extra }),
     weapon,
+    { ignoreSaveModifiers: targetGrants.ignoreSaveModifiers },
   );
 }
 
@@ -109,16 +116,17 @@ export function expectedWeaponDamage(
   weapon: Weapon,
   mode: AttackMode,
   indices: number[],
-  extra: { allOutAttack?: boolean; allOutDefence?: boolean } = {},
+  extra: { allOutAttack?: boolean; allOutDefence?: boolean; coveringFire?: boolean } = {},
 ): number {
   const tp = profileOf(scenario, target);
+  const ward = effectiveWard(scenario, state, target) ?? null;
   const attacks = expectedAttacks(
     weapon,
     indices.length,
     championsAmong(scenario, attacker, indices),
   );
   const mods = weaponMods(scenario, state, attacker, target, weapon, mode, extra);
-  return expectedDamage(weapon, attacks, { save: tp.save, ward: tp.ward }, mods).total;
+  return expectedDamage(weapon, attacks, { save: tp.save, ward }, mods).total;
 }
 
 /**
@@ -138,7 +146,8 @@ export function weaponTargets(
   let weapons: Weapon[];
   let candidates: UnitState[];
   if (mode === 'shoot') {
-    if (!mayShoot(unit)) return [];
+    const grants = unitGrants(scenario, state, unit);
+    if (!mayShoot(unit, grants.runAndShoot)) return [];
     const engaged = inCombat(scenario, state, unit);
     weapons = profile.weapons.filter(
       (w) => w.kind === 'ranged' && (!engaged || hasAbility(w, 'shootInCombat')),
@@ -202,6 +211,7 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
     const indices = attackingModels(scenario, attacker, target, weapon, range);
     if (indices.length === 0) continue;
     const tp = profileOf(scenario, target);
+    const targetWard = effectiveWard(scenario, s, target) ?? null;
     const attacks = rollAttackCount(
       ctx.rng,
       weapon,
@@ -211,14 +221,15 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
     const mods = weaponMods(scenario, s, attacker, target, weapon, frame.mode, {
       allOutAttack: frame.allOutAttack,
       allOutDefence: frame.defended.includes(target.id),
+      coveringFire: frame.coveringFire,
     });
     const roll = rollAttackSequence(ctx.rng, {
       weapon,
       attacks,
       mods,
-      target: { save: tp.save, ward: tp.ward },
+      target: { save: tp.save, ward: targetWard },
     });
-    const ward = rollWard(ctx.rng, roll.damage + roll.mortal, tp.ward);
+    const ward = rollWard(ctx.rng, roll.damage + roll.mortal, targetWard);
     ctx.events.push({
       t: 'attacks',
       attacker: attacker.id,
@@ -240,4 +251,5 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
   for (const [id, amount] of pending) {
     allocateDamage(ctx, s.units[id]!, amount, `${attacker.name} (${frame.mode})`);
   }
+  clearExpiredEffects(s, 'attack');
 }

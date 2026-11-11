@@ -8,19 +8,29 @@ import {
   type Footprint,
   type Polygon,
 } from '../geom/index.js';
+import { hasEffectiveKeyword } from './abilities/effects.js';
 import {
   aliveIndices,
   CHARGE_END_RANGE,
   COMBAT_RANGE,
   DIST_EPS,
+  footprintWhollyWithin,
+  gapToEnemies,
   unitBounds,
-  hasKeyword,
   modelFootprint,
   opponent,
   unitFootprints,
   unitsOf,
 } from './query.js';
-import type { GameState, Placement, PlaceReason, Scenario, UnitState, Violation } from './types.js';
+import type {
+  GameState,
+  Placement,
+  PlaceReason,
+  Scenario,
+  UnitId,
+  UnitState,
+  Violation,
+} from './types.js';
 
 /** How finely a model's straight-line path is sampled, in inches. */
 const PATH_STEP = 0.5;
@@ -38,6 +48,8 @@ export function boardPolygon(scenario: Scenario): Polygon {
 export interface PlaceRules {
   reason: PlaceReason;
   allowance: number;
+  caster?: UnitId;
+  minEnemyGap?: number;
 }
 
 /**
@@ -79,18 +91,48 @@ export function checkMovePlacement(
     });
   }
 
-  const tooFar = placement.models
-    .filter((m) => {
-      const from = unit.models[m.i]!;
-      return Math.hypot(m.x - from.x, m.y - from.y) > rules.allowance + DIST_EPS;
-    })
-    .map((m) => m.i);
-  if (tooFar.length > 0) {
-    violations.push({
-      code: 'TOO_FAR',
-      message: `Models can move up to ${formatInches(rules.allowance)}.`,
-      models: tooFar,
-    });
+  if (rules.reason === 'summon') {
+    const caster = rules.caster ? state.units[rules.caster] : undefined;
+    const casterFps = caster ? unitFootprints(scenario, caster) : [];
+    const notWhollyWithin = placement.models
+      .filter((m) => !footprintWhollyWithin(ends.get(m.i)!, casterFps, rules.allowance))
+      .map((m) => m.i);
+    if (notWhollyWithin.length > 0) {
+      violations.push({
+        code: 'TOO_FAR',
+        message: `Must be set up wholly within ${formatInches(rules.allowance)} of the caster.`,
+        models: notWhollyWithin,
+      });
+    }
+    const minGapReq = rules.minEnemyGap ?? 9;
+    if (minGapReq > 0) {
+      const tooCloseToEnemy = placement.models
+        .filter(
+          (m) => gapToEnemies(scenario, state, unit.owner, ends.get(m.i)!) <= minGapReq + DIST_EPS,
+        )
+        .map((m) => m.i);
+      if (tooCloseToEnemy.length > 0) {
+        violations.push({
+          code: 'ENEMY_COMBAT_RANGE',
+          message: `Must be set up more than ${formatInches(minGapReq)} from all enemy units.`,
+          models: tooCloseToEnemy,
+        });
+      }
+    }
+  } else {
+    const tooFar = placement.models
+      .filter((m) => {
+        const from = unit.models[m.i]!;
+        return Math.hypot(m.x - from.x, m.y - from.y) > rules.allowance + DIST_EPS;
+      })
+      .map((m) => m.i);
+    if (tooFar.length > 0) {
+      violations.push({
+        code: 'TOO_FAR',
+        message: `Models can move up to ${formatInches(rules.allowance)}.`,
+        models: tooFar,
+      });
+    }
   }
 
   // Overlaps: with the unit's own models, and with every other model on the battlefield.
@@ -99,8 +141,10 @@ export function checkMovePlacement(
   for (const id of state.unitOrder) {
     const other = state.units[id]!;
     if (other.id === unit.id || other.status !== 'battlefield') continue;
-    const b = unitBounds(scenario, other);
-    if (Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r > rules.allowance + 1) continue;
+    if (rules.reason !== 'summon') {
+      const b = unitBounds(scenario, other);
+      if (Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r > rules.allowance + 1) continue;
+    }
     others.push(...unitFootprints(scenario, other));
   }
   const overlapping = new Set<number>();
@@ -171,9 +215,14 @@ export function checkMovePlacement(
     }
   }
 
-  if (rules.reason === 'normal' || rules.reason === 'run' || rules.reason === 'retreat') {
+  if (
+    rules.reason === 'normal' ||
+    rules.reason === 'run' ||
+    rules.reason === 'retreat' ||
+    rules.reason === 'powerThrough'
+  ) {
     const enemies = nearbyEnemyFootprints(scenario, state, unit, rules.allowance + COMBAT_RANGE);
-    const fly = hasKeyword(scenario, unit, 'FLY');
+    const fly = hasEffectiveKeyword(scenario, state, unit, 'FLY');
     const inRange = (fp: Footprint): boolean =>
       enemies.some((e) => !footprintGapAtLeast(fp, e, COMBAT_RANGE + DIST_EPS));
     const endsInRange: number[] = [];
@@ -183,9 +232,9 @@ export function checkMovePlacement(
         endsInRange.push(m.i);
         continue;
       }
-      // A retreating unit starts inside combat range, and a flying unit ignores it on the
-      // way, so only the end position matters for them.
-      if (rules.reason === 'retreat' || fly) continue;
+      // A retreating or Power Through unit starts inside combat range, and a flying unit
+      // ignores it on the way, so only the end position matters for them.
+      if (rules.reason === 'retreat' || rules.reason === 'powerThrough' || fly) continue;
       const from = unit.models[m.i]!;
       const dist = Math.hypot(m.x - from.x, m.y - from.y);
       const steps = Math.floor(dist / PATH_STEP);
@@ -199,12 +248,12 @@ export function checkMovePlacement(
       }
     }
     if (endsInRange.length > 0) {
+      const startedInCombat = rules.reason === 'retreat' || rules.reason === 'powerThrough';
       violations.push({
-        code: rules.reason === 'retreat' ? 'STILL_IN_COMBAT' : 'ENEMY_COMBAT_RANGE',
-        message:
-          rules.reason === 'retreat'
-            ? 'A retreat must end more than 3" from all enemy units.'
-            : 'This move cannot end within 3" of an enemy unit.',
+        code: startedInCombat ? 'STILL_IN_COMBAT' : 'ENEMY_COMBAT_RANGE',
+        message: startedInCombat
+          ? 'This move must end more than 3" from all enemy units.'
+          : 'This move cannot end within 3" of an enemy unit.',
         models: endsInRange,
       });
     }

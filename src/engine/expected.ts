@@ -99,7 +99,7 @@ function perAttack(
   // Without a Crit ability a 6 is an ordinary hit roll: it hits if the modified roll does.
   const pc = crit !== null ? pCrit() : 6 + mods.hit >= weapon.hit ? 1 / 6 : 0;
   const pw = pWound(weapon.wound, mods.wound);
-  const pUnsaved = 1 - pSave(target.save, weapon.rend + mods.rend, mods.save);
+  const pUnsaved = 1 - pSave(target.save, Math.max(0, weapon.rend + mods.rend), mods.save);
   const pwf = pWardFail(target.ward);
   const perWound = pUnsaved * dmg;
   let critNormal = 0;

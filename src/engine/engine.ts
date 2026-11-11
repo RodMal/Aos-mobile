@@ -1,19 +1,30 @@
 import { battleplanRules } from '../rules/battleplans/index.js';
-import { clearPhaseCommands, commandBlocker, payCommand } from '../rules/core/commands.js';
+import {
+  clearPhaseCommands,
+  commandBlocker,
+  COMMANDS,
+  payCommand,
+} from '../rules/core/commands.js';
 import { resolveControl } from '../rules/core/objectives.js';
 import { rallyPoints, rallySpend, RALLY_ROLLS } from '../rules/core/rally.js';
 import { priorityWinner, roundCommandPoints, seizes } from '../rules/core/round.js';
+import { clearExpiredEffects, fireTriggers, strikeOrder, unitGrants } from './abilities/effects.js';
+import './abilities/lores.js';
+import { declareAbility, magicOptionsForUnit, resolvePendingSpell } from './abilities/magic.js';
 import { checkAllocations, mayShoot, resolveAttacks, weaponTargets } from './combat.js';
-import { d6, d6s, illegal, type Ctx } from './ctx.js';
+import { d6, d6s, illegal, rollD3, type Ctx } from './ctx.js';
 import { inflictMortalDamage, returnPosition } from './damage.js';
 import { checkMovePlacement, PILE_IN_DISTANCE, placementDistance } from './movement.js';
 import {
   CHARGE_END_RANGE,
+  DIST_EPS,
+  enemiesInCombat,
   enemiesWithin,
   inCombat,
   opponent,
   profileOf,
   unitById,
+  unitDistance,
   unitsOf,
   unitsWithin,
 } from './query.js';
@@ -24,8 +35,10 @@ import {
   type Action,
   type Allocation,
   type AttackMode,
+  type CommandId,
   type Decision,
   type Engine,
+  type FightTier,
   type Frame,
   type GameState,
   type MoveKind,
@@ -51,12 +64,17 @@ export function cloneState(state: GameState): GameState {
   const units: Record<UnitId, UnitState> = {};
   for (const id of state.unitOrder) {
     const u = state.units[id]!;
-    units[id] = { ...u, models: u.models.map((m) => ({ ...m })) };
+    units[id] = {
+      ...u,
+      models: u.models.map((m) => ({ ...m })),
+      ...(u.abilitiesUsed ? { abilitiesUsed: [...u.abilitiesUsed] } : {}),
+    };
   }
   const player = (p: GameState['players'][number]): GameState['players'][number] => ({
     ...p,
     vpByRound: [...p.vpByRound],
     ...(p.commandsUsed ? { commandsUsed: [...p.commandsUsed] } : {}),
+    ...(p.spellsAttempted ? { spellsAttempted: [...p.spellsAttempted] } : {}),
   });
   return {
     ...state,
@@ -65,6 +83,17 @@ export function cloneState(state: GameState): GameState {
     unitOrder: [...state.unitOrder],
     objectives: state.objectives.map((o) => ({ ...o })),
     stack: state.stack.map((f) => ({ ...f })),
+    ...(state.effects
+      ? {
+          effects: state.effects.map((e) => ({
+            ...e,
+            ...(e.data ? { data: { ...e.data } } : {}),
+          })),
+        }
+      : {}),
+    ...(state.banishedThisTurn ? { banishedThisTurn: [...state.banishedThisTurn] } : {}),
+    ...(state.reactionsOffered ? { reactionsOffered: [...state.reactionsOffered] } : {}),
+    ...(state.overgrownTerrain ? { overgrownTerrain: [...state.overgrownTerrain] } : {}),
   };
 }
 
@@ -80,7 +109,18 @@ function startTurn(ctx: Ctx): void {
     u.fought = false;
     u.chargeDeclared = false;
     u.allOutAttack = false;
+    u.castsUsed = 0;
+    u.abilitiesUsed = [];
+    u.setUpThisTurn = false;
+    u.magicalIntervention = false;
   }
+  for (const p of s.players) {
+    p.spellsAttempted = [];
+  }
+  s.banishedThisTurn = [];
+  s.reactionsOffered = [];
+  s.fightTier = null;
+  clearExpiredEffects(s, 'startOfNextTurn', s.active);
   clearPhaseCommands(s);
   s.phase = 'hero';
   s.fightPicker = null;
@@ -144,6 +184,7 @@ function endGame(ctx: Ctx): void {
 /** End of a turn: resolve objective control, then the player whose turn it was scores. */
 function endTurn(ctx: Ctx): void {
   const { s, scenario } = ctx;
+  clearExpiredEffects(s, 'turn');
   for (const change of resolveControl(scenario, s)) {
     s.objectives.find((o) => o.id === change.id)!.controller = change.controller;
     ctx.events.push({ t: 'objective', objective: change.id, controller: change.controller });
@@ -160,10 +201,18 @@ function endTurn(ctx: Ctx): void {
 function advancePhase(ctx: Ctx): void {
   const { s, scenario } = ctx;
   clearPhaseCommands(s);
+  clearExpiredEffects(s, 'phase');
+  s.reactionsOffered = [];
+  for (const id of s.unitOrder) {
+    const u = s.units[id]!;
+    u.castsUsed = 0;
+    u.magicalIntervention = false;
+  }
   const next = PHASES[PHASES.indexOf(s.phase) + 1];
   if (next) {
     s.phase = next;
     s.fightPicker = next === 'combat' ? s.active : null;
+    s.fightTier = null;
     ctx.events.push({ t: 'phaseStart', phase: next, player: s.active });
     return;
   }
@@ -183,31 +232,67 @@ function advancePhase(ctx: Ctx): void {
 // ─── Eligibility ────────────────────────────────────────────────────────────────
 
 function moveOptions(scenario: Scenario, state: GameState, unit: UnitState): UnitOption[] {
-  if (unit.moved !== null) return [];
+  if (unit.moved !== null || unit.setUpThisTurn) return [];
   const profile = profileOf(scenario, unit);
   if (profile.move <= 0 && !profile.moveDice) return [];
   if (inCombat(scenario, state, unit)) {
+    if (unit.isManifestation) return [];
     return [{ t: 'move', kind: 'retreat', allowance: profile.move }];
   }
-  return [
-    { t: 'move', kind: 'normal', allowance: profile.move },
-    { t: 'move', kind: 'run', allowance: profile.move },
-  ];
+  const grants = unitGrants(scenario, state, unit);
+  const out: UnitOption[] = [{ t: 'move', kind: 'normal', allowance: profile.move }];
+  if (!grants.cannotRun && !unit.isManifestation) {
+    out.push({ t: 'move', kind: 'run', allowance: profile.move });
+  }
+  return out;
 }
 
-/** Units of `player` that may be picked to fight: in combat or charged, not yet fought. */
+function rawEligibleFighters(scenario: Scenario, state: GameState, player: PlayerId): UnitState[] {
+  return unitsOf(state, player).filter((u) => {
+    if (u.fought) return false;
+    if (u.isManifestation && !profileOf(scenario, u).weapons.some((w) => w.kind === 'melee')) {
+      return false;
+    }
+    return u.charged || inCombat(scenario, state, u);
+  });
+}
+
+export function currentFightTier(scenario: Scenario, state: GameState): FightTier | null {
+  const all = [
+    ...rawEligibleFighters(scenario, state, 0),
+    ...rawEligibleFighters(scenario, state, 1),
+  ];
+  if (all.length === 0) return null;
+  const tiers = new Set(all.map((u) => strikeOrder(scenario, state, u)));
+  if (tiers.has('strikeFirst')) return 'strikeFirst';
+  if (tiers.has('normal')) return 'normal';
+  if (tiers.has('strikeLast')) return 'strikeLast';
+  return null;
+}
+
+/**
+ * Units of `player` that may be picked to fight in the current strike-order tier:
+ * STRIKE-FIRST units first, then normal, then STRIKE-LAST.
+ */
 export function eligibleFighters(
   scenario: Scenario,
   state: GameState,
   player: PlayerId,
 ): UnitState[] {
-  return unitsOf(state, player).filter(
-    (u) => !u.fought && (u.charged || inCombat(scenario, state, u)),
+  const tier = currentFightTier(scenario, state);
+  if (!tier) return [];
+  return rawEligibleFighters(scenario, state, player).filter(
+    (u) => strikeOrder(scenario, state, u) === tier,
   );
 }
 
 function canCharge(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  if (unit.chargeDeclared || unit.moved === 'run' || unit.moved === 'retreat') return false;
+  if (unit.chargeDeclared || unit.moved === 'retreat') return false;
+  if (unit.isManifestation && !profileOf(scenario, unit).weapons.some((w) => w.kind === 'melee')) {
+    return false;
+  }
+  const grants = unitGrants(scenario, state, unit);
+  if (unit.moved === 'run' && !grants.runAndCharge) return false;
   if (inCombat(scenario, state, unit)) return false;
   return enemiesWithin(scenario, state, unit, MAX_CHARGE_REACH).length > 0;
 }
@@ -218,11 +303,77 @@ function canRally(scenario: Scenario, state: GameState, unit: UnitState): boolea
   return unit.damage > 0 || unit.models.some((m) => !m.alive);
 }
 
+function canRedeploy(scenario: Scenario, state: GameState, unit: UnitState): boolean {
+  if (commandBlocker(state, unit.owner, 'redeploy', unit)) return false;
+  if (inCombat(scenario, state, unit) || unit.moved !== null) return false;
+  return profileOf(scenario, unit).move > 0;
+}
+
+function canCounterCharge(scenario: Scenario, state: GameState, unit: UnitState): boolean {
+  if (commandBlocker(state, unit.owner, 'counterCharge', unit)) return false;
+  return canCharge(scenario, state, unit);
+}
+
+function coveringFireAllocations(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+): Allocation[] {
+  if (commandBlocker(state, unit.owner, 'coveringFire', unit)) return [];
+  const wts = weaponTargets(scenario, state, unit, 'shoot');
+  if (wts.length === 0) return [];
+  const allEnemies = unitsOf(state, opponent(unit.owner));
+  if (allEnemies.length === 0) return [];
+  let minDist = Infinity;
+  for (const e of allEnemies) {
+    const d = unitDistance(scenario, unit, e);
+    if (d < minDist) minDist = d;
+  }
+  const closestIds = new Set(
+    allEnemies
+      .filter((e) => unitDistance(scenario, unit, e) <= minDist + DIST_EPS + 0.05)
+      .map((e) => e.id),
+  );
+  const allocations: Allocation[] = [];
+  for (const wt of wts) {
+    const legalClosest = wt.targets
+      .filter((t) => closestIds.has(t.unit))
+      .sort((a, b) => b.expectedDamage - a.expectedDamage);
+    if (legalClosest.length > 0) {
+      allocations.push({ weaponId: wt.weaponId, target: legalClosest[0]!.unit });
+    }
+  }
+  return allocations;
+}
+
+function canMagicalIntervention(scenario: Scenario, state: GameState, unit: UnitState): boolean {
+  if (commandBlocker(state, unit.owner, 'magicalIntervention', unit)) return false;
+  const probe: GameState = {
+    ...state,
+    stack: [...state.stack, { t: 'magicalIntervention', unit: unit.id }],
+  };
+  return magicOptionsForUnit(scenario, probe, unit).length > 0;
+}
+
+export function powerThroughTargets(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+): UnitId[] {
+  if (!unit.charged || commandBlocker(state, unit.owner, 'powerThrough', unit)) return [];
+  const myHealth = profileOf(scenario, unit).health;
+  const engaged = enemiesInCombat(scenario, state, unit);
+  if (engaged.length === 0) return [];
+  return engaged.filter((e) => profileOf(scenario, e).health < myHealth).map((e) => e.id);
+}
+
 // ─── Engine ─────────────────────────────────────────────────────────────────────
 
 export function createEngine(scenario: Scenario): Engine {
   function fightPickerFor(state: GameState): PlayerId | null {
-    const first = state.fightPicker ?? state.active;
+    const tier = currentFightTier(scenario, state);
+    if (!tier) return null;
+    const first = state.fightTier === tier ? (state.fightPicker ?? state.active) : state.active;
     if (eligibleFighters(scenario, state, first).length > 0) return first;
     const other = opponent(first);
     return eligibleFighters(scenario, state, other).length > 0 ? other : null;
@@ -259,8 +410,16 @@ export function createEngine(scenario: Scenario): Engine {
             options: top.options,
             trigger: top.trigger,
           };
+        case 'magicalIntervention':
+          return {
+            kind: 'main',
+            player: unitById(state, top.unit).owner,
+            phase: 'hero',
+          };
         case 'resolve':
-          throw new Error('internal: unresolved attacks on top of the stack');
+        case 'spell':
+        case 'endPhase':
+          throw new Error(`internal: unresolved ${top.t} frame on top of the stack`);
       }
     }
     if (state.phase === 'combat') {
@@ -274,6 +433,11 @@ export function createEngine(scenario: Scenario): Engine {
     const d = decision(state);
     const unit = state.units[unitId];
     if (!d || !unit || unit.status !== 'battlefield' || unit.owner !== d.player) return [];
+    const top = state.stack[state.stack.length - 1];
+    if (top?.t === 'magicalIntervention') {
+      if (top.unit !== unitId) return [];
+      return magicOptionsForUnit(scenario, state, unit);
+    }
     if (d.kind === 'fightPick') {
       return eligibleFighters(scenario, state, d.player).some((u) => u.id === unitId)
         ? [{ t: 'fight' }]
@@ -281,8 +445,13 @@ export function createEngine(scenario: Scenario): Engine {
     }
     if (d.kind !== 'main') return [];
     switch (d.phase) {
-      case 'hero':
-        return canRally(scenario, state, unit) ? [{ t: 'command', command: 'rally', cost: 1 }] : [];
+      case 'hero': {
+        const opts: UnitOption[] = [...magicOptionsForUnit(scenario, state, unit)];
+        if (canRally(scenario, state, unit)) {
+          opts.push({ t: 'command', command: 'rally', cost: 1 });
+        }
+        return opts;
+      }
       case 'movement': {
         const moves = moveOptions(scenario, state, unit);
         const canRun = moves.some((o) => o.t === 'move' && o.kind === 'run');
@@ -291,12 +460,32 @@ export function createEngine(scenario: Scenario): Engine {
         }
         return moves;
       }
-      case 'shooting':
-        return mayShoot(unit) && weaponTargets(scenario, state, unit, 'shoot').length > 0
+      case 'shooting': {
+        const grants = unitGrants(scenario, state, unit);
+        return mayShoot(unit, grants.runAndShoot) &&
+          weaponTargets(scenario, state, unit, 'shoot').length > 0
           ? [{ t: 'shoot' }]
           : [];
-      case 'charge':
-        return canCharge(scenario, state, unit) ? [{ t: 'charge' }] : [];
+      }
+      case 'charge': {
+        const opts: UnitOption[] = [];
+        if (canCharge(scenario, state, unit)) opts.push({ t: 'charge' });
+        if (
+          unit.chargeDeclared &&
+          !unit.charged &&
+          !commandBlocker(state, unit.owner, 'forwardToVictory', unit)
+        ) {
+          opts.push({ t: 'command', command: 'forwardToVictory', cost: 1 });
+        }
+        return opts;
+      }
+      case 'end': {
+        const targets = powerThroughTargets(scenario, state, unit);
+        if (targets.length > 0) {
+          return [{ t: 'command', command: 'powerThrough', cost: 1, targets }];
+        }
+        return [];
+      }
       default:
         return [];
     }
@@ -315,19 +504,20 @@ export function createEngine(scenario: Scenario): Engine {
     if (placement.unit !== d.unit) {
       return [{ code: 'WRONG_MODELS', message: 'That is not the unit being placed.' }];
     }
+    const top = state.stack[state.stack.length - 1];
     return checkMovePlacement(scenario, state, unitById(state, d.unit), placement, {
       reason: d.reason,
       allowance: d.allowance,
+      ...(top?.t === 'place' && top.caster ? { caster: top.caster } : {}),
+      ...(top?.t === 'place' && top.minEnemyGap !== undefined
+        ? { minEnemyGap: top.minEnemyGap }
+        : {}),
     });
   }
 
   // ─── Actions ──────────────────────────────────────────────────────────────────
 
-  function useCommandOn(
-    ctx: Ctx,
-    command: 'rally' | 'atTheDouble' | 'allOutAttack' | 'allOutDefence',
-    unit: UnitState,
-  ): void {
+  function useCommandOn(ctx: Ctx, command: CommandId, unit: UnitState): void {
     const blocker = commandBlocker(ctx.s, unit.owner, command, unit);
     if (blocker) illegal(blocker);
     payCommand(ctx.s, unit.owner, command, unit);
@@ -385,6 +575,106 @@ export function createEngine(scenario: Scenario): Engine {
     });
   }
 
+  function redeploy(ctx: Ctx, unitId: UnitId): void {
+    const { s } = ctx;
+    const unit = s.units[unitId];
+    if (!unit || !canRedeploy(scenario, s, unit)) illegal('That unit cannot redeploy now.');
+    useCommandOn(ctx, 'redeploy', unit);
+    const roll = d6(ctx);
+    ctx.events.push({ t: 'roll', player: unit.owner, label: 'Redeploy', dice: [roll] });
+    unit.moved = 'normal';
+    s.stack.push({ t: 'place', unit: unit.id, reason: 'normal', allowance: roll, dice: [roll] });
+  }
+
+  function coveringFire(ctx: Ctx, unitId: UnitId): void {
+    const { s } = ctx;
+    const unit = s.units[unitId];
+    if (!unit) illegal('Unknown unit.');
+    const allocations = coveringFireAllocations(scenario, s, unit);
+    if (allocations.length === 0) illegal('That unit cannot use Covering Fire now.');
+    useCommandOn(ctx, 'coveringFire', unit);
+    unit.shot = true;
+    startAttacks(ctx, unit, 'shoot', allocations, false, true);
+  }
+
+  function counterCharge(ctx: Ctx, unitId: UnitId): void {
+    const { s } = ctx;
+    const unit = s.units[unitId];
+    if (!unit || !canCounterCharge(scenario, s, unit)) {
+      illegal('That unit cannot use Counter-charge now.');
+    }
+    useCommandOn(ctx, 'counterCharge', unit);
+    unit.chargeDeclared = true;
+    rollAndPushCharge(ctx, unit);
+  }
+
+  function magicalIntervention(ctx: Ctx, unitId: UnitId): void {
+    const { s } = ctx;
+    const unit = s.units[unitId];
+    if (!unit || !canMagicalIntervention(scenario, s, unit)) {
+      illegal('That unit cannot use Magical Intervention now.');
+    }
+    useCommandOn(ctx, 'magicalIntervention', unit);
+    unit.magicalIntervention = true;
+    s.stack.push({ t: 'magicalIntervention', unit: unit.id });
+  }
+
+  function powerThrough(ctx: Ctx, unitId: UnitId, targetId?: UnitId): void {
+    const { s } = ctx;
+    const unit = s.units[unitId];
+    if (!unit) illegal('Unknown unit.');
+    const targets = powerThroughTargets(scenario, s, unit);
+    if (targets.length === 0) illegal('That unit cannot use Power Through now.');
+    const chosenId = targetId ?? targets[0]!;
+    if (!targets.includes(chosenId)) {
+      illegal(
+        'Power Through must target an engaged enemy unit with a lower Health characteristic.',
+      );
+    }
+    const target = unitById(s, chosenId);
+    useCommandOn(ctx, 'powerThrough', unit);
+    const dmg = rollD3(ctx, unit.owner, 'Power Through (D3 mortal damage)');
+    inflictMortalDamage(ctx, target, dmg, 'Power Through');
+    const allowance = profileOf(scenario, unit).move;
+    s.stack.push({
+      t: 'place',
+      unit: unit.id,
+      reason: 'powerThrough',
+      allowance,
+      dice: [],
+    });
+  }
+
+  function forwardToVictory(ctx: Ctx, unitId: UnitId): void {
+    const { s } = ctx;
+    const unit = s.units[unitId];
+    if (!unit || !unit.chargeDeclared || unit.charged) {
+      illegal('Forward to Victory can only be used after a charge roll.');
+    }
+    useCommandOn(ctx, 'forwardToVictory', unit);
+    const top = s.stack[s.stack.length - 1];
+    if (top?.t === 'place' && top.unit === unitId && top.reason === 'charge') {
+      s.stack.pop();
+    }
+    rollAndPushCharge(ctx, unit);
+  }
+
+  function rollAndPushCharge(ctx: Ctx, unit: UnitState): void {
+    const { s } = ctx;
+    const dice: [number, number] = [d6(ctx), d6(ctx)];
+    const mod = unitGrants(scenario, s, unit).chargeRollModifier;
+    const roll = Math.max(0, dice[0] + dice[1] + mod);
+    const success =
+      roll > 0 &&
+      unitsOf(s, opponent(unit.owner)).some((e) =>
+        unitsWithin(scenario, unit, e, roll + CHARGE_END_RANGE),
+      );
+    ctx.events.push({ t: 'chargeRoll', unit: unit.id, dice, success });
+    if (success) {
+      s.stack.push({ t: 'place', unit: unit.id, reason: 'charge', allowance: roll, dice });
+    }
+  }
+
   function place(ctx: Ctx, placement: Placement): void {
     const { s } = ctx;
     const frame = s.stack[s.stack.length - 1];
@@ -392,7 +682,7 @@ export function createEngine(scenario: Scenario): Engine {
     const violations = checkPlacement(s, placement);
     if (violations.length > 0) illegal(violations[0]!.message, violations);
     const unit = s.units[frame.unit]!;
-    const distance = placementDistance(unit, placement);
+    const distance = frame.reason === 'summon' ? 0 : placementDistance(unit, placement);
     for (const m of placement.models) {
       const model = unit.models[m.i]!;
       model.x = m.x;
@@ -415,6 +705,42 @@ export function createEngine(scenario: Scenario): Engine {
       });
       inflictMortalDamage(ctx, unit, roll, 'Retreat');
     }
+
+    if (frame.reason !== 'summon' && unit.status === 'battlefield') {
+      fireTriggers(ctx, 'afterMove', {
+        unit,
+        moveKind:
+          frame.reason === 'normal' || frame.reason === 'run' || frame.reason === 'retreat'
+            ? frame.reason
+            : undefined,
+      });
+    }
+
+    // Offer Redeploy reaction when an active player's unit finishes a movement-phase move within 6" of an enemy unit
+    if (
+      s.phase === 'movement' &&
+      unit.owner === s.active &&
+      (frame.reason === 'normal' || frame.reason === 'run' || frame.reason === 'retreat') &&
+      !(s.reactionsOffered ?? []).includes('redeploy')
+    ) {
+      const nonActive = opponent(s.active);
+      const candidates = unitsOf(s, nonActive).filter(
+        (u) => canRedeploy(scenario, s, u) && unitsWithin(scenario, unit, u, 6),
+      );
+      if (candidates.length > 0) {
+        s.reactionsOffered = [...(s.reactionsOffered ?? []), 'redeploy'];
+        s.stack.push({
+          t: 'reaction',
+          player: nonActive,
+          options: candidates.map((u) => ({
+            command: 'redeploy',
+            unit: u.id,
+            cost: COMMANDS.redeploy.cost,
+          })),
+          trigger: `move:${unit.id}`,
+        });
+      }
+    }
   }
 
   function skipPlace(ctx: Ctx): void {
@@ -430,14 +756,7 @@ export function createEngine(scenario: Scenario): Engine {
       illegal('That unit cannot charge now.');
     const unit = s.units[unitId]!;
     unit.chargeDeclared = true;
-    const dice: [number, number] = [d6(ctx), d6(ctx)];
-    const roll = dice[0] + dice[1];
-    const success = unitsOf(s, opponent(unit.owner)).some((e) =>
-      unitsWithin(scenario, unit, e, roll + CHARGE_END_RANGE),
-    );
-    ctx.events.push({ t: 'chargeRoll', unit: unitId, dice, success });
-    if (success)
-      s.stack.push({ t: 'place', unit: unitId, reason: 'charge', allowance: roll, dice });
+    rollAndPushCharge(ctx, unit);
   }
 
   /** Pays for All-out Attack, then offers All-out Defence or resolves the attacks. */
@@ -447,6 +766,7 @@ export function createEngine(scenario: Scenario): Engine {
     mode: AttackMode,
     allocations: Allocation[],
     allOutAttack: boolean,
+    isCoveringFire = false,
   ): void {
     const { s } = ctx;
     if (allOutAttack) {
@@ -460,6 +780,7 @@ export function createEngine(scenario: Scenario): Engine {
       allocations,
       allOutAttack,
       defended: [],
+      ...(isCoveringFire ? { coveringFire: true } : {}),
     };
     const defender = opponent(unit.owner);
     const options: ReactionOption[] = [];
@@ -481,21 +802,186 @@ export function createEngine(scenario: Scenario): Engine {
     const { s } = ctx;
     const reaction = s.stack[s.stack.length - 1];
     if (reaction?.t !== 'reaction') illegal('There is no reaction to answer.');
-    let defended: UnitId[] = [];
+
+    const under = s.stack[s.stack.length - 2];
+
+    // 1. Unbind reaction to a pending spell
+    if (under?.t === 'spell') {
+      if (action.t === 'ability' && action.abilityId === 'unbind') {
+        const ok = reaction.options.some((o) => o.ability === 'unbind' && o.unit === action.unit);
+        if (!ok) illegal('That unit cannot unbind this spell.');
+        s.stack.pop(); // reaction
+        const spellFrame = s.stack.pop() as Extract<Frame, { t: 'spell' }>;
+        resolvePendingSpell(ctx, spellFrame, action.unit);
+        return;
+      }
+      if (action.t === 'pass') {
+        s.stack.pop(); // reaction
+        const spellFrame = s.stack.pop() as Extract<Frame, { t: 'spell' }>;
+        resolvePendingSpell(ctx, spellFrame);
+        return;
+      }
+      illegal('Unbind the spell or pass.');
+    }
+
+    // 2. All-out Defence reaction to pending attacks
+    if (under?.t === 'resolve') {
+      let defended: UnitId[] = [];
+      if (action.t === 'command') {
+        const ok = reaction.options.some(
+          (o) => o.command === action.command && o.unit === action.unit,
+        );
+        if (!ok) illegal('That reaction is not available.');
+        useCommandOn(ctx, 'allOutDefence', s.units[action.unit]!);
+        defended = [action.unit];
+      } else if (action.t !== 'pass') {
+        illegal('Use a reaction or pass.');
+      }
+      s.stack.pop();
+      const pending = s.stack.pop() as Extract<Frame, { t: 'resolve' }>;
+      resolveAttacks(ctx, { ...pending, defended });
+      return;
+    }
+
+    // 3. Phase / move command reactions (redeploy, coveringFire, counterCharge, magicalIntervention, powerThrough)
+    s.stack.pop(); // pop reaction frame (leaving `endPhase` on the stack if present)
+    if (action.t === 'pass') {
+      return;
+    }
     if (action.t === 'command') {
       const ok = reaction.options.some(
         (o) => o.command === action.command && o.unit === action.unit,
       );
       if (!ok) illegal('That reaction is not available.');
-      useCommandOn(ctx, 'allOutDefence', s.units[action.unit]!);
-      defended = [action.unit];
-    } else if (action.t !== 'pass') {
-      illegal('Use a reaction or pass.');
+      executeReactionCommand(ctx, action.command, action.unit, action.target);
+      return;
     }
-    s.stack.pop();
-    const pending = s.stack.pop();
-    if (pending?.t !== 'resolve') throw new Error('internal: reaction without pending attacks');
-    resolveAttacks(ctx, { ...pending, defended });
+    illegal('Use a reaction or pass.');
+  }
+
+  function executeReactionCommand(
+    ctx: Ctx,
+    command: CommandId,
+    unitId: UnitId,
+    targetId?: UnitId,
+  ): void {
+    switch (command) {
+      case 'redeploy':
+        redeploy(ctx, unitId);
+        break;
+      case 'coveringFire':
+        coveringFire(ctx, unitId);
+        break;
+      case 'counterCharge':
+        counterCharge(ctx, unitId);
+        break;
+      case 'magicalIntervention':
+        magicalIntervention(ctx, unitId);
+        break;
+      case 'powerThrough':
+        powerThrough(ctx, unitId, targetId);
+        break;
+      default:
+        illegal(`Command ${command} cannot be used here.`);
+    }
+  }
+
+  function offerEndOfPhaseReaction(ctx: Ctx): boolean {
+    const { s } = ctx;
+    const nonActive = opponent(s.active);
+    const offered = s.reactionsOffered ?? [];
+
+    if (s.phase === 'hero' && !offered.includes('magicalIntervention')) {
+      const units = unitsOf(s, nonActive).filter(
+        (u) =>
+          canMagicalIntervention(scenario, s, u) && enemiesWithin(scenario, s, u, 18).length > 0,
+      );
+      if (units.length > 0) {
+        s.reactionsOffered = [...offered, 'magicalIntervention'];
+        s.stack.push({ t: 'endPhase' });
+        s.stack.push({
+          t: 'reaction',
+          player: nonActive,
+          options: units.map((u) => ({
+            command: 'magicalIntervention',
+            unit: u.id,
+            cost: COMMANDS.magicalIntervention.cost,
+          })),
+          trigger: 'phase:hero',
+        });
+        return true;
+      }
+    }
+
+    if (s.phase === 'shooting' && !offered.includes('coveringFire')) {
+      const turnHadActivity = unitsOf(s, s.active).some(
+        (u) => u.moved !== null || u.shot || (u.castsUsed ?? 0) > 0,
+      );
+      if (turnHadActivity) {
+        const units = unitsOf(s, nonActive).filter(
+          (u) => coveringFireAllocations(scenario, s, u).length > 0,
+        );
+        if (units.length > 0) {
+          s.reactionsOffered = [...offered, 'coveringFire'];
+          s.stack.push({ t: 'endPhase' });
+          s.stack.push({
+            t: 'reaction',
+            player: nonActive,
+            options: units.map((u) => ({
+              command: 'coveringFire',
+              unit: u.id,
+              cost: COMMANDS.coveringFire.cost,
+            })),
+            trigger: 'phase:shooting',
+          });
+          return true;
+        }
+      }
+    }
+
+    if (s.phase === 'charge' && !offered.includes('counterCharge')) {
+      const units = unitsOf(s, nonActive).filter(
+        (u) => canCounterCharge(scenario, s, u) && enemiesWithin(scenario, s, u, 6).length > 0,
+      );
+      if (units.length > 0) {
+        s.reactionsOffered = [...offered, 'counterCharge'];
+        s.stack.push({ t: 'endPhase' });
+        s.stack.push({
+          t: 'reaction',
+          player: nonActive,
+          options: units.map((u) => ({
+            command: 'counterCharge',
+            unit: u.id,
+            cost: COMMANDS.counterCharge.cost,
+          })),
+          trigger: 'phase:charge',
+        });
+        return true;
+      }
+    }
+
+    if (s.phase === 'end' && !offered.includes('powerThrough')) {
+      const units = unitsOf(s, nonActive).filter(
+        (u) => powerThroughTargets(scenario, s, u).length > 0,
+      );
+      if (units.length > 0) {
+        s.reactionsOffered = [...offered, 'powerThrough'];
+        s.stack.push({ t: 'endPhase' });
+        s.stack.push({
+          t: 'reaction',
+          player: nonActive,
+          options: units.map((u) => ({
+            command: 'powerThrough',
+            unit: u.id,
+            cost: COMMANDS.powerThrough.cost,
+          })),
+          trigger: 'phase:end',
+        });
+        return true;
+      }
+    }
+
+    return false;
   }
 
   function declareShoot(ctx: Ctx, action: Extract<Action, { t: 'shoot' }>): void {
@@ -515,7 +1001,9 @@ export function createEngine(scenario: Scenario): Engine {
     if (!eligibleFighters(scenario, s, player).some((u) => u.id === unitId)) {
       illegal('That unit cannot fight now.');
     }
+    const tier = currentFightTier(scenario, s);
     s.units[unitId]!.fought = true;
+    s.fightTier = tier;
     s.fightPicker = opponent(player);
     s.stack.push({ t: 'targets', unit: unitId, mode: 'fight' });
     s.stack.push({
@@ -541,19 +1029,38 @@ export function createEngine(scenario: Scenario): Engine {
     startAttacks(ctx, unit, frame.mode, action.allocations, action.allOutAttack ?? false);
   }
 
-  /** A fight whose unit has nothing left to attack ends without a `targets` decision. */
+  /** Settle completed helper frames (`targets` with no enemies, or `endPhase` after reactions). */
   function settle(ctx: Ctx): void {
     const { s } = ctx;
-    const top = s.stack[s.stack.length - 1];
-    if (
-      top?.t === 'targets' &&
-      weaponTargets(scenario, s, s.units[top.unit]!, top.mode).length === 0
-    ) {
-      s.stack.pop();
-      ctx.events.push({
-        t: 'note',
-        text: `${s.units[top.unit]!.name} has no enemy in range to attack.`,
-      });
+    for (;;) {
+      const top = s.stack[s.stack.length - 1];
+      if (!top) break;
+      if (
+        top.t === 'targets' &&
+        weaponTargets(scenario, s, s.units[top.unit]!, top.mode).length === 0
+      ) {
+        s.stack.pop();
+        ctx.events.push({
+          t: 'note',
+          text: `${s.units[top.unit]!.name} has no enemy in range to attack.`,
+        });
+        continue;
+      }
+      if (
+        top.t === 'magicalIntervention' &&
+        magicOptionsForUnit(scenario, s, s.units[top.unit]!).length === 0
+      ) {
+        const u = s.units[top.unit]!;
+        u.magicalIntervention = false;
+        s.stack.pop();
+        continue;
+      }
+      if (top.t === 'endPhase') {
+        s.stack.pop();
+        advancePhase(ctx);
+        continue;
+      }
+      break;
     }
   }
 
@@ -568,26 +1075,67 @@ export function createEngine(scenario: Scenario): Engine {
         if (action.t !== 'choose') illegal('Choose to take the first or second turn.');
         choosePriority(ctx, action.value);
         break;
-      case 'main':
-        if (action.t === 'pass') advancePhase(ctx);
-        else if (action.t === 'move')
+      case 'main': {
+        const top = s.stack[s.stack.length - 1];
+        if (top?.t === 'magicalIntervention') {
+          if (action.t === 'pass') {
+            s.units[top.unit]!.magicalIntervention = false;
+            s.stack.pop();
+          } else if (action.t === 'ability' && action.unit === top.unit) {
+            declareAbility(ctx, action);
+          } else {
+            illegal('Cast a spell, chant a prayer, or pass.');
+          }
+          break;
+        }
+        if (action.t === 'pass') {
+          if (!offerEndOfPhaseReaction(ctx)) {
+            advancePhase(ctx);
+          }
+        } else if (action.t === 'move') {
           declareMove(ctx, action.unit, action.kind, action.atTheDouble);
-        else if (action.t === 'command' && d.phase === 'hero' && action.command === 'rally') {
-          rally(ctx, action.unit);
-        } else if (
-          action.t === 'command' &&
-          d.phase === 'movement' &&
-          action.command === 'atTheDouble'
-        ) {
-          declareMove(ctx, action.unit, 'run', true);
-        } else if (action.t === 'shoot' && d.phase === 'shooting') declareShoot(ctx, action);
-        else if (action.t === 'charge' && d.phase === 'charge') declareCharge(ctx, action.unit);
-        else illegal(`Action "${action.t}" is not available in the ${d.phase} phase.`);
+        } else if (action.t === 'ability' && d.phase === 'hero') {
+          declareAbility(ctx, action);
+        } else if (action.t === 'command') {
+          if (d.phase === 'hero' && action.command === 'rally') {
+            rally(ctx, action.unit);
+          } else if (d.phase === 'hero' && action.command === 'magicalIntervention') {
+            magicalIntervention(ctx, action.unit);
+          } else if (d.phase === 'movement' && action.command === 'atTheDouble') {
+            declareMove(ctx, action.unit, 'run', true);
+          } else if (d.phase === 'movement' && action.command === 'redeploy') {
+            redeploy(ctx, action.unit);
+          } else if (d.phase === 'shooting' && action.command === 'coveringFire') {
+            coveringFire(ctx, action.unit);
+          } else if (d.phase === 'charge' && action.command === 'forwardToVictory') {
+            forwardToVictory(ctx, action.unit);
+          } else if (d.phase === 'charge' && action.command === 'counterCharge') {
+            counterCharge(ctx, action.unit);
+          } else if (d.phase === 'end' && action.command === 'powerThrough') {
+            powerThrough(ctx, action.unit, action.target);
+          } else {
+            illegal(`Command "${action.command}" is not available in the ${d.phase} phase.`);
+          }
+        } else if (action.t === 'shoot' && d.phase === 'shooting') {
+          declareShoot(ctx, action);
+        } else if (action.t === 'charge' && d.phase === 'charge') {
+          declareCharge(ctx, action.unit);
+        } else {
+          illegal(`Action "${action.t}" is not available in the ${d.phase} phase.`);
+        }
         break;
+      }
       case 'place':
         if (action.t === 'pass') skipPlace(ctx);
         else if (action.t === 'place') place(ctx, action.placement);
-        else illegal('Place the unit or leave it where it is.');
+        else if (
+          action.t === 'command' &&
+          action.command === 'forwardToVictory' &&
+          d.reason === 'charge' &&
+          action.unit === d.unit
+        ) {
+          forwardToVictory(ctx, action.unit);
+        } else illegal('Place the unit or leave it where it is.');
         break;
       case 'fightPick':
         if (action.t === 'fight') declareFight(ctx, d.player, action.unit);
@@ -623,16 +1171,20 @@ export function createEngine(scenario: Scenario): Engine {
       firstPlayer: 0,
       phase: 'hero',
       players: [
-        { cp: 0, vp: 0, vpByRound: [], commandsUsed: [] },
-        { cp: 0, vp: 0, vpByRound: [], commandsUsed: [] },
+        { cp: 0, vp: 0, vpByRound: [], commandsUsed: [], spellsAttempted: [] },
+        { cp: 0, vp: 0, vpByRound: [], commandsUsed: [], spellsAttempted: [] },
       ],
       units: Object.fromEntries(units.map((u) => [u.id, u])),
       unitOrder: units.map((u) => u.id),
       objectives: scenario.battlefield.objectives.map((o) => ({ id: o.id, controller: null })),
       stack: [],
       fightPicker: null,
+      fightTier: null,
       winner: null,
       seizedBy: null,
+      effects: [],
+      banishedThisTurn: [],
+      reactionsOffered: [],
     };
     const ctx: Ctx = { scenario, s, events: [], rng: new RngCursor(s.rng) };
     startRound(ctx);

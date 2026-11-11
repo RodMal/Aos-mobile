@@ -5,6 +5,8 @@ import {
   boundingRadius,
   footprintGap,
   footprintGapAtLeast,
+  footprintOverlapsPolygon,
+  footprintPolygon,
   layoutFormation,
   type Footprint,
 } from '../geom/index.js';
@@ -16,6 +18,8 @@ export const COMBAT_RANGE = 3;
 export const CHARGE_END_RANGE = 0.5;
 /** Tolerance for distance comparisons, in inches. */
 export const DIST_EPS = 1e-6;
+/** Range of Sylvaneth Creeping Overgrowth around Awakened Wyldwoods and overgrown terrain. */
+export const CREEPING_OVERGROWTH_RANGE = 6;
 
 export function opponent(player: PlayerId): PlayerId {
   return player === 0 ? 1 : 0;
@@ -204,6 +208,94 @@ export function inCombat(scenario: Scenario, state: GameState, unit: UnitState):
 
 export function hasKeyword(scenario: Scenario, unit: UnitState, keyword: string): boolean {
   return profileOf(scenario, unit).keywords.includes(keyword);
+}
+
+/**
+ * True when every point of `target` is within `range` inches of at least one footprint in
+ * `sources`.
+ */
+export function footprintWhollyWithin(
+  target: Footprint,
+  sources: readonly Footprint[],
+  range: number,
+): boolean {
+  if (sources.length === 0) return false;
+  if (target.kind === 'circle') {
+    for (const src of sources) {
+      if (
+        src.kind === 'circle' &&
+        Math.hypot(target.cx - src.cx, target.cy - src.cy) + target.r - src.r <= range + DIST_EPS
+      ) {
+        return true;
+      }
+    }
+  }
+  const pts = footprintPolygon(target);
+  return pts.every(([x, y]) => {
+    const ptFp: Footprint = { kind: 'circle', cx: x, cy: y, r: 0 };
+    return sources.some((src) => footprintGap(ptFp, src) <= range + DIST_EPS);
+  });
+}
+
+/**
+ * True when every living model of `target` is wholly within `range` inches of `source`.
+ */
+export function unitWhollyWithin(
+  scenario: Scenario,
+  source: UnitState,
+  target: UnitState,
+  range: number,
+): boolean {
+  const srcFps = unitFootprints(scenario, source);
+  const tgtFps = unitFootprints(scenario, target);
+  if (srcFps.length === 0 || tgtFps.length === 0) return false;
+  return tgtFps.every((fp) => footprintWhollyWithin(fp, srcFps, range));
+}
+
+/**
+ * True when `unit` is within `CREEPING_OVERGROWTH_RANGE` (6") of any Awakened Wyldwood owned
+ * by `sylvanethOwner` or any overgrown terrain feature, or (for friendly Sylvaneth units that
+ * require wholly within) wholly within `CREEPING_OVERGROWTH_RANGE` when `wholly` is true.
+ */
+export function inCreepingOvergrowth(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  sylvanethOwner: PlayerId,
+  wholly = false,
+): boolean {
+  const wyldwoods = unitsOf(state, sylvanethOwner).filter((u) => {
+    const p = profileOf(scenario, u);
+    return p.isFactionTerrain || p.keywords.includes('AWAKENED WYLDWOOD');
+  });
+  for (const w of wyldwoods) {
+    if (wholly) {
+      if (unitWhollyWithin(scenario, w, unit, CREEPING_OVERGROWTH_RANGE)) return true;
+    } else if (unitsWithin(scenario, w, unit, CREEPING_OVERGROWTH_RANGE)) {
+      return true;
+    }
+  }
+  const overgrownIds = state.overgrownTerrain ?? [];
+  if (overgrownIds.length > 0) {
+    const tgtFps = unitFootprints(scenario, unit);
+    for (const terrain of scenario.battlefield.terrain) {
+      if (!overgrownIds.includes(terrain.id)) continue;
+      // Check if unit overlaps or is within 6" of the terrain polygon
+      for (const fp of tgtFps) {
+        const expanded: Footprint =
+          fp.kind === 'circle'
+            ? { ...fp, r: fp.r + CREEPING_OVERGROWTH_RANGE }
+            : {
+                kind: 'circle',
+                cx: fp.cx,
+                cy: fp.cy,
+                r: boundingRadius(fp) + CREEPING_OVERGROWTH_RANGE,
+              };
+        if (footprintOverlapsPolygon(expanded, terrain.polygon)) return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**

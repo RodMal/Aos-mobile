@@ -26,31 +26,24 @@ Three earlier attempts failed by perfecting one layer (data, deployment, rules) 
 - **M0–M1:** scaffold, data, geometry, touch board (pinch, pan, select, roster, unit cards), the move flow.
 - **M2:** a full five-round game against a baseline NPC: priority roll, command points, move, run, retreat, shoot, charge (roll then place), alternating fights with pile-in, casualties, objective control, Into the Fire scoring, four commands (Rally, At the Double, All-out Attack, All-out Defence), per-model weapon loadouts, undo, save and resume.
 - **Offline install** (PWA with a service worker).
-- **Checks at this commit:** 308 unit tests, 30 Playwright tests at phone sizes (including a whole game played through the touch UI and a charge placed and fought), NPC-vs-NPC simulations with invariants after every action. CI runs all of it on every push.
+- **M3a (ability framework, magic & prayers, manifestations, all 10 commands, strike order):**
+  - Ability framework in `src/engine/abilities/` (`types.ts`, `effects.ts`, `commands.ts`, `lores.ts`, `magic.ts`) with BSData ID guard tests (`registry.test.ts`).
+  - Casting, miscasts, power level, Rule of One vs `UNLIMITED` and `repeatSameUnit`, `Unbind` reactions, chanting and ritual points, `Banish Manifestation`, summoning and moving manifestations from `Aetherwrought Machineries` and `Morbid Conjuration`.
+  - Lore of the Deepwood (3 spells), Lore of the Spirit-Song (3 prayers), Lore of Celestial Manipulation (3 spells), all 4 wizard warscroll spells on both lists (`Metamorphosis`, `Enrage The Spites`, `Celestial Deliverance`, `Celestial Doom`), all 7 manifestation summons, all 6 remaining commands (`Forward to Victory`, `Redeploy`, `Counter-charge`, `Covering Fire`, `Magical Intervention`, `Power Through`), and `STRIKE-FIRST` / `STRIKE-LAST` fight tiers.
+  - Baseline NPC and touch UI updated for all M3a abilities, reactions and commands.
 
 **Not yet tried by the owner on a real phone.** Their feedback on the first session should take priority over new features.
 
-**In progress when this was written, and NOT on the remote:** milestone M3a (below) was being built by a subagent in a local worktree. If you do not see `src/engine/abilities/` in the repository, that work was lost and M3a starts from scratch.
-
 ## What comes next, in order
-
-### M3a: ability framework, magic, remaining commands (vertical slice: engine + NPC + UI)
-
-1. **Ability framework** in `src/engine/abilities/`: one hand-written definition per ability, keyed by the BSData ability id in `data/`. A definition can have modifiers (evaluated with the attack in context: attacker, target, weapon, mode), grants (ward, keywords such as strike-first, permissions), triggers at timing windows, activated abilities (timing, cost or roll, target spec, `canUse`, `resolve`), reactions, and timed effects stored as plain data. Move the hard-wired command effects in `src/rules/core/modifiers.ts` onto it. Add a guard test that every registered id exists in the data under the expected name.
-2. **Magic:** casting rolls, miscasts, power level from `UnitProfile.wizard`/`priest`, once-per-turn limits, Unbind as a reaction, chanting and ritual points, summoning manifestations as units (profiles from `data/factions/universal.json`), manifestations moving with their controller, Banish Manifestation.
-3. **First content:** Lore of the Deepwood (3 spells), Lore of the Spirit-Song (3 prayers), Lore of Celestial Manipulation (3 spells), the summon abilities of Aetherwrought Machineries and Morbid Conjuration, and the six remaining commands (Forward to Victory, Redeploy, Counter-charge, Covering Fire, Magical Intervention, Power Through). One test each.
-4. **Strike-first / strike-last** in the fight order.
-5. **NPC** uses the new abilities in a simple way.
-6. **UI:** every new option and decision reachable by touch; extend `minimalPlayerStep` in `tests/e2e/helpers.ts` so the full-game e2e test still finishes.
 
 ### M3b: the rest of the core rules
 
-Terrain rules (cover, obscuring and line of sight, unstable, Places of Power), Guarded Hero, Fly along paths, battle tactics for the four cards in play (Flanking Firestorm, Burning for Vengeance, Siege of Ashes, Legend of the Parch) with their selection flow, the season rules (Fury), Into the Fire's battleplan abilities (Secure the Gateway, Determined Defenders), and real alternating deployment with an NPC that deploys. Each removes a line from the "Simplifications" table in `docs/RULES-DECISIONS.md`.
+Start-of-Battle-Round and Start-of-Turn timing steps (so round-start and turn-start abilities are not skipped), terrain rules (cover, obscuring and line of sight, unstable, Places of Power at the start of turn), Guarded Hero, Fly along paths, battle tactics for the four cards in play (Flanking Firestorm, Burning for Vengeance, Siege of Ashes, Legend of the Parch) with their selection flow, the GHB 2026-27 Fury season rules (**Eruption of Fury**, **Rage dice**, and **Fight Through the Pain**), Into the Fire's battleplan abilities (Secure the Gateway, Determined Defenders), and real alternating deployment with an NPC that deploys. Each removes a line from the "Simplifications" table in `docs/RULES-DECISIONS.md`.
 
 ### M4: every rule on both lists (about 90 abilities)
 
-- **Sylvaneth:** 6 battle traits (build the "creeping overgrowth" mechanic first; about a third of the rest depend on it), the formation ability Nature's Titans, Realmroot Guide, Glamourweave, Aspect of Heartwood, the three Aetherwrought Machineries manifestations' own abilities, and the warscrolls of Alarielle the Everqueen, Belthanos, Spirit of Durthu, Drycha Hamadreth (the 250-point one), Spite-Revenants, Warsong Revenant, Dryads and the Awakened Wyldwood (faction terrain).
-- **Seraphon:** 6 battle traits, Vengeance of Azyr, Beastmaster, Coatl Familiar, Armour Cruncher, the four Morbid Conjuration manifestations' abilities, and the warscrolls of Lord Kroak, Kroxigor, Sunblood Pack, Saurus Guard, Saurus Astrolith Bearer, Saurus Warriors, Skink Starseer, Bastiladon with Ark of Sotek, Hunters of Huanchi with Dartpipes and the Realmshaper Engine (faction terrain).
+- **Sylvaneth:** 6 battle traits (build the "creeping overgrowth" mechanic first — including start-of-round **Endless Growth** spreading overgrown tokens and start-of-turn **Creeping Dread** — as about a third of the rest depend on it), the formation ability Nature's Titans, Realmroot Guide, Glamourweave, Aspect of Heartwood, the three Aetherwrought Machineries manifestations' own abilities, and the warscrolls of Alarielle the Everqueen (including her start-of-round / start-of-turn abilities), Belthanos, Spirit of Durthu, Drycha Hamadreth (the 250-point one), Spite-Revenants, Warsong Revenant, Dryads and the Awakened Wyldwood (faction terrain).
+- **Seraphon:** 6 battle traits (including start-of-round / start-of-turn Asterisms), Vengeance of Azyr, Beastmaster, Coatl Familiar, Armour Cruncher, the four Morbid Conjuration manifestations' abilities, and the warscrolls of Lord Kroak, Kroxigor, Sunblood Pack, Saurus Guard, Saurus Astrolith Bearer, Saurus Warriors, Skink Starseer, Bastiladon with Ark of Sotek, Hunters of Huanchi with Dartpipes and the Realmshaper Engine (faction terrain).
 
 One test per ability. List every interpretation in `docs/RULES-DECISIONS.md` for the owner to check.
 

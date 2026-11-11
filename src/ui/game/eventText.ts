@@ -53,6 +53,8 @@ const MOVE_VERB: Record<PlaceReason, string> = {
   retreat: 'retreated',
   charge: 'charged',
   pileIn: 'piled in',
+  summon: 'is summoned',
+  powerThrough: 'powers through',
 };
 
 function plural(n: number, word: string): string {
@@ -137,6 +139,32 @@ export function eventLine(ev: GameEvent, ctx: LogContext): LogLine | null {
         kind: 'major',
         player: ev.player,
       };
+    case 'cast':
+      if (ev.miscast) {
+        return {
+          text: `${ctx.unitName(ev.unit)} miscasts ${ev.ability} (${ev.dice[0]}+${ev.dice[1]}=${ev.total}).`,
+          kind: 'major',
+        };
+      }
+      return {
+        text: `${ctx.unitName(ev.unit)} ${ev.success ? 'casts' : 'fails to cast'} ${ev.ability} (${ev.dice[0]}+${ev.dice[1]}=${ev.total} vs ${ev.targetValue}+).`,
+        kind: 'major',
+      };
+    case 'unbind':
+      return {
+        text: `${ctx.unitName(ev.unit)} ${ev.unbound ? 'unbinds' : 'fails to unbind'} ${ev.ability} (${ev.dice[0]}+${ev.dice[1]}=${ev.total} vs ${ev.castTotal}).`,
+        kind: 'major',
+      };
+    case 'chant':
+      return {
+        text: `${ctx.unitName(ev.unit)} chants ${ev.ability} (rolled ${ev.die}, total ${ev.total} vs ${ev.targetValue}+)${ev.answered ? ' — answered!' : ` (${ev.ritualPoints} ritual pts)`}.`,
+        kind: 'major',
+      };
+    case 'banish':
+      return {
+        text: `${ctx.unitName(ev.unit)} ${ev.banished ? 'banishes' : 'fails to banish'} ${ctx.unitName(ev.target)} (${ev.dice[0]}+${ev.dice[1]}=${ev.total} vs ${ev.targetValue}+).`,
+        kind: 'major',
+      };
     case 'roll':
       return {
         text: `${ev.label} roll: ${ev.dice.join(' + ')}`,
@@ -188,14 +216,24 @@ export function toastLine(lines: readonly LogLine[]): LogLine | null {
 
 /** A reaction trigger such as "shoot:1:5" in words. */
 export function reactionText(trigger: string, ctx: LogContext): string {
-  const m = /^(shoot|fight|charge|move):(.+)$/.exec(trigger);
+  if (trigger.startsWith('spell:')) {
+    const [, casterId, abilityName] = trigger.split(':');
+    return `${casterId ? ctx.unitName(casterId) : 'Enemy Wizard'} cast ${abilityName ?? 'a spell'}. Unbind?`;
+  }
+  if (trigger.startsWith('move:')) {
+    const [, moverId] = trigger.split(':');
+    return `${moverId ? ctx.unitName(moverId) : 'Enemy unit'} finished a move nearby.`;
+  }
+  if (trigger.startsWith('phase:')) {
+    return 'End of phase reaction opportunity.';
+  }
+  const m = /^(shoot|fight|charge):(.+)$/.exec(trigger);
   if (!m) return trigger;
   const verb = {
     shoot: 'is about to shoot',
     fight: 'is about to fight',
     charge: 'is charging',
-    move: 'is moving',
-  }[m[1] as 'shoot' | 'fight' | 'charge' | 'move'];
+  }[m[1] as 'shoot' | 'fight' | 'charge'];
   return `${ctx.unitName(m[2]!)} ${verb}.`;
 }
 

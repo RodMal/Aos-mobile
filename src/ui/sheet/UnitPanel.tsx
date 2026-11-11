@@ -1,5 +1,6 @@
 /** A selected unit: compact card, actions from the engine, and the expandable warscroll. */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import type { GameState, UnitOption } from '../../engine/index.js';
 import { engine, playerName } from '../game/engine.js';
 import { endPhase, optionLabel, phaseName, runOption } from '../game/actions.js';
 import { useGameState, useHuman, useHumanDecision } from '../game/hooks.js';
@@ -15,6 +16,11 @@ export function UnitPanel({ unitId }: { unitId: string }) {
   const expanded = useUi((s) => s.sheetExpanded);
   const setExpanded = useUi((s) => s.setSheetExpanded);
   const select = useUi((s) => s.select);
+  const [pending, setPending] = useState<{
+    unitId: string;
+    state: GameState;
+    option: UnitOption;
+  } | null>(null);
   const unit = state.units[unitId];
   const options = useMemo(
     () => (decision ? engine.unitOptions(state, unitId) : []),
@@ -22,6 +28,16 @@ export function UnitPanel({ unitId }: { unitId: string }) {
   );
   if (!unit) return null;
   const mine = unit.owner === human;
+  const pendingOption =
+    pending && pending.unitId === unitId && pending.state === state ? pending.option : null;
+  const pendingTargets =
+    pendingOption?.t === 'ability'
+      ? pendingOption.targets
+      : pendingOption?.t === 'command'
+        ? (pendingOption.targets ?? [])
+        : [];
+  const effects = state.effects?.filter((e) => e.targetUnit === unit.id) ?? [];
+  const ritualPoints = unit.ritualPoints ?? 0;
   const status =
     unit.status !== 'battlefield'
       ? unit.status === 'destroyed'
@@ -54,18 +70,57 @@ export function UnitPanel({ unitId }: { unitId: string }) {
         </button>
       </header>
       <StatLine unit={unit} />
+      {(ritualPoints > 0 || effects.length > 0) && (
+        <div className="ready" data-testid="unit-effects">
+          {ritualPoints > 0 && <span className="chip">Ritual {ritualPoints}</span>}
+          {effects.map((eff, i) => (
+            <span key={`${eff.id}-${i}`} className="chip">
+              {eff.name}
+            </span>
+          ))}
+        </div>
+      )}
       {mine && options.length > 0 && (
         <div className="actions" data-testid="unit-actions">
-          {options.map((o, k) => (
-            <button
-              key={k}
-              className={`btn ${k === 0 ? 'primary' : ''}`}
-              onClick={() => runOption(unitId, o)}
-              data-action={o.t === 'move' ? o.kind : o.t}
-            >
-              {optionLabel(unitId, o)}
-            </button>
-          ))}
+          {pendingOption && pendingTargets.length > 1 ? (
+            <>
+              {pendingTargets.map((targetId, k) => (
+                <button
+                  key={targetId}
+                  className={`btn ${k === 0 ? 'primary' : ''}`}
+                  onClick={() => {
+                    runOption(unitId, pendingOption, targetId);
+                    setPending(null);
+                  }}
+                  data-target={targetId}
+                >
+                  {state.units[targetId]?.name ?? targetId}
+                </button>
+              ))}
+              <button className="btn" onClick={() => setPending(null)}>
+                Cancel
+              </button>
+            </>
+          ) : (
+            options.map((o, k) => {
+              const multiTarget =
+                (o.t === 'ability' && o.targets.length > 1) ||
+                (o.t === 'command' && (o.targets?.length ?? 0) > 1);
+              return (
+                <button
+                  key={k}
+                  className={`btn ${k === 0 ? 'primary' : ''}`}
+                  onClick={() => {
+                    if (multiTarget) setPending({ unitId, state, option: o });
+                    else runOption(unitId, o);
+                  }}
+                  data-action={o.t === 'move' ? o.kind : o.t}
+                >
+                  {optionLabel(unitId, o)}
+                </button>
+              );
+            })
+          )}
         </div>
       )}
       {/* This unit has nothing to do: point at the ones that do, so the prompt is not hidden. */}

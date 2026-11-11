@@ -22,6 +22,22 @@ export function d6s(ctx: Ctx, n: number): number[] {
   return out;
 }
 
+export function rollD6(ctx: Ctx): number {
+  return ctx.rng.int(1, 6);
+}
+
+export function roll2D6(ctx: Ctx): [number, number] {
+  return [ctx.rng.int(1, 6), ctx.rng.int(1, 6)];
+}
+
+export function rollD3(ctx: Ctx, player: 0 | 1, label?: string): number {
+  const die = ctx.rng.int(1, 3);
+  if (label) {
+    ctx.events.push({ t: 'roll', player, label, dice: [die] });
+  }
+  return die;
+}
+
 /** Rolls a dice expression such as D3+3. */
 export function rollDice(rng: RngCursor, d: Dice): number {
   let total = d.plus;

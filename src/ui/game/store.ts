@@ -90,7 +90,14 @@ export function initialSession(opts: UrlOptions): Session {
 function focusUnit(events: GameEvent[]): string | null {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i]!;
-    if (e.t === 'moved' || e.t === 'chargeRoll') return e.unit;
+    if (
+      e.t === 'moved' ||
+      e.t === 'chargeRoll' ||
+      e.t === 'cast' ||
+      e.t === 'chant' ||
+      e.t === 'banish'
+    )
+      return e.unit;
     if (e.t === 'attacks') return e.target;
   }
   return null;
