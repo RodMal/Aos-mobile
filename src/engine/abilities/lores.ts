@@ -3,11 +3,16 @@ import { d6s, rollD3 } from '../ctx.js';
 import {
   aliveCount,
   hasKeyword,
-  inCreepingOvergrowth,
   unitCentre,
+  unitFootprints,
   unitsOf,
   unitsWithin,
 } from '../query.js';
+import {
+  closestFeatureWithoutToken,
+  giveOvergrownToken,
+  inCreepingOvergrowth,
+} from '../overgrowth.js';
 import { addEffect, legalTargetsForSpec, registerAbility } from './effects.js';
 import type { AbilityDefinition, AbilityTargetSpec } from './types.js';
 import type { Scenario, GameState, UnitState } from '../types.js';
@@ -184,6 +189,8 @@ export const LORE_ABILITIES: AbilityDefinition[] = [
       side: 'enemy',
       range: 18,
       allowCreepingOvergrowth: true,
+      // "an enemy unit that is wholly within the creeping overgrowth or ... within 18""
+      creepingOvergrowthWholly: true,
     },
     resolve: ({ ctx, unit, target, secondTarget, roll }) => {
       if (!target) return;
@@ -430,7 +437,8 @@ export const LORE_ABILITIES: AbilityDefinition[] = [
     },
     resolve: ({ ctx, unit, target }) => {
       if (!target) return;
-      const tc = unitCentre(target);
+      // "before removing any models": measure from the target as it stands now.
+      const targetFps = unitFootprints(ctx.scenario, target);
       const nearbyEnemies = unitsOf(ctx.s, target.owner).filter(
         (e) => e.id !== target.id && unitsWithin(ctx.scenario, target, e, 6),
       );
@@ -445,22 +453,9 @@ export const LORE_ABILITIES: AbilityDefinition[] = [
       const res = applyMortalDamage(ctx, target, dmg, 'Metamorphosis');
       if (!res.destroyed) return;
 
-      const overgrown = ctx.s.overgrownTerrain ?? [];
-      const availableTerrain = ctx.scenario.battlefield.terrain.filter(
-        (t) => !overgrown.includes(t.id),
-      );
-      if (availableTerrain.length > 0) {
-        const distToTerrain = (poly: readonly (readonly [number, number])[]): number => {
-          let best = Infinity;
-          for (const [vx, vy] of poly) {
-            best = Math.min(best, Math.hypot(vx - tc.x, vy - tc.y));
-          }
-          return best;
-        };
-        const closest = [...availableTerrain].sort(
-          (a, b) => distToTerrain(a.polygon) - distToTerrain(b.polygon),
-        )[0]!;
-        ctx.s.overgrownTerrain = [...overgrown, closest.id];
+      const closest = closestFeatureWithoutToken(ctx.scenario, ctx.s, unit.owner, targetFps);
+      if (closest) {
+        giveOvergrownToken(ctx.s, unit.owner, closest.id);
         ctx.events.push({
           t: 'note',
           text: `${closest.name} gained an overgrown token from Metamorphosis.`,

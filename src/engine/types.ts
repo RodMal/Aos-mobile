@@ -72,7 +72,10 @@ export interface UnitState {
   chargeDeclared?: boolean;
   /** The command this unit has used in the current phase (a unit may use one per phase). */
   commandUsed?: CommandId | null;
-  /** The unit used All-out Attack this turn. */
+  /**
+   * The unit used All-out Attack this turn: -1 to its save rolls until the end of the turn.
+   * The +1 to hit applies only to the attacks it was used for (the `resolve` frame's flag).
+   */
   allOutAttack?: boolean;
   /** Spell, prayer, unbind and banish abilities used by this unit in the current phase. */
   castsUsed?: number;
@@ -252,8 +255,14 @@ export interface GameState {
   banishedThisTurn?: string[];
   /** Reaction triggers already offered in the current phase. */
   reactionsOffered?: string[];
-  /** Terrain feature IDs that have an overgrown token for each player (for Sylvaneth rules). */
+  /** @deprecated Superseded by `overgrown`; no longer read or written. */
   overgrownTerrain?: string[];
+  /**
+   * Terrain feature IDs (battlefield terrain or faction terrain unit IDs) with a friendly
+   * Sylvaneth overgrown token, per player. Awakened Wyldwoods carry their owner's token
+   * implicitly and are not listed.
+   */
+  overgrown?: [string[], string[]];
   /** Terrain feature IDs whose Place of Power ability has been used in the current turn. */
   usedPlacesOfPower?: string[];
   /** Objective controllers recorded at the start of the current turn (for Battle Tactics). */

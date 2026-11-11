@@ -1,5 +1,6 @@
 export * from './types.js';
 export * from './query.js';
+export * from './overgrowth.js';
 export * from './abilities/index.js';
 export { createScenario, type ScenarioOptions } from './scenario.js';
 export {

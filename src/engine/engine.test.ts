@@ -31,8 +31,9 @@ describe('set-up', () => {
   const state = engine.newGame(1);
 
   it('puts every unit of both armies on the battlefield', () => {
-    expect(unitsOf(state, 0)).toHaveLength(8);
-    expect(unitsOf(state, 1)).toHaveLength(9);
+    // Each army's units plus its faction terrain.
+    expect(unitsOf(state, 0)).toHaveLength(9);
+    expect(unitsOf(state, 1)).toHaveLength(10);
     expect(state.round).toBe(1);
     expect(state.players[0].cp).toBe(4);
   });
@@ -163,7 +164,7 @@ describe('movement', () => {
   });
 
   it('cannot move within 3" of an enemy unit', () => {
-    const enemy = unitsOf(start, 1)[0]!;
+    const enemy = unitsOf(start, 1).find((u) => u.armyIndex >= 0)!;
     const target = enemy.models[0]!;
     const s0: GameState = JSON.parse(JSON.stringify(start));
     // Leave one enemy unit on the table and stand the Dryads 8" to its left.

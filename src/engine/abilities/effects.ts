@@ -1,9 +1,9 @@
 import type { AttackSituation, Modifier } from '../../rules/core/modifiers.js';
 import type { StepCtx } from '../damage.js';
+import { inCreepingOvergrowth } from '../overgrowth.js';
 import {
   enemiesWithin,
   hasKeyword,
-  inCreepingOvergrowth,
   opponent,
   profileOf,
   unitWhollyWithin,
@@ -104,7 +104,7 @@ export function legalTargetsForSpec(
         state,
         target,
         source.owner,
-        Boolean(spec.whollyWithin),
+        spec.creepingOvergrowthWholly ?? Boolean(spec.whollyWithin),
       );
     }
     return false;
@@ -194,8 +194,9 @@ export function abilityAttackModifiers(
 ): Modifier[] {
   const out: Modifier[] = [];
 
-  // Legacy / convenience attack-flag bridges onto registered command definitions
-  if (sit.allOutAttack || sit.attacker.allOutAttack) {
+  // Attack-flag bridges onto registered command definitions. All-out Attack applies only to
+  // the attacks it was bought for (the `resolve` frame's flag), never to later attacks.
+  if (sit.allOutAttack) {
     const def = REGISTRY.get('allOutAttack');
     if (def?.effectModifiers) {
       out.push(
@@ -214,6 +215,11 @@ export function abilityAttackModifiers(
         ),
       );
     }
+  }
+  // A unit that used All-out Attack this turn has -1 to its save rolls until the end of the
+  // turn (corrected by the owner, 2026-11-11).
+  if (sit.target.allOutAttack) {
+    out.push({ stat: 'save', value: -1, source: 'All-out Attack' });
   }
   if (sit.allOutDefence) {
     const def = REGISTRY.get('allOutDefence');
@@ -259,7 +265,7 @@ export function abilityAttackModifiers(
   for (const eff of state.effects ?? []) {
     // Avoid double-counting if allOutAttack/allOutDefence/coveringFire was also passed via `sit`
     if (
-      (eff.id === 'allOutAttack' && (sit.allOutAttack || sit.attacker.allOutAttack)) ||
+      (eff.id === 'allOutAttack' && sit.allOutAttack) ||
       (eff.id === 'allOutDefence' && sit.allOutDefence) ||
       (eff.id === 'coveringFire' && sit.coveringFire)
     ) {

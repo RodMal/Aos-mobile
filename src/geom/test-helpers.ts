@@ -1,5 +1,5 @@
 import type { BaseShape } from '../data/schema/index.js';
-import type { Polygon, ReadonlyPoint } from './polygon.js';
+import { pointStrictlyInPolygon, type Polygon, type ReadonlyPoint } from './polygon.js';
 import fc from 'fast-check';
 import type { Footprint } from './footprint.js';
 
@@ -49,6 +49,7 @@ export function rect(x: number, y: number, w: number, h: number): Polygon {
 
 /** Points on the TRUE outline of a footprint (not the polygon approximation). */
 export function outlinePoints(fp: Footprint, n = 72): ReadonlyPoint[] {
+  if (fp.kind === 'polygon') return [...fp.outline];
   const pts: ReadonlyPoint[] = [];
   const t = fp.kind === 'circle' ? 0 : (fp.rotation * Math.PI) / 180;
   const c = Math.cos(t);
@@ -78,6 +79,7 @@ export function strictlyInsideShape(fp: Footprint, p: ReadonlyPoint, eps = 1e-9)
   const dx = p[0] - fp.cx;
   const dy = p[1] - fp.cy;
   if (fp.kind === 'circle') return Math.hypot(dx, dy) < fp.r - eps;
+  if (fp.kind === 'polygon') return pointStrictlyInPolygon(p, fp.outline, eps);
   const t = (-fp.rotation * Math.PI) / 180;
   const lx = dx * Math.cos(t) - dy * Math.sin(t);
   const ly = dx * Math.sin(t) + dy * Math.cos(t);

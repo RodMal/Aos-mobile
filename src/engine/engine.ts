@@ -21,6 +21,8 @@ import {
   enemiesInCombat,
   enemiesWithin,
   inCombat,
+  isFactionTerrainUnit,
+  nearEnemyFactionTerrain,
   opponent,
   profileOf,
   unitById,
@@ -35,6 +37,7 @@ import {
   checkDeployPlacement,
   createReserveUnits,
   npcDeployPlacement,
+  placeFactionTerrain,
 } from './deployment.js';
 import {
   evaluateEndOfTurnTactics,
@@ -117,6 +120,9 @@ export function cloneState(state: GameState): GameState {
     ...(state.banishedThisTurn ? { banishedThisTurn: [...state.banishedThisTurn] } : {}),
     ...(state.reactionsOffered ? { reactionsOffered: [...state.reactionsOffered] } : {}),
     ...(state.overgrownTerrain ? { overgrownTerrain: [...state.overgrownTerrain] } : {}),
+    ...(state.overgrown
+      ? { overgrown: [[...state.overgrown[0]], [...state.overgrown[1]]] as [string[], string[]] }
+      : {}),
     ...(state.usedPlacesOfPower ? { usedPlacesOfPower: [...state.usedPlacesOfPower] } : {}),
     ...(state.turnStartObjectives ? { turnStartObjectives: { ...state.turnStartObjectives } } : {}),
     ...(state.turnStartInCombat ? { turnStartInCombat: [...state.turnStartInCombat] } : {}),
@@ -202,7 +208,7 @@ function startRound(ctx: Ctx): void {
     initBattleTactics(scenario, s);
   }
   applySimmeringRage(s);
-  applyEverGrowing(scenario, s);
+  for (const text of applyEverGrowing(scenario, s)) ctx.events.push({ t: 'note', text });
   if (s.round === 1) {
     // Round 1: the attacker (player 0) takes the first turn.
     s.firstPlayer = 0;
@@ -241,7 +247,9 @@ function endGame(ctx: Ctx): void {
 /** End of a turn: resolve objective control, then the player whose turn it was scores. */
 function endTurn(ctx: Ctx): void {
   const { s, scenario } = ctx;
+  // Endless Growth is used at the end of any turn by each army that has it.
   resolveEndlessGrowth(ctx, s.active);
+  resolveEndlessGrowth(ctx, opponent(s.active));
   clearExpiredEffects(s, 'turn');
   for (const change of resolveControl(scenario, s)) {
     s.objectives.find((o) => o.id === change.id)!.controller = change.controller;
@@ -297,7 +305,7 @@ function advancePhase(ctx: Ctx): void {
 // ─── Eligibility ────────────────────────────────────────────────────────────────
 
 function moveOptions(scenario: Scenario, state: GameState, unit: UnitState): UnitOption[] {
-  if (unit.moved !== null || unit.setUpThisTurn) return [];
+  if (unit.moved !== null || unit.setUpThisTurn || isFactionTerrainUnit(scenario, unit)) return [];
   const profile = profileOf(scenario, unit);
   if (profile.move <= 0 && !profile.moveDice) return [];
   if (inCombat(scenario, state, unit)) {
@@ -314,12 +322,24 @@ function moveOptions(scenario: Scenario, state: GameState, unit: UnitState): Uni
 
 function rawEligibleFighters(scenario: Scenario, state: GameState, player: PlayerId): UnitState[] {
   return unitsOf(state, player).filter((u) => {
-    if (u.fought) return false;
+    if (u.fought || isFactionTerrainUnit(scenario, u)) return false;
     if (u.isManifestation && !profileOf(scenario, u).weapons.some((w) => w.kind === 'melee')) {
       return false;
     }
-    return u.charged || inCombat(scenario, state, u);
+    return u.charged || inCombat(scenario, state, u) || optionalFighter(scenario, state, u);
   });
+}
+
+/**
+ * A unit that may fight only because it is within 3" of enemy faction terrain: it is not
+ * obliged to (owner's ruling, 2026-11-11), so the picker may pass for it.
+ */
+function optionalFighter(scenario: Scenario, state: GameState, unit: UnitState): boolean {
+  if (unit.charged || inCombat(scenario, state, unit)) return false;
+  return (
+    profileOf(scenario, unit).weapons.some((w) => w.kind === 'melee') &&
+    nearEnemyFactionTerrain(scenario, state, unit)
+  );
 }
 
 export function currentFightTier(scenario: Scenario, state: GameState): FightTier | null {
@@ -353,6 +373,7 @@ export function eligibleFighters(
 
 function canCharge(scenario: Scenario, state: GameState, unit: UnitState): boolean {
   if (unit.chargeDeclared || unit.moved === 'retreat') return false;
+  if (isFactionTerrainUnit(scenario, unit)) return false;
   if (unit.isManifestation && !profileOf(scenario, unit).weapons.some((w) => w.kind === 'melee')) {
     return false;
   }
@@ -364,6 +385,7 @@ function canCharge(scenario: Scenario, state: GameState, unit: UnitState): boole
 
 function canRally(scenario: Scenario, state: GameState, unit: UnitState): boolean {
   if (commandBlocker(state, unit.owner, 'rally', unit)) return false;
+  if (isFactionTerrainUnit(scenario, unit)) return false;
   if (inCombat(scenario, state, unit)) return false;
   return unit.damage > 0 || unit.models.some((m) => !m.alive);
 }
@@ -371,6 +393,7 @@ function canRally(scenario: Scenario, state: GameState, unit: UnitState): boolea
 function canRedeploy(scenario: Scenario, state: GameState, unit: UnitState): boolean {
   if (commandBlocker(state, unit.owner, 'redeploy', unit)) return false;
   if (inCombat(scenario, state, unit) || unit.moved !== null) return false;
+  if (isFactionTerrainUnit(scenario, unit)) return false;
   return profileOf(scenario, unit).move > 0;
 }
 
@@ -385,6 +408,7 @@ function coveringFireAllocations(
   unit: UnitState,
 ): Allocation[] {
   if (commandBlocker(state, unit.owner, 'coveringFire', unit)) return [];
+  if (isFactionTerrainUnit(scenario, unit)) return [];
   const wts = weaponTargets(scenario, state, unit, 'shoot');
   if (wts.length === 0) return [];
   const allEnemies = unitsOf(state, opponent(unit.owner));
@@ -504,7 +528,14 @@ export function createEngine(scenario: Scenario): Engine {
     }
     if (state.phase === 'combat') {
       const picker = fightPickerFor(state);
-      if (picker !== null) return { kind: 'fightPick', player: picker, canPass: false };
+      if (picker !== null) {
+        // Passing is allowed only when every unit the picker could fight with is merely
+        // near enemy faction terrain.
+        const canPass = eligibleFighters(scenario, state, picker).every((u) =>
+          optionalFighter(scenario, state, u),
+        );
+        return { kind: 'fightPick', player: picker, canPass };
+      }
     }
     return { kind: 'main', player: state.active, phase: state.phase };
   }
@@ -513,6 +544,7 @@ export function createEngine(scenario: Scenario): Engine {
     const d = decision(state);
     const unit = state.units[unitId];
     if (!d || !unit || unit.status !== 'battlefield' || unit.owner !== d.player) return [];
+    if (isFactionTerrainUnit(scenario, unit)) return [];
     const top = state.stack[state.stack.length - 1];
     if (top?.t === 'magicalIntervention') {
       if (top.unit !== unitId) return [];
@@ -1206,9 +1238,30 @@ export function createEngine(scenario: Scenario): Engine {
     }
   }
 
+  /**
+   * Every action that names a unit must name a unit that exists and belongs to the player
+   * who is deciding (the active player cannot act with enemy units, and vice versa).
+   */
+  function requireOwnUnit(state: GameState, unitId: UnitId, player: PlayerId): UnitState {
+    const unit = state.units[unitId];
+    if (!unit) illegal(`There is no unit "${unitId}".`);
+    if (unit.owner !== player) illegal(`${unit.name} belongs to the other player.`);
+    if (isFactionTerrainUnit(scenario, unit)) {
+      illegal(`${unit.name} is faction terrain: it cannot move, shoot, charge or fight.`);
+    }
+    return unit;
+  }
+
   function apply(state: GameState, action: Action): StepResult {
     const d = decision(state);
     if (!d) illegal('The game has ended.');
+    if (
+      'unit' in action &&
+      typeof action.unit === 'string' &&
+      (d.kind === 'main' || d.kind === 'fightPick' || d.kind === 'reaction')
+    ) {
+      requireOwnUnit(state, action.unit, d.player);
+    }
     const s = cloneState(state);
     const ctx: Ctx = { scenario, s, events: [], rng: new RngCursor(s.rng) };
 
@@ -1254,13 +1307,27 @@ export function createEngine(scenario: Scenario): Engine {
           action.abilityId === 'eruption-of-fury'
         ) {
           const unit = s.units[action.unit]!;
-          const targets = eruptionOfFuryTargets(scenario, s, unit);
-          if (targets.length === 0) illegal('No engaged enemy targets for Eruption of Fury.');
+          const option = unitOptions(state, action.unit).find(
+            (o) => o.t === 'ability' && o.abilityId === 'eruption-of-fury',
+          );
+          if (!option || option.t !== 'ability') {
+            illegal(`${unit.name} cannot use Eruption of Fury now.`);
+          }
+          const targetId = action.target ?? option.targets[0];
+          if (!targetId || !option.targets.includes(targetId)) {
+            illegal('Eruption of Fury must target an enemy unit in combat with the unit.');
+          }
           const profile = profileOf(scenario, unit);
           const melee = profile.weapons.find((w) => w.kind === 'melee');
           if (!melee) illegal('No melee weapon for Eruption of Fury.');
           const pState = s.players[unit.owner];
-          resolveEruptionOfFury(ctx, unit, targets[0]!, melee, Math.min(3, pState.rageDice ?? 0));
+          resolveEruptionOfFury(
+            ctx,
+            unit,
+            s.units[targetId]!,
+            melee,
+            Math.min(3, pState.rageDice ?? 0),
+          );
         } else if (action.t === 'command') {
           if (d.phase === 'hero' && action.command === 'rally') {
             rally(ctx, action.unit);
@@ -1307,8 +1374,10 @@ export function createEngine(scenario: Scenario): Engine {
         break;
       case 'fightPick':
         if (action.t === 'fight') declareFight(ctx, d.player, action.unit);
-        else if (action.t === 'pass' && d.canPass) advancePhase(ctx);
-        else illegal('Pick a unit to fight.');
+        else if (action.t === 'pass' && d.canPass) {
+          // Declines to attack faction terrain with every optional fighter of this tier.
+          for (const u of eligibleFighters(scenario, s, d.player)) s.units[u.id]!.fought = true;
+        } else illegal('Pick a unit to fight.');
         break;
       case 'targets':
         if (action.t !== 'targets') illegal('Choose targets for the weapons.');
@@ -1356,11 +1425,18 @@ export function createEngine(scenario: Scenario): Engine {
   // Set-up uses no dice, so it is computed once per engine and copied for each game.
   let deployed: UnitState[] | null = null;
 
+  /** Quick start: the armies plus both armies' faction terrain, set up legally. */
+  function withFactionTerrain(units: UnitState[]): UnitState[] {
+    return [...units, ...placeFactionTerrain(scenario, units)].sort(
+      (a, b) => a.owner - b.owner || a.armyIndex - b.armyIndex,
+    );
+  }
+
   function newGame(seed: number, options?: NewGameOptions): GameState {
     const isDeployMode = Boolean(options?.deploy);
     const unitsList = isDeployMode
       ? createReserveUnits(scenario)
-      : (deployed ??= deployArmies(scenario));
+      : (deployed ??= withFactionTerrain(deployArmies(scenario)));
     const units = unitsList.map((u) => ({ ...u, models: u.models.map((m) => ({ ...m })) }));
     const s: GameState = {
       seed,

@@ -9,6 +9,10 @@ export function Shape({ fp, grow = 0, ...rest }: Props) {
     SVGProps<SVGEllipseElement> &
     SVGProps<SVGRectElement>;
   if (fp.kind === 'circle') return <circle cx={fp.cx} cy={fp.cy} r={fp.r + grow} {...p} />;
+  if (fp.kind === 'polygon') {
+    const q = rest as SVGProps<SVGPolygonElement>;
+    return <polygon points={fp.outline.map(([x, y]) => `${x},${y}`).join(' ')} {...q} />;
+  }
   const transform = fp.rotation ? `rotate(${fp.rotation} ${fp.cx} ${fp.cy})` : undefined;
   if (fp.kind === 'ellipse') {
     return (

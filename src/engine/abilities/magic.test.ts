@@ -509,7 +509,7 @@ describe('M3a Lore Abilities (16 abilities)', () => {
       const s = baseArena([WARSONG, SAURUS_GUARD, KROXIGOR]);
       const terrain = scenario.battlefield.terrain.find((t) => t.id === 'outcrop-w')!;
       const [tx, ty] = terrain.polygon[0]!;
-      s.overgrownTerrain = scenario.battlefield.terrain.map((t) => t.id);
+      s.overgrown = [scenario.battlefield.terrain.map((t) => t.id), []];
       // Place Warsong 10" away in Y so Saurus Guard is within 18" for the prayer and not in combat (>3")
       placeUnit(scenario, s, SAURUS_GUARD, tx, ty);
       placeUnit(scenario, s, KROXIGOR, tx + 8, ty);
@@ -1215,6 +1215,7 @@ describe('Warscroll Spells (Wizard-Specific)', () => {
       s.units[SAURUS_GUARD]!.models[i]!.alive = false;
     }
     s.units[SAURUS_GUARD]!.damage = 1;
+    const tokensBefore = s.overgrown?.[0]?.length ?? 0;
 
     const res = applyUntil(
       engine,
@@ -1223,7 +1224,7 @@ describe('Warscroll Spells (Wizard-Specific)', () => {
       (r) => r.events.some((e) => e.t === 'cast' && e.success),
     );
     expect(res.state.units[SAURUS_GUARD]!.status).toBe('destroyed');
-    expect((res.state.overgrownTerrain ?? []).length).toBe(1);
+    expect(res.state.overgrown?.[0]).toHaveLength(tokensBefore + 1);
   });
 
   it('Enrage The Spites (Drycha only): hits up to 3 enemies within 12" or in creeping overgrowth with D3 mortal damage each', () => {
@@ -1234,7 +1235,7 @@ describe('Warscroll Spells (Wizard-Specific)', () => {
     // Place HUNTERS outside 12" (at x=48) but near an overgrown terrain feature
     const terrain = scenario.battlefield.terrain[0]!;
     const [tx, ty] = terrain.polygon[0]!;
-    s.overgrownTerrain = [terrain.id];
+    s.overgrown = [[terrain.id], []];
     placeUnit(scenario, s, HUNTERS, tx, ty);
 
     // Only Drycha knows Enrage The Spites; Alarielle does not

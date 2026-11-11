@@ -13,6 +13,11 @@ import {
   LEGEND_OF_THE_PARCH_ID,
   SIEGE_OF_ASHES_ID,
 } from './battleTactics.js';
+import type { GameState, PlayerId } from '../../engine/index.js';
+
+/** The player's army units, leaving out faction terrain. */
+const armyUnits = (state: GameState, p: PlayerId) =>
+  unitsOf(state, p).filter((u) => u.armyIndex >= 0);
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
@@ -95,9 +100,9 @@ describe('Battle Tactics (GHB 2026-27)', () => {
     expect(evaluateBattleTactic(scenario, state, 0, BURNING_FOR_VENGEANCE_ID, 'strike')).toBe(true);
 
     // Domination: if no fugitive on board, 3+ friendly units contest the same objective wholly outside friendly territory
-    const u1 = unitsOf(state, 0)[0]!;
-    const u2 = unitsOf(state, 0)[1]!;
-    const u3 = unitsOf(state, 0)[2]!;
+    const u1 = armyUnits(state, 0)[0]!;
+    const u2 = armyUnits(state, 0)[1]!;
+    const u3 = armyUnits(state, 0)[2]!;
 
     // Objective in enemy territory or centre
     const obj = scenario.battlefield.objectives[0]!;
@@ -118,8 +123,8 @@ describe('Battle Tactics (GHB 2026-27)', () => {
     initBattleTactics(scenario, state);
 
     // Player 1 has Siege of Ashes. Friendly territory is Territory A (x >= 30, y >= 11)
-    const w1 = unitsOf(state, 1)[0]!;
-    const w2 = unitsOf(state, 1)[1]!;
+    const w1 = armyUnits(state, 1)[0]!;
+    const w2 = armyUnits(state, 1)[1]!;
 
     // Move all units to neutral territory (50, 5)
     for (const id of state.unitOrder) {
@@ -148,7 +153,7 @@ describe('Battle Tactics (GHB 2026-27)', () => {
     const state = cloneState(engine.newGame(1));
     initBattleTactics(scenario, state);
 
-    const enemyUnitId = unitsOf(state, 0)[0]!.id;
+    const enemyUnitId = armyUnits(state, 0)[0]!.id;
     state.turnStartInCombat = [enemyUnitId];
     state.destroyedByChargeCombat = [enemyUnitId];
 

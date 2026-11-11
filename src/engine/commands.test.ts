@@ -112,7 +112,7 @@ describe('At the Double', () => {
 });
 
 describe('All-out Attack', () => {
-  it('costs 1 CP and adds 1 to hit for those attacks, with no save penalty', () => {
+  it("costs 1 CP, adds 1 to hit for those attacks and -1 to the unit's saves this turn", () => {
     const s = passTo(engine, arena(), 'shooting');
     s.players[1].cp = 0;
     const weaponId = engine.targetOptions(s, DURTHU, 'shoot')[0]!.weaponId;
@@ -125,7 +125,7 @@ describe('All-out Attack', () => {
     expect(r.events[0]).toEqual({ t: 'command', player: 0, command: 'allOutAttack', unit: DURTHU });
     expect(r.state.players[0].cp).toBe(3);
     expect(r.state.units[DURTHU]!.allOutAttack).toBe(true);
-    // All-out Attack does not make the unit easier to hurt (owner's ruling: +1 to hit only).
+    // The unit is easier to hurt until the end of the turn (owner's correction, 2026-11-11).
     // Compare the same position with and without the flag, so casualties do not interfere.
     const plain = editable(s);
     const flagged = editable(s);
@@ -137,7 +137,13 @@ describe('All-out Attack', () => {
     const exp = (st: GameState): number =>
       engine.targetOptions(st, SKINKS, 'shoot')[0]!.targets.find((t) => t.unit === DURTHU)!
         .expectedDamage;
-    expect(exp(flagged)).toBeCloseTo(exp(plain));
+    expect(exp(flagged)).toBeGreaterThan(exp(plain) + 1e-6);
+    // The flag is cleared at the start of the next turn.
+    let next = r.state;
+    while (next.turnIndex === 0 && engine.decision(next)) {
+      next = engine.apply(next, engine.defaultAction(next)).state;
+    }
+    expect(next.units[DURTHU]!.allOutAttack).toBe(false);
   });
 
   it('cannot be used without CP', () => {

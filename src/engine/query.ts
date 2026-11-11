@@ -7,7 +7,6 @@ import {
   footprintGap,
   footprintGapAtLeast,
   footprintOuterRadius,
-  footprintOverlapsPolygon,
   footprintPolygon,
   layoutFormation,
   type Footprint,
@@ -20,8 +19,6 @@ export const COMBAT_RANGE = 3;
 export const CHARGE_END_RANGE = 0.5;
 /** Tolerance for distance comparisons, in inches. */
 export const DIST_EPS = 1e-6;
-/** Range of Sylvaneth Creeping Overgrowth around Awakened Wyldwoods and overgrown terrain. */
-export const CREEPING_OVERGROWTH_RANGE = 6;
 
 export function opponent(player: PlayerId): PlayerId {
   return player === 0 ? 1 : 0;
@@ -163,7 +160,19 @@ export function unitsWithin(
   return footprintsWithin(unitFootprints(scenario, a), unitFootprints(scenario, b), range);
 }
 
-/** `unitsWithin(unit, enemy)` for each enemy, building the unit's own circle and bases once. */
+/**
+ * True for faction terrain (Awakened Wyldwood, Realmshaper Engine). Owner's ruling,
+ * 2026-11-11: it never acts, cannot be charged, never puts units in combat, and is a unit
+ * only in the combat phase, where units within 3" of it may attack it.
+ */
+export function isFactionTerrainUnit(scenario: Scenario, unit: UnitState): boolean {
+  return profileOf(scenario, unit).isFactionTerrain;
+}
+
+/**
+ * `unitsWithin(unit, enemy)` for each enemy, building the unit's own circle and bases once.
+ * Enemy faction terrain is skipped unless `includeTerrain`.
+ */
 function forEnemiesWithin(
   scenario: Scenario,
   state: GameState,
@@ -171,10 +180,12 @@ function forEnemiesWithin(
   range: number,
   /** Return false to stop early. */
   visit: (enemy: UnitState) => boolean,
+  includeTerrain = false,
 ): void {
   const bu = unitBounds(scenario, unit);
   let fps: Footprint[] | null = null;
   for (const enemy of unitsOf(state, opponent(unit.owner))) {
+    if (!includeTerrain && isFactionTerrainUnit(scenario, enemy)) continue;
     const be = unitBounds(scenario, enemy);
     if (Math.hypot(bu.x - be.x, bu.y - be.y) - bu.r - be.r > range + DIST_EPS) continue;
     fps ??= unitFootprints(scenario, unit);
@@ -183,19 +194,38 @@ function forEnemiesWithin(
   }
 }
 
-/** Enemy units within `range` of `unit`. */
+/** Enemy units within `range` of `unit` (enemy faction terrain only with `includeTerrain`). */
 export function enemiesWithin(
   scenario: Scenario,
   state: GameState,
   unit: UnitState,
   range: number,
+  includeTerrain = false,
 ): UnitState[] {
   const out: UnitState[] = [];
-  forEnemiesWithin(scenario, state, unit, range, (enemy) => {
-    out.push(enemy);
-    return true;
-  });
+  forEnemiesWithin(
+    scenario,
+    state,
+    unit,
+    range,
+    (enemy) => {
+      out.push(enemy);
+      return true;
+    },
+    includeTerrain,
+  );
   return out;
+}
+
+/** True when `unit` is within 3" of enemy faction terrain, so it may attack it. */
+export function nearEnemyFactionTerrain(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+): boolean {
+  return enemiesWithin(scenario, state, unit, COMBAT_RANGE, true).some((e) =>
+    isFactionTerrainUnit(scenario, e),
+  );
 }
 
 /** Enemy units in combat with `unit` (within 3"). */
@@ -232,6 +262,7 @@ export function gapToEnemies(
 ): number {
   let best = Infinity;
   for (const enemy of unitsOf(state, opponent(owner))) {
+    if (isFactionTerrainUnit(scenario, enemy)) continue;
     for (const efp of unitFootprints(scenario, enemy)) {
       const d = footprintGap(fp, efp);
       if (d < best) best = d;
@@ -256,12 +287,14 @@ export function hasKeyword(scenario: Scenario, unit: UnitState, keyword: string)
 /** How far the vertices of a base's outer polygon (`footprintPolygon`) reach from its centre. */
 const POLYGON_REACH = 1 / Math.cos(Math.PI / BASE_POLYGON_SEGMENTS);
 function polygonRadius(fp: Footprint): number {
+  if (fp.kind === 'polygon') return footprintOuterRadius(fp);
   if (fp.kind === 'rect') return Math.hypot(fp.hw, fp.hh);
   return (fp.kind === 'circle' ? fp.r : Math.max(fp.rx, fp.ry)) * POLYGON_REACH;
 }
 
 /** Radius of the largest circle centred on the base that fits inside it. */
 function inscribedRadius(fp: Footprint): number {
+  if (fp.kind === 'polygon') return 0;
   return fp.kind === 'circle'
     ? fp.r
     : fp.kind === 'ellipse'
@@ -323,52 +356,6 @@ export function unitWhollyWithin(
   const tgtFps = unitFootprints(scenario, target);
   if (srcFps.length === 0 || tgtFps.length === 0) return false;
   return tgtFps.every((fp) => footprintWhollyWithin(fp, srcFps, range));
-}
-
-/**
- * True when `unit` is within `CREEPING_OVERGROWTH_RANGE` (6") of any Awakened Wyldwood owned
- * by `sylvanethOwner` or any overgrown terrain feature, or (for friendly Sylvaneth units that
- * require wholly within) wholly within `CREEPING_OVERGROWTH_RANGE` when `wholly` is true.
- */
-export function inCreepingOvergrowth(
-  scenario: Scenario,
-  state: GameState,
-  unit: UnitState,
-  sylvanethOwner: PlayerId,
-  wholly = false,
-): boolean {
-  const wyldwoods = unitsOf(state, sylvanethOwner).filter((u) => {
-    const p = profileOf(scenario, u);
-    return p.isFactionTerrain || p.keywords.includes('AWAKENED WYLDWOOD');
-  });
-  for (const w of wyldwoods) {
-    if (wholly) {
-      if (unitWhollyWithin(scenario, w, unit, CREEPING_OVERGROWTH_RANGE)) return true;
-    } else if (unitsWithin(scenario, w, unit, CREEPING_OVERGROWTH_RANGE)) {
-      return true;
-    }
-  }
-  const overgrownIds = state.overgrownTerrain ?? [];
-  if (overgrownIds.length > 0) {
-    const tgtFps = unitFootprints(scenario, unit);
-    for (const terrain of scenario.battlefield.terrain) {
-      if (!overgrownIds.includes(terrain.id)) continue;
-      // Check if unit overlaps or is within 6" of the terrain polygon
-      for (const fp of tgtFps) {
-        const expanded: Footprint =
-          fp.kind === 'circle'
-            ? { ...fp, r: fp.r + CREEPING_OVERGROWTH_RANGE }
-            : {
-                kind: 'circle',
-                cx: fp.cx,
-                cy: fp.cy,
-                r: boundingRadius(fp) + CREEPING_OVERGROWTH_RANGE,
-              };
-        if (footprintOverlapsPolygon(expanded, terrain.polygon)) return true;
-      }
-    }
-  }
-  return false;
 }
 
 /**
