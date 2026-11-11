@@ -1206,9 +1206,27 @@ export function createEngine(scenario: Scenario): Engine {
     }
   }
 
+  /**
+   * Every action that names a unit must name a unit that exists and belongs to the player
+   * who is deciding (the active player cannot act with enemy units, and vice versa).
+   */
+  function requireOwnUnit(state: GameState, unitId: UnitId, player: PlayerId): UnitState {
+    const unit = state.units[unitId];
+    if (!unit) illegal(`There is no unit "${unitId}".`);
+    if (unit.owner !== player) illegal(`${unit.name} belongs to the other player.`);
+    return unit;
+  }
+
   function apply(state: GameState, action: Action): StepResult {
     const d = decision(state);
     if (!d) illegal('The game has ended.');
+    if (
+      'unit' in action &&
+      typeof action.unit === 'string' &&
+      (d.kind === 'main' || d.kind === 'fightPick' || d.kind === 'reaction')
+    ) {
+      requireOwnUnit(state, action.unit, d.player);
+    }
     const s = cloneState(state);
     const ctx: Ctx = { scenario, s, events: [], rng: new RngCursor(s.rng) };
 
@@ -1254,13 +1272,27 @@ export function createEngine(scenario: Scenario): Engine {
           action.abilityId === 'eruption-of-fury'
         ) {
           const unit = s.units[action.unit]!;
-          const targets = eruptionOfFuryTargets(scenario, s, unit);
-          if (targets.length === 0) illegal('No engaged enemy targets for Eruption of Fury.');
+          const option = unitOptions(state, action.unit).find(
+            (o) => o.t === 'ability' && o.abilityId === 'eruption-of-fury',
+          );
+          if (!option || option.t !== 'ability') {
+            illegal(`${unit.name} cannot use Eruption of Fury now.`);
+          }
+          const targetId = action.target ?? option.targets[0];
+          if (!targetId || !option.targets.includes(targetId)) {
+            illegal('Eruption of Fury must target an enemy unit in combat with the unit.');
+          }
           const profile = profileOf(scenario, unit);
           const melee = profile.weapons.find((w) => w.kind === 'melee');
           if (!melee) illegal('No melee weapon for Eruption of Fury.');
           const pState = s.players[unit.owner];
-          resolveEruptionOfFury(ctx, unit, targets[0]!, melee, Math.min(3, pState.rageDice ?? 0));
+          resolveEruptionOfFury(
+            ctx,
+            unit,
+            s.units[targetId]!,
+            melee,
+            Math.min(3, pState.rageDice ?? 0),
+          );
         } else if (action.t === 'command') {
           if (d.phase === 'hero' && action.command === 'rally') {
             rally(ctx, action.unit);
