@@ -27,7 +27,7 @@ export const COMMANDS: Record<CommandId, CommandDefinition> = {
     name: 'Rally',
     cost: 1,
     phases: ['hero'],
-    turn: 'your',
+    turn: 'any',
     implemented: true,
     effect:
       'A unit not in combat makes 6 rally rolls; each 4+ is a rally point. Heal 1 per point, or return a slain model for points equal to its Health.',

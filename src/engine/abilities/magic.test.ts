@@ -1351,3 +1351,102 @@ describe('Warscroll Spells (Wizard-Specific)', () => {
     expect(nuked.events.some((e) => e.t === 'roll' && e.label === 'Ward')).toBe(false);
   });
 });
+
+describe('Once-Per-Phase Command Restrictions (Per Unit & Per Army)', () => {
+  it('cannot use All-out Attack with two different units in the same phase, or on a unit that already used All-out Defence that phase', () => {
+    const s = baseArena([DURTHU, DRYCHA, SAURUS_GUARD, KROXIGOR]);
+    s.phase = 'combat';
+    s.fightPicker = 0;
+    s.fightTier = null;
+    placeUnit(scenario, s, DURTHU, 20, 18);
+    placeUnit(scenario, s, SAURUS_GUARD, 22, 18);
+    placeUnit(scenario, s, DRYCHA, 20, 28);
+    placeUnit(scenario, s, KROXIGOR, 22, 28);
+
+    // 1. Durthu fights first and uses All-out Attack; Saurus Guard reacts with All-out Defence
+    let st = engine.apply(s, { t: 'fight', unit: DURTHU }).state;
+    st = engine.apply(st, { t: 'pass' }).state; // skip pile-in
+    const durthuAllocs = engine.targetOptions(st, DURTHU, 'fight').map((w) => ({
+      weaponId: w.weaponId,
+      target: w.targets[0]!.unit,
+    }));
+    st = engine.apply(st, { t: 'targets', allocations: durthuAllocs, allOutAttack: true }).state;
+    // Saurus Guard uses All-out Defence reaction
+    st = engine.apply(st, { t: 'command', command: 'allOutDefence', unit: SAURUS_GUARD }).state;
+
+    // 2. Saurus Guard now picks to fight in the same Combat phase -> CANNOT also use All-out Attack because it already used All-out Defence this phase
+    st = engine.apply(st, { t: 'fight', unit: SAURUS_GUARD }).state;
+    st = engine.apply(st, { t: 'pass' }).state; // skip pile-in
+    const sgAllocs = engine.targetOptions(st, SAURUS_GUARD, 'fight').map((w) => ({
+      weaponId: w.weaponId,
+      target: w.targets[0]!.unit,
+    }));
+    expect(() =>
+      engine.apply(st, { t: 'targets', allocations: sgAllocs, allOutAttack: true }),
+    ).toThrow(/already used a command this phase/);
+    st = engine.apply(st, { t: 'targets', allocations: sgAllocs, allOutAttack: false }).state;
+
+    // 3. Drycha now picks to fight for Player 0 in the same Combat phase -> CANNOT use All-out Attack because Player 0 already used All-out Attack with Durthu this phase
+    st = engine.apply(st, { t: 'fight', unit: DRYCHA }).state;
+    st = engine.apply(st, { t: 'pass' }).state; // skip pile-in
+    const drychaAllocs = engine.targetOptions(st, DRYCHA, 'fight').map((w) => ({
+      weaponId: w.weaponId,
+      target: w.targets[0]!.unit,
+    }));
+    expect(() =>
+      engine.apply(st, { t: 'targets', allocations: drychaAllocs, allOutAttack: true }),
+    ).toThrow(/All-out Attack has already been used this phase/);
+  });
+
+  it('using Magical Intervention with Drycha in the enemy Hero phase prevents also Rallying Drycha that phase (while another unit can still Rally)', () => {
+    const s = baseArena([DRYCHA, DRYADS, SAURUS_GUARD]);
+    s.active = 1; // Enemy (Seraphon) Hero phase
+    s.phase = 'hero';
+    placeUnit(scenario, s, DRYCHA, 20, 22);
+    placeUnit(scenario, s, SAURUS_GUARD, 32, 22); // within 18" of Drycha, > 3" away
+    placeUnit(scenario, s, DRYADS, 10, 10);
+    // Both Drycha and Dryads are damaged and not in combat
+    s.units[DRYCHA]!.damage = 3;
+    s.units[DRYADS]!.models[9]!.alive = false;
+
+    // Opponent passes their Hero phase -> Player 0 gets end-of-hero-phase reaction with Magical Intervention (Drycha) and Rally (Drycha, Dryads)
+    const afterEnemyPass = engine.apply(s, { t: 'pass' }).state;
+    expect(engine.decision(afterEnemyPass)).toEqual({
+      kind: 'reaction',
+      player: 0,
+      options: [
+        { command: 'magicalIntervention', unit: DRYCHA, cost: 1 },
+        { command: 'rally', unit: DRYCHA, cost: 1 },
+        { command: 'rally', unit: DRYADS, cost: 1 },
+      ],
+      trigger: 'phase:hero',
+    });
+
+    // Player 0 uses Magical Intervention with Drycha
+    const afterMi = engine.apply(afterEnemyPass, {
+      t: 'command',
+      command: 'magicalIntervention',
+      unit: DRYCHA,
+    }).state;
+    expect(afterMi.units[DRYCHA]!.commandUsed).toBe('magicalIntervention');
+
+    // Drycha casts Grasping Roots (or passes) to finish Magical Intervention
+    const afterCast = engine.apply(afterMi, {
+      t: 'ability',
+      unit: DRYCHA,
+      abilityId: GRASPING_ROOTS,
+      target: SAURUS_GUARD,
+    }).state;
+
+    // Now the remaining end-of-hero-phase reaction offers Rally ONLY for Dryads — NOT Drycha (and NOT Magical Intervention again)
+    expect(engine.decision(afterCast)).toEqual({
+      kind: 'reaction',
+      player: 0,
+      options: [{ command: 'rally', unit: DRYADS, cost: 1 }],
+      trigger: 'phase:hero',
+    });
+    expect(() =>
+      engine.apply(afterCast, { t: 'command', command: 'rally', unit: DRYCHA }),
+    ).toThrow();
+  });
+});

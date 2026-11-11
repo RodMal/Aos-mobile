@@ -843,9 +843,12 @@ export function createEngine(scenario: Scenario): Engine {
       return;
     }
 
-    // 3. Phase / move command reactions (redeploy, coveringFire, counterCharge, magicalIntervention, powerThrough)
+    // 3. Phase / move command reactions (rally, redeploy, coveringFire, counterCharge, magicalIntervention, powerThrough)
     s.stack.pop(); // pop reaction frame (leaving `endPhase` on the stack if present)
     if (action.t === 'pass') {
+      if (under?.t === 'endPhase') {
+        s.reactionsOffered = [...(s.reactionsOffered ?? []), 'endPhasePassed'];
+      }
       return;
     }
     if (action.t === 'command') {
@@ -866,6 +869,9 @@ export function createEngine(scenario: Scenario): Engine {
     targetId?: UnitId,
   ): void {
     switch (command) {
+      case 'rally':
+        rally(ctx, unitId);
+        break;
       case 'redeploy':
         redeploy(ctx, unitId);
         break;
@@ -890,23 +896,37 @@ export function createEngine(scenario: Scenario): Engine {
     const { s } = ctx;
     const nonActive = opponent(s.active);
     const offered = s.reactionsOffered ?? [];
+    if (offered.includes('endPhasePassed')) return false;
 
-    if (s.phase === 'hero' && !offered.includes('magicalIntervention')) {
-      const units = unitsOf(s, nonActive).filter(
-        (u) =>
-          canMagicalIntervention(scenario, s, u) && enemiesWithin(scenario, s, u, 18).length > 0,
-      );
-      if (units.length > 0) {
-        s.reactionsOffered = [...offered, 'magicalIntervention'];
-        s.stack.push({ t: 'endPhase' });
-        s.stack.push({
-          t: 'reaction',
-          player: nonActive,
-          options: units.map((u) => ({
+    if (s.phase === 'hero') {
+      const options: ReactionOption[] = [];
+      for (const u of unitsOf(s, nonActive)) {
+        if (
+          canMagicalIntervention(scenario, s, u) &&
+          enemiesWithin(scenario, s, u, 18).length > 0
+        ) {
+          options.push({
             command: 'magicalIntervention',
             unit: u.id,
             cost: COMMANDS.magicalIntervention.cost,
-          })),
+          });
+        }
+        if (canRally(scenario, s, u)) {
+          options.push({
+            command: 'rally',
+            unit: u.id,
+            cost: COMMANDS.rally.cost,
+          });
+        }
+      }
+      if (options.length > 0) {
+        if (s.stack[s.stack.length - 1]?.t !== 'endPhase') {
+          s.stack.push({ t: 'endPhase' });
+        }
+        s.stack.push({
+          t: 'reaction',
+          player: nonActive,
+          options,
           trigger: 'phase:hero',
         });
         return true;
@@ -1056,6 +1076,9 @@ export function createEngine(scenario: Scenario): Engine {
         continue;
       }
       if (top.t === 'endPhase') {
+        if (offerEndOfPhaseReaction(ctx)) {
+          continue;
+        }
         s.stack.pop();
         advancePhase(ctx);
         continue;

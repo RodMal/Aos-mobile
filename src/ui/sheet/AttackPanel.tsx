@@ -1,4 +1,5 @@
 /** Shooting and fighting: which weapon hits which target, All-out Attack, then roll. */
+import { commandBlocker } from '../../rules/core/commands.js';
 import { rollAttack } from '../game/actions.js';
 import { useGameState, useHuman } from '../game/hooks.js';
 import { planDamage, setWeaponTarget, toAllocations } from '../game/attackPlan.js';
@@ -13,6 +14,7 @@ export function AttackPanel() {
   const unit = state.units[attack.unit];
   if (!unit) return null;
   const cp = state.players[human].cp;
+  const aoaBlocker = commandBlocker(state, human, 'allOutAttack', unit);
   const allocations = toAllocations(attack.plan);
   const total = [...planDamage(attack.plan, attack.options).values()].reduce((a, b) => a + b, 0);
   const name = (id: string) => state.units[id]?.name ?? id;
@@ -66,14 +68,14 @@ export function AttackPanel() {
           );
         })}
       </ul>
-      <label className={`toggle ${cp < 1 ? 'disabled' : ''}`}>
+      <label className={`toggle ${aoaBlocker ? 'disabled' : ''}`}>
         <input
           type="checkbox"
-          checked={attack.allOutAttack}
-          disabled={cp < 1}
+          checked={attack.allOutAttack && !aoaBlocker}
+          disabled={aoaBlocker !== null}
           onChange={(e) => setAttack({ ...attack, allOutAttack: e.target.checked })}
         />
-        <span>All-out Attack (1 CP, +1 to hit) · you have {cp} CP</span>
+        <span>All-out Attack (1 CP, +1 to hit) · {aoaBlocker ?? `you have ${cp} CP`}</span>
       </label>
       <div className="confirm-row">
         {attack.mode === 'shoot' && (
