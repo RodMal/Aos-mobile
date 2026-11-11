@@ -1215,6 +1215,7 @@ describe('Warscroll Spells (Wizard-Specific)', () => {
       s.units[SAURUS_GUARD]!.models[i]!.alive = false;
     }
     s.units[SAURUS_GUARD]!.damage = 1;
+    const tokensBefore = s.overgrown?.[0]?.length ?? 0;
 
     const res = applyUntil(
       engine,
@@ -1223,7 +1224,7 @@ describe('Warscroll Spells (Wizard-Specific)', () => {
       (r) => r.events.some((e) => e.t === 'cast' && e.success),
     );
     expect(res.state.units[SAURUS_GUARD]!.status).toBe('destroyed');
-    expect(res.state.overgrown?.[0]).toHaveLength(1);
+    expect(res.state.overgrown?.[0]).toHaveLength(tokensBefore + 1);
   });
 
   it('Enrage The Spites (Drycha only): hits up to 3 enemies within 12" or in creeping overgrowth with D3 mortal damage each', () => {

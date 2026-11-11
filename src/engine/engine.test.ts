@@ -31,8 +31,9 @@ describe('set-up', () => {
   const state = engine.newGame(1);
 
   it('puts every unit of both armies on the battlefield', () => {
-    expect(unitsOf(state, 0)).toHaveLength(8);
-    expect(unitsOf(state, 1)).toHaveLength(9);
+    // Each army's units plus its faction terrain.
+    expect(unitsOf(state, 0)).toHaveLength(9);
+    expect(unitsOf(state, 1)).toHaveLength(10);
     expect(state.round).toBe(1);
     expect(state.players[0].cp).toBe(4);
   });

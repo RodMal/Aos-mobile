@@ -35,6 +35,7 @@ import {
   checkDeployPlacement,
   createReserveUnits,
   npcDeployPlacement,
+  placeFactionTerrain,
 } from './deployment.js';
 import {
   evaluateEndOfTurnTactics,
@@ -1393,11 +1394,18 @@ export function createEngine(scenario: Scenario): Engine {
   // Set-up uses no dice, so it is computed once per engine and copied for each game.
   let deployed: UnitState[] | null = null;
 
+  /** Quick start: the armies plus both armies' faction terrain, set up legally. */
+  function withFactionTerrain(units: UnitState[]): UnitState[] {
+    return [...units, ...placeFactionTerrain(scenario, units)].sort(
+      (a, b) => a.owner - b.owner || a.armyIndex - b.armyIndex,
+    );
+  }
+
   function newGame(seed: number, options?: NewGameOptions): GameState {
     const isDeployMode = Boolean(options?.deploy);
     const unitsList = isDeployMode
       ? createReserveUnits(scenario)
-      : (deployed ??= deployArmies(scenario));
+      : (deployed ??= withFactionTerrain(deployArmies(scenario)));
     const units = unitsList.map((u) => ({ ...u, models: u.models.map((m) => ({ ...m })) }));
     const s: GameState = {
       seed,

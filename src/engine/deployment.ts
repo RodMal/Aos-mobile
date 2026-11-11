@@ -411,3 +411,54 @@ export function npcDeployPlacement(
 
   return fallback ?? currentPlacement(unit);
 }
+
+/**
+ * Fast set-up for faction terrain: creates each army's faction terrain and sets it up
+ * legally behind the already deployed `units` (attacker first): the legal spot furthest from
+ * the enemy, so it does not stand in the army's way. A piece with no legal place is left out.
+ */
+export function placeFactionTerrain(scenario: Scenario, units: readonly UnitState[]): UnitState[] {
+  const { battlefield } = scenario;
+  const boardCentre = { x: battlefield.width / 2, y: battlefield.height / 2 };
+  const terrain = createReserveUnits(scenario).filter(
+    (u) => profileOf(scenario, u).isFactionTerrain,
+  );
+  const all = [...units];
+  const view = {
+    get units() {
+      return Object.fromEntries(all.map((u) => [u.id, u]));
+    },
+    get unitOrder() {
+      return all.map((u) => u.id);
+    },
+  } as unknown as GameState;
+  const placed: UnitState[] = [];
+  for (const t of terrain) {
+    const own = battlefield.territories[scenario.sides[t.owner]];
+    const home = polygonCentroid(own);
+    const facing = facingTowards(home, boardCentre);
+    const candidates: { x: number; y: number; key: number }[] = [];
+    for (let x = 1; x <= battlefield.width - 1; x += 0.5) {
+      for (let y = 1; y <= battlefield.height - 1; y += 0.5) {
+        if (!own.some((poly) => pointInPolygon([x, y], poly))) continue;
+        candidates.push({ x, y, key: -Math.abs(x - boardCentre.x) * 100 + Math.abs(y - home.y) });
+      }
+    }
+    candidates.sort((a, b) => a.key - b.key);
+    for (const c of candidates) {
+      const placement = formPlacement(scenario, t, { x: c.x, y: c.y }, facing);
+      if (checkDeployPlacement(scenario, view, t, placement).length > 0) continue;
+      for (const m of placement.models) {
+        const model = t.models[m.i]!;
+        model.x = m.x;
+        model.y = m.y;
+        model.rot = m.rot;
+      }
+      t.status = 'battlefield';
+      all.push(t);
+      placed.push(t);
+      break;
+    }
+  }
+  return placed;
+}
