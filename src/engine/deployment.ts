@@ -337,6 +337,7 @@ export function checkDeployPlacement(
 
 /** Keeps a little air between units so they are easy to tell apart and to pick. */
 function gapBelow(a: Footprint, b: Footprint, gap: number): boolean {
+  if (a.kind === 'polygon' || b.kind === 'polygon') return footprintGap(a, b) < gap;
   const d = Math.hypot(a.cx - b.cx, a.cy - b.cy);
   const ra =
     a.kind === 'circle'

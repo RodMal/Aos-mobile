@@ -1,5 +1,7 @@
 import { resolveWarscrollModels } from './base-size/warscroll-models.js';
-import type { Ability, BaseShape, Warscroll, WeaponProfile } from './schema/index.js';
+import type { ModelBase } from '../geom/footprint.js';
+import type { Ability, Warscroll, WeaponProfile } from './schema/index.js';
+import { WYLDWOOD_OUTLINES } from './wyldwood.js';
 
 /** A dice expression such as "3", "D6", "2D6" or "D3+3": roll `n` dice of `sides`, add `plus`. */
 export interface Dice {
@@ -37,7 +39,7 @@ export interface Weapon {
 }
 
 export interface ModelProfile {
-  base: BaseShape;
+  base: ModelBase;
   champion: boolean;
 }
 
@@ -183,16 +185,34 @@ export function buildProfile(warscroll: Warscroll, reinforced = false): UnitProf
     banishment: warscroll.stats.banishment ? parseTarget(warscroll.stats.banishment, 7) : null,
     weapons: warscroll.weapons.map(buildWeapon),
     abilities: warscroll.abilities,
-    // Faction terrain is one piece set up with its curated footprint (ADR 0030 §2), not the
-    // 32mm fallback base its "Use model" entry resolves to.
-    models:
-      bareKeywords.includes('FACTION TERRAIN') && warscroll.terrainFootprint
-        ? [{ base: warscroll.terrainFootprint.shape, champion: false }]
-        : resolved.models.map((m) => ({ base: m.base, champion: m.champion })),
+    // Faction terrain is one piece with its own footprint, not the 32mm fallback base its
+    // "Use model" entry resolves to.
+    models: factionTerrainBase(warscroll, bareKeywords) ?? resolved.models.map((m) => ({
+      base: m.base,
+      champion: m.champion,
+    })),
     points: (warscroll.points ?? 0) * (reinforced ? warscroll.reinforce.pointsMultiplier : 1),
     reinforced,
     isHero: warscroll.isHero,
     isManifestation: warscroll.isManifestation,
     isFactionTerrain: bareKeywords.includes('FACTION TERRAIN'),
   };
+}
+
+/**
+ * Footprint of a faction terrain piece (owner's figures, 2026-11-11, approximate): the
+ * Awakened Wyldwood is the first crescent traced from the owner's template, the Realmshaper
+ * Engine a 6" square. Other faction terrain uses its curated `terrainFootprint`.
+ */
+function factionTerrainBase(warscroll: Warscroll, keywords: string[]): ModelProfile[] | null {
+  if (!keywords.includes('FACTION TERRAIN')) return null;
+  let base: ModelBase | undefined;
+  if (warscroll.name === 'Awakened Wyldwood') {
+    base = { kind: 'outline', points: WYLDWOOD_OUTLINES[0]! };
+  } else if (warscroll.name === 'Realmshaper Engine') {
+    base = { kind: 'rect', lengthMm: 152.4, widthMm: 152.4 };
+  } else {
+    base = warscroll.terrainFootprint?.shape;
+  }
+  return base ? [{ base, champion: false }] : null;
 }

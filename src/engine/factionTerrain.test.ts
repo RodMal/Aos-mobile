@@ -10,6 +10,18 @@ import {
   type GameState,
 } from './index.js';
 import { editable, keepOnly, passTo, placeUnit } from './test-helpers.js';
+import { WYLDWOOD_OUTLINES } from '../data/wyldwood.js';
+import {
+  baseFootprint,
+  convexPolygonsOverlap,
+  footprintGap,
+  footprintGapAtLeast,
+  footprintPolygon,
+  footprintsOverlap,
+  pointInPolygon,
+  type Footprint,
+  type ReadonlyPoint,
+} from '../geom/index.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
 const engine = createEngine(scenario);
@@ -35,13 +47,47 @@ function nearEngine(): GameState {
 }
 
 describe('faction terrain (owner ruling, 2026-11-11)', () => {
-  it('is set up with the 6" x 4" footprint from the data, not a 32mm base', () => {
-    for (const id of [WYLDWOOD, REALMSHAPER]) {
-      const p = profileOf(scenario, engine.newGame(1).units[id]!);
-      expect(p.models).toEqual([
-        { base: { kind: 'rect', lengthMm: 152.4, widthMm: 101.6 }, champion: false },
-      ]);
+  it('uses the owner\'s footprints: the traced Wyldwood crescent and a 6" square engine', () => {
+    const units = engine.newGame(1).units;
+    expect(profileOf(scenario, units[WYLDWOOD]!).models).toEqual([
+      { base: { kind: 'outline', points: WYLDWOOD_OUTLINES[0] }, champion: false },
+    ]);
+    expect(profileOf(scenario, units[REALMSHAPER]!).models).toEqual([
+      { base: { kind: 'rect', lengthMm: 152.4, widthMm: 152.4 }, champion: false },
+    ]);
+  });
+
+  it('treats the crescent as concave: a base in its hollow is close but does not overlap', () => {
+    const fp = baseFootprint({ kind: 'outline', points: WYLDWOOD_OUTLINES[0]! }, 30, 20, 37);
+    const pts = fp.kind === 'polygon' ? fp.outline : [];
+    // The midpoint between the two tips lies in the hollow; walk towards the trunk.
+    let tips: [ReadonlyPoint, ReadonlyPoint] = [pts[0]!, pts[0]!];
+    for (const p of pts) {
+      for (const q of pts) {
+        if (
+          Math.hypot(p[0] - q[0], p[1] - q[1]) >
+          Math.hypot(tips[0][0] - tips[1][0], tips[0][1] - tips[1][1])
+        ) {
+          tips = [p, q];
+        }
+      }
     }
+    let x = (tips[0][0] + tips[1][0]) / 2;
+    let y = (tips[0][1] + tips[1][1]) / 2;
+    const base = (): Footprint => baseFootprint({ kind: 'round', diameterMm: 25 }, x, y);
+    const dx = 30 - x;
+    const dy = 20 - y;
+    const len = Math.hypot(dx, dy);
+    while (footprintGap(fp, base()) > 0.3) {
+      x += (dx / len) * 0.02;
+      y += (dy / len) * 0.02;
+    }
+    expect(pointInPolygon([x, y], pts)).toBe(false);
+    expect(footprintsOverlap(fp, base())).toBe(false);
+    expect(footprintGap(fp, base())).toBeGreaterThan(0);
+    expect(footprintGapAtLeast(fp, base(), 3)).toBe(false);
+    // A convex test (the crescent's own outline treated as convex) would wrongly overlap.
+    expect(convexPolygonsOverlap(pts, footprintPolygon(base()))).toBe(true);
   });
 
   it('never acts: no options, and actions naming it are rejected', () => {

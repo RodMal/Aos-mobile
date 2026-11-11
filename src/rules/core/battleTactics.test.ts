@@ -16,7 +16,8 @@ import {
 import type { GameState, PlayerId } from '../../engine/index.js';
 
 /** The player's army units, leaving out faction terrain. */
-const armyUnits = (state: GameState, p: PlayerId) => unitsOf(state, p).filter((u) => u.armyIndex >= 0);
+const armyUnits = (state: GameState, p: PlayerId) =>
+  unitsOf(state, p).filter((u) => u.armyIndex >= 0);
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);

@@ -5,6 +5,7 @@
  */
 import {
   baseFootprint,
+  footprintGap,
   distancePointToBoundary,
   footprintDistanceToPolygon,
   footprintInsidePolygon,
@@ -110,11 +111,13 @@ export function deployArmies(scenario: Scenario): UnitState[] {
       const shape = layoutFormation(bases, frontage, [0, 0], facing).map((t) => {
         const fp = baseFootprint(t.base, 0, 0, t.rotation);
         const inner =
-          fp.kind === 'circle'
-            ? fp.r
-            : fp.kind === 'ellipse'
-              ? Math.min(fp.rx, fp.ry)
-              : Math.min(fp.hw, fp.hh);
+          fp.kind === 'polygon'
+            ? 0
+            : fp.kind === 'circle'
+              ? fp.r
+              : fp.kind === 'ellipse'
+                ? Math.min(fp.rx, fp.ry)
+                : Math.min(fp.hw, fp.hh);
         const d = Math.hypot(t.x, t.y);
         return { far: d + footprintOuterRadius(fp), near: d - inner };
       });
@@ -170,6 +173,7 @@ export function deployArmies(scenario: Scenario): UnitState[] {
 
 /** Keeps a little air between units so they are easy to tell apart and to pick. */
 function gapBelow(a: Footprint, b: Footprint, gap: number): boolean {
+  if (a.kind === 'polygon' || b.kind === 'polygon') return footprintGap(a, b) < gap;
   const d = Math.hypot(a.cx - b.cx, a.cy - b.cy);
   const ra =
     a.kind === 'circle'

@@ -9,6 +9,7 @@ import {
   type ReadonlyPoint,
 } from './polygon.js';
 import {
+  boundingRadius,
   footprintPolygon,
   halfExtents,
   innerLocalPolygon,
@@ -37,6 +38,7 @@ export {
  * polygon, so the test never accepts a base that pokes out.
  */
 export function footprintInsidePolygon(fp: Footprint, poly: Polygon): boolean {
+  if (fp.kind === 'polygon') return polygonInsidePolygon(fp.outline, poly, EPS);
   if (fp.kind === 'circle') {
     const c: ReadonlyPoint = [fp.cx, fp.cy];
     return pointInPolygon(c, poly) && distancePointToBoundary(c, poly) >= fp.r - EPS;
@@ -46,6 +48,7 @@ export function footprintInsidePolygon(fp: Footprint, poly: Polygon): boolean {
 
 /** Shortest distance from the edge of the base to the region `poly`; 0 if they touch. */
 export function footprintDistanceToPolygon(fp: Footprint, poly: Polygon): number {
+  if (fp.kind === 'polygon') return polygonDistance(fp.outline, poly);
   if (fp.kind === 'circle') {
     const c: ReadonlyPoint = [fp.cx, fp.cy];
     if (pointInPolygon(c, poly)) return 0;
@@ -103,6 +106,7 @@ const ELLIPSE_POLYGON_SCALE = 1 / Math.cos(Math.PI / BASE_POLYGON_SEGMENTS);
  * result is identical to running it alone.
  */
 export function footprintOverlapsPolygon(fp: Footprint, poly: Polygon): boolean {
+  if (fp.kind === 'polygon') return polygonsOverlap(fp.outline, poly, EPS);
   const box = polygonBox(poly);
   if (fp.kind === 'circle') {
     // Distance from the centre to the box is a lower bound of the distance to the region.
@@ -281,6 +285,8 @@ function innerRadius(fp: Footprint): number {
       return Math.min(fp.rx, fp.ry);
     case 'rect':
       return Math.min(fp.hw, fp.hh);
+    case 'polygon':
+      return 0;
   }
 }
 
@@ -301,6 +307,8 @@ function outerRadius(fp: Footprint): number {
       return Math.max(fp.rx, fp.ry) / Math.cos(Math.PI / BASE_POLYGON_SEGMENTS);
     case 'rect':
       return Math.hypot(fp.hw, fp.hh);
+    case 'polygon':
+      return boundingRadius(fp);
   }
 }
 
@@ -311,6 +319,12 @@ function outerRadius(fp: Footprint): number {
  * outer polygons, which rotate with the base.
  */
 export function footprintsOverlap(a: Footprint, b: Footprint): boolean {
+  if (a.kind === 'polygon' || b.kind === 'polygon') {
+    if (Math.hypot(a.cx - b.cx, a.cy - b.cy) >= outerRadius(a) + outerRadius(b)) return false;
+    if (a.kind === 'circle') return circleOverlapsOutline(a, outlineOf(b));
+    if (b.kind === 'circle') return circleOverlapsOutline(b, outlineOf(a));
+    return polygonsOverlap(outlineOf(a), outlineOf(b), EPS);
+  }
   const d = Math.hypot(a.cx - b.cx, a.cy - b.cy);
   if (a.kind === 'circle' && b.kind === 'circle') return d < a.r + b.r - EPS;
   if (d >= outerRadius(a) + outerRadius(b)) return false;
@@ -326,6 +340,7 @@ export function footprintsOverlap(a: Footprint, b: Footprint): boolean {
  * rectangles (which can only under-estimate the true gap, by under 1% of the radius).
  */
 export function footprintGap(a: Footprint, b: Footprint): number {
+  if (a.kind === 'polygon' || b.kind === 'polygon') return outlineGap(a, b);
   if (a.kind === 'circle' && b.kind === 'circle') {
     return Math.max(0, Math.hypot(a.cx - b.cx, a.cy - b.cy) - a.r - b.r);
   }
@@ -431,6 +446,32 @@ function outlineInDirection(fp: Footprint, ux: number, uy: number): Point {
  * (along +x when the centres coincide), so the points may cross over.
  */
 export function footprintClosestPoints(a: Footprint, b: Footprint): FootprintClosestPoints {
+  if (a.kind === 'polygon' || b.kind === 'polygon') {
+    // Closest vertex-to-boundary pair (exact for polygons; circles use their outer polygon).
+    const pa = outlineOf(a);
+    const pb = outlineOf(b);
+    const gap = outlineGap(a, b);
+    let best: [Point, Point] = [
+      [a.cx, a.cy],
+      [b.cx, b.cy],
+    ];
+    let bestD = Infinity;
+    for (const [from, to, flip] of [
+      [pa, pb, false],
+      [pb, pa, true],
+    ] as const) {
+      for (const v of from) {
+        const q = closestOnBoundary(v, to);
+        const d = (q[0] - v[0]) ** 2 + (q[1] - v[1]) ** 2;
+        if (d < bestD) {
+          bestD = d;
+          const p: Point = [v[0], v[1]];
+          best = flip ? [q, p] : [p, q];
+        }
+      }
+    }
+    return { gap, a: best[0], b: best[1] };
+  }
   const gap = footprintGap(a, b);
   if (gap <= 0 && (footprintsOverlap(a, b) || centreInside(a, b) || centreInside(b, a))) {
     const dx = b.cx - a.cx;
@@ -494,6 +535,11 @@ function circleToPolygonPoints(
  * possible so that the polygon distance is rarely needed.
  */
 export function footprintGapAtLeast(a: Footprint, b: Footprint, threshold: number): boolean {
+  if (a.kind === 'polygon' || b.kind === 'polygon') {
+    const d0 = Math.hypot(a.cx - b.cx, a.cy - b.cy);
+    if (d0 - outerRadius(a) - outerRadius(b) >= threshold) return true;
+    return outlineGap(a, b) >= threshold;
+  }
   const d = Math.hypot(a.cx - b.cx, a.cy - b.cy);
   if (a.kind === 'circle' && b.kind === 'circle') return Math.max(0, d - a.r - b.r) >= threshold;
   if (d - outerRadius(a) - outerRadius(b) >= threshold) return true;
@@ -508,6 +554,7 @@ export function footprintGapAtLeast(a: Footprint, b: Footprint, threshold: numbe
  * terrain checks keep using the outer polygons.
  */
 export function footprintCoherencyGap(a: Footprint, b: Footprint): number {
+  if (a.kind === 'polygon' || b.kind === 'polygon') return outlineGap(a, b);
   if (a.kind === 'circle' && b.kind === 'circle') {
     return Math.max(0, Math.hypot(a.cx - b.cx, a.cy - b.cy) - a.r - b.r);
   }
@@ -529,9 +576,33 @@ export function withinCoherencyRange(a: Footprint, b: Footprint, range: number):
 }
 
 function boundingRadiusOf(fp: Footprint): number {
+  if (fp.kind === 'polygon') return boundingRadius(fp);
   return fp.kind === 'circle'
     ? fp.r
     : fp.kind === 'ellipse'
       ? Math.max(fp.rx, fp.ry)
       : Math.hypot(fp.hw, fp.hh);
+}
+
+/** Outline used for concave-safe tests: the authored outline, or the base's outer polygon. */
+function outlineOf(fp: Footprint): Polygon {
+  return fp.kind === 'polygon' ? fp.outline : footprintPolygon(fp);
+}
+
+/** True when circle `c` shares area with the (possibly concave) region `poly`. */
+function circleOverlapsOutline(c: Footprint & { kind: 'circle' }, poly: Polygon): boolean {
+  const p: ReadonlyPoint = [c.cx, c.cy];
+  return pointInPolygon(p, poly) || distancePointToBoundary(p, poly) < c.r - EPS;
+}
+
+/** Edge gap when either footprint is an authored (possibly concave) outline. */
+function outlineGap(a: Footprint, b: Footprint): number {
+  if (a.kind === 'circle' || b.kind === 'circle') {
+    const c = (a.kind === 'circle' ? a : b) as Footprint & { kind: 'circle' };
+    const poly = outlineOf(a.kind === 'circle' ? b : a);
+    const p: ReadonlyPoint = [c.cx, c.cy];
+    if (pointInPolygon(p, poly)) return 0;
+    return Math.max(0, distancePointToBoundary(p, poly) - c.r);
+  }
+  return polygonDistance(outlineOf(a), outlineOf(b));
 }

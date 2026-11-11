@@ -13,7 +13,7 @@ import {
  */
 export interface Token {
   modelIndex: number;
-  base: BaseShape;
+  base: ModelBase;
   x: number;
   y: number;
   rotation: number;
@@ -25,7 +25,38 @@ export type Footprint =
   /** `rx` is the half-length (local x axis), `ry` the half-width. */
   | { kind: 'ellipse'; cx: number; cy: number; rx: number; ry: number; rotation: number }
   /** `hw`/`hh` are half the length (local x) and half the width (local y). */
-  | { kind: 'rect'; cx: number; cy: number; hw: number; hh: number; rotation: number };
+  | { kind: 'rect'; cx: number; cy: number; hw: number; hh: number; rotation: number }
+  /**
+   * A piece of faction terrain with an authored, possibly concave outline (the Awakened
+   * Wyldwood crescents): `outline` is the polygon in table inches. Every geometry test on
+   * it uses the general (concave-safe) polygon routines.
+   */
+  | {
+      kind: 'polygon';
+      cx: number;
+      cy: number;
+      rotation: number;
+      outline: readonly ReadonlyPoint[];
+    };
+
+/** An authored outline in inches around the model's position (0, 0), at rotation 0. */
+export interface OutlineBase {
+  kind: 'outline';
+  points: readonly (readonly [number, number])[];
+}
+
+/** A model's base: a data base shape, or an authored outline for faction terrain. */
+export type ModelBase = BaseShape | OutlineBase;
+
+function outlineFootprint(base: OutlineBase, x: number, y: number, rotation: number): Footprint {
+  const t = (rotation * Math.PI) / 180;
+  const c = Math.cos(t);
+  const s = Math.sin(t);
+  const outline = base.points.map(
+    ([lx, ly]) => [x + lx * c - ly * s, y + lx * s + ly * c] as const,
+  );
+  return { kind: 'polygon', cx: x, cy: y, rotation, outline };
+}
 
 /** Base diameter in inches (32mm → 1.2598"). */
 export function baseDiameterIn(diameterMm: number): number {
@@ -33,8 +64,10 @@ export function baseDiameterIn(diameterMm: number): number {
 }
 
 /** Footprint of a base centred at (x, y). `useModel` falls back to the 32mm round base. */
-export function baseFootprint(base: BaseShape, x: number, y: number, rotation = 0): Footprint {
+export function baseFootprint(base: ModelBase, x: number, y: number, rotation = 0): Footprint {
   switch (base.kind) {
+    case 'outline':
+      return outlineFootprint(base, x, y, rotation);
     case 'round':
       return { kind: 'circle', cx: x, cy: y, r: mmToInches(base.diameterMm) / 2 };
     case 'oval':
@@ -66,6 +99,16 @@ export function tokenFootprint(token: Token): Footprint {
 
 /** Same footprint moved so that its centre is (x, y). */
 export function moveFootprint(fp: Footprint, x: number, y: number): Footprint {
+  if (fp.kind === 'polygon') {
+    const dx = x - fp.cx;
+    const dy = y - fp.cy;
+    return {
+      ...fp,
+      cx: x,
+      cy: y,
+      outline: fp.outline.map(([px, py]) => [px + dx, py + dy] as const),
+    };
+  }
   return { ...fp, cx: x, cy: y };
 }
 
@@ -78,12 +121,20 @@ export function boundingRadius(fp: Footprint): number {
       return Math.max(fp.rx, fp.ry);
     case 'rect':
       return Math.hypot(fp.hw, fp.hh);
+    case 'polygon':
+      return Math.max(...fp.outline.map(([x, y]) => Math.hypot(x - fp.cx, y - fp.cy)));
   }
 }
 
 /** Half extents of the footprint's axis-aligned bounding box. */
 export function halfExtents(fp: Footprint): { hx: number; hy: number } {
   if (fp.kind === 'circle') return { hx: fp.r, hy: fp.r };
+  if (fp.kind === 'polygon') {
+    return {
+      hx: Math.max(...fp.outline.map(([x]) => Math.abs(x - fp.cx))),
+      hy: Math.max(...fp.outline.map(([, y]) => Math.abs(y - fp.cy))),
+    };
+  }
   const t = (fp.rotation * Math.PI) / 180;
   const c = Math.abs(Math.cos(t));
   const s = Math.abs(Math.sin(t));
@@ -103,6 +154,8 @@ export function localPolygon(
   fp: Footprint,
   segments = BASE_POLYGON_SEGMENTS,
 ): readonly ReadonlyPoint[] {
+  // May be concave: geometry routes these through the general polygon routines.
+  if (fp.kind === 'polygon') return fp.outline.map(([x, y]) => [x - fp.cx, y - fp.cy] as const);
   const key =
     fp.kind === 'circle'
       ? `c|${fp.r}|${segments}`
@@ -149,7 +202,7 @@ const innerPolygonCache = new Map<string, readonly ReadonlyPoint[]>();
  * measured exactly.
  */
 export function innerLocalPolygon(fp: Footprint): readonly ReadonlyPoint[] {
-  if (fp.kind === 'rect') return localPolygon(fp);
+  if (fp.kind === 'rect' || fp.kind === 'polygon') return localPolygon(fp);
   const rx = fp.kind === 'circle' ? fp.r : fp.rx;
   const ry = fp.kind === 'circle' ? fp.r : fp.ry;
   const rotation = fp.kind === 'circle' ? 0 : fp.rotation;
@@ -181,6 +234,7 @@ export function footprintPolygon(fp: Footprint, segments = BASE_POLYGON_SEGMENTS
   const cache = segments === BASE_POLYGON_SEGMENTS;
   const cached = cache ? polygonCache.get(fp) : undefined;
   if (cached) return cached;
+  if (fp.kind === 'polygon') return [...fp.outline];
   const pts = localPolygon(fp, segments).map(([x, y]) => [fp.cx + x, fp.cy + y] as const);
   if (cache) polygonCache.set(fp, pts);
   return pts;

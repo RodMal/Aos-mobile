@@ -52,7 +52,8 @@ export interface OvergrowthFeature {
 export function isAwakenedWyldwood(scenario: Scenario, unit: UnitState): boolean {
   const p = profileOf(scenario, unit);
   return (
-    p.isFactionTerrain && (p.keywords.includes('AWAKENED WYLDWOOD') || p.name === 'Awakened Wyldwood')
+    p.isFactionTerrain &&
+    (p.keywords.includes('AWAKENED WYLDWOOD') || p.name === 'Awakened Wyldwood')
   );
 }
 
@@ -73,7 +74,11 @@ export function terrainFeatures(scenario: Scenario, state: GameState): Overgrowt
 }
 
 /** IDs of the terrain features that have a friendly overgrown token for `player`. */
-export function overgrownTokenIds(scenario: Scenario, state: GameState, player: PlayerId): string[] {
+export function overgrownTokenIds(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+): string[] {
   const features = terrainFeatures(scenario, state);
   const ids = new Set<string>();
   for (const f of features) {

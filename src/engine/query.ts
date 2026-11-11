@@ -287,12 +287,14 @@ export function hasKeyword(scenario: Scenario, unit: UnitState, keyword: string)
 /** How far the vertices of a base's outer polygon (`footprintPolygon`) reach from its centre. */
 const POLYGON_REACH = 1 / Math.cos(Math.PI / BASE_POLYGON_SEGMENTS);
 function polygonRadius(fp: Footprint): number {
+  if (fp.kind === 'polygon') return footprintOuterRadius(fp);
   if (fp.kind === 'rect') return Math.hypot(fp.hw, fp.hh);
   return (fp.kind === 'circle' ? fp.r : Math.max(fp.rx, fp.ry)) * POLYGON_REACH;
 }
 
 /** Radius of the largest circle centred on the base that fits inside it. */
 function inscribedRadius(fp: Footprint): number {
+  if (fp.kind === 'polygon') return 0;
   return fp.kind === 'circle'
     ? fp.r
     : fp.kind === 'ellipse'

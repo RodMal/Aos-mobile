@@ -1,5 +1,5 @@
 /** Touch hit testing in table space: which bases are under (or near) a finger. */
-import type { Footprint } from '../../geom/index.js';
+import { distancePointToBoundary, pointInPolygon, type Footprint } from '../../geom/index.js';
 import type { Pt } from './view.js';
 
 /** Distance in inches from `p` to the edge of a base; 0 when `p` is on or inside it. */
@@ -7,6 +7,10 @@ export function distanceToFootprint(fp: Footprint, p: Pt): number {
   const dx = p.x - fp.cx;
   const dy = p.y - fp.cy;
   if (fp.kind === 'circle') return Math.max(0, Math.hypot(dx, dy) - fp.r);
+  if (fp.kind === 'polygon') {
+    const q = [p.x, p.y] as const;
+    return pointInPolygon(q, fp.outline) ? 0 : distancePointToBoundary(q, fp.outline);
+  }
   const t = (-fp.rotation * Math.PI) / 180;
   const lx = dx * Math.cos(t) - dy * Math.sin(t);
   const ly = dx * Math.sin(t) + dy * Math.cos(t);

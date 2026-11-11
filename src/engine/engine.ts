@@ -1377,8 +1377,7 @@ export function createEngine(scenario: Scenario): Engine {
         else if (action.t === 'pass' && d.canPass) {
           // Declines to attack faction terrain with every optional fighter of this tier.
           for (const u of eligibleFighters(scenario, s, d.player)) s.units[u.id]!.fought = true;
-        }
-        else illegal('Pick a unit to fight.');
+        } else illegal('Pick a unit to fight.');
         break;
       case 'targets':
         if (action.t !== 'targets') illegal('Choose targets for the weapons.');

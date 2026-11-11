@@ -1,4 +1,4 @@
-import type { BaseShape } from '../data/schema/index.js';
+import type { ModelBase as BaseShape } from './footprint.js';
 import type { ReadonlyPoint } from './polygon.js';
 import { checkCoherencyFootprints } from './coherency.js';
 import {
