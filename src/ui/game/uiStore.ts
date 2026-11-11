@@ -1,6 +1,12 @@
 /** View state that is not part of the game: selection, drawers, drafts and the camera. */
 import { create } from 'zustand';
-import type { AttackMode, UnitId, Violation, WeaponTargets } from '../../engine/index.js';
+import type {
+  AttackMode,
+  UnitId,
+  UnitOption,
+  Violation,
+  WeaponTargets,
+} from '../../engine/index.js';
 import type { AttackPlan } from './attackPlan.js';
 import type { PlacementDraft } from './placementEdit.js';
 
@@ -29,6 +35,13 @@ export interface AttackState {
   allOutAttack: boolean;
 }
 
+/** An ability or targeted command the player has opened and is about to use. */
+export interface AbilityPick {
+  unit: UnitId;
+  option: Extract<UnitOption, { t: 'ability' } | { t: 'command' }>;
+  target: UnitId | null;
+}
+
 export interface ChooserState {
   units: UnitId[];
   /** Screen position of the tap, relative to the board. */
@@ -43,6 +56,7 @@ interface UiStore {
   chooser: ChooserState | null;
   draft: DraftState | null;
   attack: AttackState | null;
+  abilityPick: AbilityPick | null;
   confirm: { text: string; action: () => void; ok: string } | null;
   camera: (CameraRequest & { nonce: number }) | null;
   /** Height of the bottom sheet in px, so the board can keep the table above it. */
@@ -58,6 +72,7 @@ interface UiStore {
   setChooser(c: ChooserState | null): void;
   setDraft(d: DraftState | null): void;
   setAttack(a: AttackState | null): void;
+  setAbilityPick(p: AbilityPick | null): void;
   ask(text: string, ok: string, action: () => void): void;
   closeConfirm(): void;
   moveCamera(req: CameraRequest): void;
@@ -74,16 +89,18 @@ export const useUi = create<UiStore>((set) => ({
   chooser: null,
   draft: null,
   attack: null,
+  abilityPick: null,
   confirm: null,
   camera: null,
   sheetHeight: 0,
   zoomBucket: 10,
-  select: (id) => set({ selected: id, chooser: null, sheetExpanded: false }),
+  select: (id) => set({ selected: id, chooser: null, sheetExpanded: false, abilityPick: null }),
   setSheetExpanded: (v) => set({ sheetExpanded: v }),
   openDrawer: (d) => set({ drawer: d, chooser: null }),
   setChooser: (c) => set({ chooser: c }),
   setDraft: (d) => set({ draft: d }),
   setAttack: (a) => set({ attack: a }),
+  setAbilityPick: (p) => set({ abilityPick: p }),
   ask: (text, ok, action) => set({ confirm: { text, ok, action } }),
   closeConfirm: () => set({ confirm: null }),
   moveCamera: (req) => set({ camera: { ...req, nonce: ++nonce } }),
@@ -96,6 +113,7 @@ export const useUi = create<UiStore>((set) => ({
       chooser: null,
       draft: null,
       attack: null,
+      abilityPick: null,
       confirm: null,
     }),
 }));

@@ -2,6 +2,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { useHumanDecision } from '../game/hooks.js';
 import { useUi } from '../game/uiStore.js';
+import { AbilityPanel } from './AbilityPanel.js';
 import { AttackPanel } from './AttackPanel.js';
 import { DecisionPanel } from './DecisionPanel.js';
 import { PlacePanel } from './PlacePanel.js';
@@ -10,27 +11,31 @@ import { UnitPanel } from './UnitPanel.js';
 
 export function Sheet() {
   const ref = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const setSheetHeight = useUi((s) => s.setSheetHeight);
   const draft = useUi((s) => s.draft);
   const attack = useUi((s) => s.attack);
+  const abilityPick = useUi((s) => s.abilityPick);
   const selected = useUi((s) => s.selected);
   const expanded = useUi((s) => s.sheetExpanded);
   const decision = useHumanDecision();
 
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    const body = bodyRef.current;
+    if (!el || !body) return;
     const update = () => {
       if (getComputedStyle(el).position !== 'absolute') {
         setSheetHeight(0);
         return;
       }
-      // Only the collapsed height counts for the board: an expanded card is a temporary overlay.
-      if (!useUi.getState().sheetExpanded) setSheetHeight(el.getBoundingClientRect().height);
+      // The board keeps clear of the panel itself, not of the buttons that float above it. Only the
+      // collapsed height counts for the board: an expanded card is a temporary overlay.
+      if (!useUi.getState().sheetExpanded) setSheetHeight(body.getBoundingClientRect().height);
     };
     update();
     const ro = new ResizeObserver(update);
-    ro.observe(el);
+    ro.observe(body);
     window.addEventListener('resize', update);
     return () => {
       ro.disconnect();
@@ -41,13 +46,16 @@ export function Sheet() {
   let content;
   if (draft && decision?.kind === 'place') content = <PlacePanel />;
   else if (attack) content = <AttackPanel />;
+  else if (abilityPick) content = <AbilityPanel />;
   else if (selected) content = <UnitPanel unitId={selected} />;
   else content = <DecisionPanel />;
 
   return (
     <div ref={ref} className={`sheet ${expanded ? 'expanded' : ''}`} data-testid="sheet">
       <Rail />
-      <div className="sheet-body">{content}</div>
+      <div ref={bodyRef} className="sheet-body">
+        {content}
+      </div>
     </div>
   );
 }

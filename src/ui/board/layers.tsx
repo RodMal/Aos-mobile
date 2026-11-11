@@ -126,6 +126,7 @@ function useHighlights(state: GameState) {
   const decision = useDecision();
   const human = useHuman();
   const attack = useUi((s) => s.attack);
+  const abilityPick = useUi((s) => s.abilityPick);
   return useMemo(() => {
     const canAct = new Set<string>();
     if (decision && decision.player === human && decision.kind === 'fightPick') {
@@ -137,8 +138,11 @@ function useHighlights(state: GameState) {
     const assigned = new Set(
       attack ? Object.values(attack.plan).filter((t): t is string => !!t) : [],
     );
-    return { canAct, targets, assigned };
-  }, [decision, human, attack, state]);
+    // An ability being aimed: its legal targets, and the one chosen so far.
+    const aimed = new Set(abilityPick?.option.targets ?? []);
+    if (abilityPick?.target) assigned.add(abilityPick.target);
+    return { canAct, targets, assigned, aimed };
+  }, [decision, human, attack, abilityPick, state]);
 }
 
 export function UnitsLayer() {
@@ -146,7 +150,7 @@ export function UnitsLayer() {
   const human = useHuman();
   const selected = useUi((s) => s.selected);
   const draftUnit = useUi((s) => s.draft?.unit ?? null);
-  const { canAct, targets, assigned } = useHighlights(state);
+  const { canAct, targets, assigned, aimed } = useHighlights(state);
   return (
     <g className="layer-units">
       {state.unitOrder.map((id) => {
@@ -158,13 +162,16 @@ export function UnitsLayer() {
           unitClasses(unit, human),
           id === selected ? 'selected' : '',
           canAct.has(id) ? 'can-act' : '',
-          targets.has(id) ? 'target' : '',
+          targets.has(id) || aimed.has(id) ? 'target' : '',
           assigned.has(id) ? 'assigned' : '',
           id === draftUnit ? 'drafting' : '',
         ].join(' ');
         return (
           <g key={id} data-unit-id={id} className={cls}>
-            {((id === selected && id !== draftUnit) || canAct.has(id) || targets.has(id)) &&
+            {((id === selected && id !== draftUnit) ||
+              canAct.has(id) ||
+              targets.has(id) ||
+              aimed.has(id)) &&
               fps.map((fp, k) => <Shape key={`h${k}`} fp={fp} grow={0.12} className="halo" />)}
             {fps.map((fp, k) => (
               <Shape key={alive[k]} fp={fp} data-model={alive[k]} className="model" />

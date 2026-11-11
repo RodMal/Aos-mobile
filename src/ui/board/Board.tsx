@@ -193,6 +193,17 @@ export function Board() {
             ui.setAttack({ ...attack, plan: assignAll(attack.plan, attack.options, hits[0]!.key) });
           return;
         }
+        if (ui.abilityPick) {
+          const picking = ui.abilityPick;
+          const legal = new Set(picking.option.targets ?? []);
+          const hits = hitTest(
+            units.filter((u) => legal.has(u.key)),
+            at,
+            slop,
+          );
+          if (hits.length > 0) ui.setAbilityPick({ ...picking, target: hits[0]!.key });
+          return;
+        }
         const result = pick(hitTest(units, at, slop));
         if (result.t === 'one') ui.select(result.key);
         else if (result.t === 'choose') ui.setChooser({ units: result.keys, x: p.x, y: p.y });

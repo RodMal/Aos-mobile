@@ -722,6 +722,37 @@ button {
   gap: 8px;
 }
 
+/* Using an ability: its printed text, then the targets. */
+.ability-panel .ability-text {
+  max-height: 18dvh;
+  overflow-y: auto;
+  margin: 4px 0 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 13.5px;
+  line-height: 1.4;
+  -webkit-overflow-scrolling: touch;
+}
+.ability-panel .ability-text p {
+  margin: 4px 0;
+}
+.ability-panel .ability-text h4 {
+  margin: 0 0 2px;
+  font-family: var(--serif);
+  font-size: 15px;
+}
+.chip.enemy {
+  border-color: var(--enemy);
+  background: rgba(255, 155, 66, 0.1);
+}
+.chip.chosen {
+  background: var(--accent);
+  border-color: #f0cf7e;
+  color: var(--accent-ink);
+}
+
 /* Units that can act now, as a row of chips that scrolls sideways. */
 .ready {
   display: flex;
