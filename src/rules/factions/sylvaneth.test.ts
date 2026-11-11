@@ -16,9 +16,11 @@ function ctxWith(s: GameState, dice: number[]): Ctx {
   return { scenario, s, events: [], rng: new ScriptedDice(dice) };
 }
 
-/** Every battlefield terrain feature overgrown for player 0: the whole battlefield qualifies. */
-function wholeBattlefield(s: GameState): void {
-  s.overgrownTerrain = scenario.battlefield.terrain.map((t) => t.id);
+/** Gives the west outcrop player 0's token and stands each unit on it (wholly within 6"). */
+function grownAround(s: GameState, ...ids: string[]): void {
+  const outcrop = scenario.battlefield.terrain.find((t) => t.id === 'outcrop-w')!;
+  s.overgrown = [[outcrop.id], []];
+  for (const id of ids) placeUnit(scenario, s, id, outcrop.centre[0], outcrop.centre[1]);
 }
 
 describe('The Creeping Overgrowth', () => {
@@ -36,8 +38,8 @@ describe('The Creeping Overgrowth', () => {
 describe('Endless Growth', () => {
   it('Nature’s Titans heals 3 on a Sylvaneth Monster without rolling', () => {
     const s = editable(engine.newGame(1));
-    wholeBattlefield(s);
     const durthu = named(s, 'Spirit of Durthu');
+    grownAround(s, durthu.id);
     durthu.damage = 5;
     const ctx = ctxWith(s, []);
     resolveEndlessGrowth(ctx, 0);
@@ -46,8 +48,8 @@ describe('Endless Growth', () => {
 
   it('rolls a D3 for a non-Monster: returns slain models that fit in the roll, else heals', () => {
     const s = editable(engine.newGame(1));
-    wholeBattlefield(s);
     const dryads = named(s, 'Dryads');
+    grownAround(s, dryads.id);
     expect(profileOf(scenario, dryads).health).toBe(1);
     dryads.models[8]!.alive = false;
     dryads.models[9]!.alive = false;
@@ -55,8 +57,8 @@ describe('Endless Growth', () => {
     expect(dryads.models.filter((m) => !m.alive)).toHaveLength(0);
 
     const s2 = editable(engine.newGame(1));
-    wholeBattlefield(s2);
     const belthanos = named(s2, 'Belthanos, First Thorn of Kurnoth');
+    grownAround(s2, belthanos.id);
     const isMonster = profileOf(scenario, belthanos).keywords.includes('MONSTER');
     belthanos.damage = 4;
     resolveEndlessGrowth(ctxWith(s2, isMonster ? [] : [2]), 0);
@@ -65,8 +67,8 @@ describe('Endless Growth', () => {
 
   it('does nothing for an army without the trait, or for units outside the overgrowth', () => {
     const s = editable(engine.newGame(1));
-    wholeBattlefield(s);
     const krox = named(s, 'Kroxigor');
+    grownAround(s, krox.id);
     krox.damage = 1;
     const ctx = ctxWith(s, []);
     resolveEndlessGrowth(ctx, 1);
@@ -74,7 +76,7 @@ describe('Endless Growth', () => {
     expect(ctx.events).toEqual([]);
 
     const s2 = editable(engine.newGame(1));
-    s2.overgrownTerrain = [];
+    s2.overgrown = [[], []];
     const durthu = named(s2, 'Spirit of Durthu');
     keepOnly(s2, [durthu.id]);
     placeUnit(scenario, s2, durthu.id, 30, 22);
@@ -85,8 +87,9 @@ describe('Endless Growth', () => {
 
   it('runs at the end of the opponent’s turn as well as its own', () => {
     let s = editable(engine.newGame(1));
-    wholeBattlefield(s);
     const durthu = named(s, 'Spirit of Durthu');
+    keepOnly(s, [durthu.id]);
+    grownAround(s, durthu.id);
     durthu.damage = 5;
     s.active = 1;
     s.firstPlayer = 1;

@@ -252,8 +252,14 @@ export interface GameState {
   banishedThisTurn?: string[];
   /** Reaction triggers already offered in the current phase. */
   reactionsOffered?: string[];
-  /** Terrain feature IDs that have an overgrown token for each player (for Sylvaneth rules). */
+  /** @deprecated Superseded by `overgrown`; no longer read or written. */
   overgrownTerrain?: string[];
+  /**
+   * Terrain feature IDs (battlefield terrain or faction terrain unit IDs) with a friendly
+   * Sylvaneth overgrown token, per player. Awakened Wyldwoods carry their owner's token
+   * implicitly and are not listed.
+   */
+  overgrown?: [string[], string[]];
   /** Terrain feature IDs whose Place of Power ability has been used in the current turn. */
   usedPlacesOfPower?: string[];
   /** Objective controllers recorded at the start of the current turn (for Battle Tactics). */

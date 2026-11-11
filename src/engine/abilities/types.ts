@@ -30,8 +30,10 @@ export interface AbilityTargetSpec {
   whollyWithin?: boolean;
   keywords?: string[];
   excludeKeywords?: string[];
-  /** When true, Sylvaneth Creeping Overgrowth (6" of friendly Wyldwood / overgrown terrain) also qualifies. */
+  /** When true, a unit within the caster's Sylvaneth creeping overgrowth also qualifies. */
   allowCreepingOvergrowth?: boolean;
+  /** Whether the creeping overgrowth alternative needs "wholly within" (default: `whollyWithin`). */
+  creepingOvergrowthWholly?: boolean;
   filter?: (scenario: Scenario, state: GameState, source: UnitState, target: UnitState) => boolean;
 }
 

@@ -1,9 +1,9 @@
 import type { AttackSituation, Modifier } from '../../rules/core/modifiers.js';
 import type { StepCtx } from '../damage.js';
+import { inCreepingOvergrowth } from '../overgrowth.js';
 import {
   enemiesWithin,
   hasKeyword,
-  inCreepingOvergrowth,
   opponent,
   profileOf,
   unitWhollyWithin,
@@ -104,7 +104,7 @@ export function legalTargetsForSpec(
         state,
         target,
         source.owner,
-        Boolean(spec.whollyWithin),
+        spec.creepingOvergrowthWholly ?? Boolean(spec.whollyWithin),
       );
     }
     return false;

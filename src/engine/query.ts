@@ -7,7 +7,6 @@ import {
   footprintGap,
   footprintGapAtLeast,
   footprintOuterRadius,
-  footprintOverlapsPolygon,
   footprintPolygon,
   layoutFormation,
   type Footprint,
@@ -20,8 +19,6 @@ export const COMBAT_RANGE = 3;
 export const CHARGE_END_RANGE = 0.5;
 /** Tolerance for distance comparisons, in inches. */
 export const DIST_EPS = 1e-6;
-/** Range of Sylvaneth Creeping Overgrowth around Awakened Wyldwoods and overgrown terrain. */
-export const CREEPING_OVERGROWTH_RANGE = 6;
 
 export function opponent(player: PlayerId): PlayerId {
   return player === 0 ? 1 : 0;
@@ -323,52 +320,6 @@ export function unitWhollyWithin(
   const tgtFps = unitFootprints(scenario, target);
   if (srcFps.length === 0 || tgtFps.length === 0) return false;
   return tgtFps.every((fp) => footprintWhollyWithin(fp, srcFps, range));
-}
-
-/**
- * True when `unit` is within `CREEPING_OVERGROWTH_RANGE` (6") of any Awakened Wyldwood owned
- * by `sylvanethOwner` or any overgrown terrain feature, or (for friendly Sylvaneth units that
- * require wholly within) wholly within `CREEPING_OVERGROWTH_RANGE` when `wholly` is true.
- */
-export function inCreepingOvergrowth(
-  scenario: Scenario,
-  state: GameState,
-  unit: UnitState,
-  sylvanethOwner: PlayerId,
-  wholly = false,
-): boolean {
-  const wyldwoods = unitsOf(state, sylvanethOwner).filter((u) => {
-    const p = profileOf(scenario, u);
-    return p.isFactionTerrain || p.keywords.includes('AWAKENED WYLDWOOD');
-  });
-  for (const w of wyldwoods) {
-    if (wholly) {
-      if (unitWhollyWithin(scenario, w, unit, CREEPING_OVERGROWTH_RANGE)) return true;
-    } else if (unitsWithin(scenario, w, unit, CREEPING_OVERGROWTH_RANGE)) {
-      return true;
-    }
-  }
-  const overgrownIds = state.overgrownTerrain ?? [];
-  if (overgrownIds.length > 0) {
-    const tgtFps = unitFootprints(scenario, unit);
-    for (const terrain of scenario.battlefield.terrain) {
-      if (!overgrownIds.includes(terrain.id)) continue;
-      // Check if unit overlaps or is within 6" of the terrain polygon
-      for (const fp of tgtFps) {
-        const expanded: Footprint =
-          fp.kind === 'circle'
-            ? { ...fp, r: fp.r + CREEPING_OVERGROWTH_RANGE }
-            : {
-                kind: 'circle',
-                cx: fp.cx,
-                cy: fp.cy,
-                r: boundingRadius(fp) + CREEPING_OVERGROWTH_RANGE,
-              };
-        if (footprintOverlapsPolygon(expanded, terrain.polygon)) return true;
-      }
-    }
-  }
-  return false;
 }
 
 /**

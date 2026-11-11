@@ -117,6 +117,9 @@ export function cloneState(state: GameState): GameState {
     ...(state.banishedThisTurn ? { banishedThisTurn: [...state.banishedThisTurn] } : {}),
     ...(state.reactionsOffered ? { reactionsOffered: [...state.reactionsOffered] } : {}),
     ...(state.overgrownTerrain ? { overgrownTerrain: [...state.overgrownTerrain] } : {}),
+    ...(state.overgrown
+      ? { overgrown: [[...state.overgrown[0]], [...state.overgrown[1]]] as [string[], string[]] }
+      : {}),
     ...(state.usedPlacesOfPower ? { usedPlacesOfPower: [...state.usedPlacesOfPower] } : {}),
     ...(state.turnStartObjectives ? { turnStartObjectives: { ...state.turnStartObjectives } } : {}),
     ...(state.turnStartInCombat ? { turnStartInCombat: [...state.turnStartInCombat] } : {}),
@@ -202,7 +205,7 @@ function startRound(ctx: Ctx): void {
     initBattleTactics(scenario, s);
   }
   applySimmeringRage(s);
-  applyEverGrowing(scenario, s);
+  for (const text of applyEverGrowing(scenario, s)) ctx.events.push({ t: 'note', text });
   if (s.round === 1) {
     // Round 1: the attacker (player 0) takes the first turn.
     s.firstPlayer = 0;
