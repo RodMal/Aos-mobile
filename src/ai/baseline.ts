@@ -31,6 +31,7 @@ import {
   type UnitState,
 } from '../engine/index.js';
 import { diceMean } from '../data/profile.js';
+import { npcDeployPlacement } from '../engine/deployment.js';
 import { contestedObjective } from '../rules/core/objectives.js';
 import { chargePlacement, moveTowards, pileInPlacement } from './placement.js';
 
@@ -192,6 +193,9 @@ function placeAction(
   d: Extract<Decision, { kind: 'place' }>,
 ): Action | null {
   const unit = state.units[d.unit]!;
+  if (d.reason === 'deploy') {
+    return { t: 'place', placement: npcDeployPlacement(engine.scenario, state, unit) };
+  }
   if (d.reason === 'summon') {
     const cur = currentPlacement(unit);
     if (engine.checkPlacement(state, cur).length === 0) {
@@ -248,6 +252,12 @@ function chooseHeroAbilityAction(
         unit: unit.id,
         abilityId: summon.abilityId,
       };
+    }
+
+    // 3. Place of Power
+    const pop = abilOpts.find((o) => o.abilityId === 'place-of-power');
+    if (pop) {
+      return { t: 'ability', unit: unit.id, abilityId: 'place-of-power' };
     }
 
     // 3. Spells & Prayers: pick highest-points target that doesn't already have this effect
@@ -320,6 +330,14 @@ function mainAction(
       }
       return null;
     case 'end': {
+      for (const unit of units) {
+        const eruption = engine
+          .unitOptions(state, unit.id)
+          .find((o) => o.t === 'ability' && o.abilityId === 'eruption-of-fury');
+        if (eruption) {
+          return { t: 'ability', unit: unit.id, abilityId: 'eruption-of-fury' };
+        }
+      }
       if (cp < SPARE_CP) return null;
       for (const unit of units) {
         const pt = engine

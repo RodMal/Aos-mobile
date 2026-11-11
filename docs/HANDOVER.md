@@ -31,14 +31,18 @@ Three earlier attempts failed by perfecting one layer (data, deployment, rules) 
   - Casting, miscasts, power level, Rule of One vs `UNLIMITED` and `repeatSameUnit`, `Unbind` reactions, chanting and ritual points, `Banish Manifestation`, summoning and moving manifestations from `Aetherwrought Machineries` and `Morbid Conjuration`.
   - Lore of the Deepwood (3 spells), Lore of the Spirit-Song (3 prayers), Lore of Celestial Manipulation (3 spells), all 4 wizard warscroll spells on both lists (`Metamorphosis`, `Enrage The Spites`, `Celestial Deliverance`, `Celestial Doom`), all 7 manifestation summons, all 6 remaining commands (`Forward to Victory`, `Redeploy`, `Counter-charge`, `Covering Fire`, `Magical Intervention`, `Power Through`), and `STRIKE-FIRST` / `STRIKE-LAST` fight tiers.
   - Baseline NPC and touch UI updated for all M3a abilities, reactions and commands.
+- **M3b (deployment, terrain traits, line of sight, guarded hero, path blocking, fury season, battle tactics):**
+  - Alternating deployment (`src/engine/deployment.ts`) for faction terrain and regiments, with NPC deployment placement (`npcDeployPlacement`).
+  - Terrain rules (`src/engine/terrain.ts`): cover (-1 to hit), obscuring / line of sight (halved ranged weapon range, models obscured wholly within 1" or behind footprint), unstable (cannot end moves on it), Places of Power boons (channelled wrath, ignite fury).
+  - Guarded Hero: -1 to hit from shooting; infantry guarded hero cannot be targeted beyond 12".
+  - Movement path blocking: non-FLY models cannot move across other units' bases.
+  - GHB 2026-27 Fury Season rules (`src/rules/core/fury.ts`): Raising the Heat (attacker 1, defender 2), Simmering Rage (mandatory round start rage dice = fury level), Eruption of Fury (spend up to 3 rage dice, 6s do D3 mortal damage to all engaged enemies and +1 opponent fury; 1s do D3 mortal to self; no crits), Fight Through the Pain (spend rage dice to lower fury by 1 and negate damage on 3+).
+  - Battle Tactics (`src/rules/core/battleTactics.ts`): 4 cards in play (5 VP each for Affray -> Strike -> Domination tier; cannot score on a turn when player seized initiative).
+  - Into the Fire twists (`src/rules/battleplans/index.ts`): Secure the Gateway (Anti-charge +1 Rend when controlling Place of Power and contesting controlled objective), Determined Defenders (+3 control when underdog and wholly outside enemy territory).
 
 **Not yet tried by the owner on a real phone.** Their feedback on the first session should take priority over new features.
 
 ## What comes next, in order
-
-### M3b: the rest of the core rules
-
-Start-of-Battle-Round and Start-of-Turn timing steps (so round-start and turn-start abilities are not skipped), terrain rules (cover, obscuring and line of sight, unstable, Places of Power at the start of turn), Guarded Hero, Fly along paths, battle tactics for the four cards in play (Flanking Firestorm, Burning for Vengeance, Siege of Ashes, Legend of the Parch) with their selection flow, the GHB 2026-27 Fury season rules (**Eruption of Fury**, **Rage dice**, and **Fight Through the Pain**), Into the Fire's battleplan abilities (Secure the Gateway, Determined Defenders), and real alternating deployment with an NPC that deploys. Each removes a line from the "Simplifications" table in `docs/RULES-DECISIONS.md`.
 
 ### M4: every rule on both lists (about 90 abilities)
 
@@ -99,7 +103,7 @@ Things that cost time before:
 
 ## Known gaps in what is deployed
 
-- No magic, abilities, battle tactics or faction rules yet: heroes are stat blocks.
-- No line of sight or cover; deployment is automatic; paths are straight lines (see the Simplifications table).
+- Faction battle traits and warscroll abilities (about 90 abilities) are queued for M4: heroes currently rely on their profile stats, weapons, spells/prayers, commands, and season rules.
+- Start-of-round and start-of-turn faction mechanics (Sylvaneth Creeping Overgrowth / Endless Growth, Creeping Dread, Seraphon Asterisms, Alarielle's Seasons) are scheduled for M4.
 - UI: the top bar shows whose turn it is, not whose decision it is, so it can say "Seraphon turn" while the owner is choosing a unit to fight. In Adjust mode a model is tapped and then dragged from anywhere, not dragged directly. While placing a unit, one finger moves the unit and two fingers pan.
 - Not verified on real hardware: iOS Safari install, Android launcher icon, and general feel on a phone.

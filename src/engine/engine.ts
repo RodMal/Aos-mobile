@@ -31,6 +31,25 @@ import {
 import { RngCursor, rngFromSeed } from './rng.js';
 import { deployArmies } from './setup.js';
 import {
+  buildDeploymentFrames,
+  checkDeployPlacement,
+  createReserveUnits,
+  npcDeployPlacement,
+} from './deployment.js';
+import {
+  evaluateEndOfTurnTactics,
+  initBattleTactics,
+  recordTurnStartForTactics,
+} from '../rules/core/battleTactics.js';
+import {
+  applySimmeringRage,
+  canUseEruptionOfFury,
+  eruptionOfFuryTargets,
+  initFury,
+  resolveEruptionOfFury,
+} from '../rules/core/fury.js';
+import { canUsePlaceOfPower, resolvePlaceOfPower } from './terrain.js';
+import {
   PHASES,
   type Action,
   type Allocation,
@@ -42,6 +61,7 @@ import {
   type Frame,
   type GameState,
   type MoveKind,
+  type NewGameOptions,
   type Placement,
   type PlayerId,
   type ReactionOption,
@@ -75,6 +95,8 @@ export function cloneState(state: GameState): GameState {
     vpByRound: [...p.vpByRound],
     ...(p.commandsUsed ? { commandsUsed: [...p.commandsUsed] } : {}),
     ...(p.spellsAttempted ? { spellsAttempted: [...p.spellsAttempted] } : {}),
+    ...(p.furyUsedThisTurn ? { furyUsedThisTurn: [...p.furyUsedThisTurn] } : {}),
+    ...(p.tacticProgress ? { tacticProgress: { ...p.tacticProgress } } : {}),
   });
   return {
     ...state,
@@ -94,13 +116,29 @@ export function cloneState(state: GameState): GameState {
     ...(state.banishedThisTurn ? { banishedThisTurn: [...state.banishedThisTurn] } : {}),
     ...(state.reactionsOffered ? { reactionsOffered: [...state.reactionsOffered] } : {}),
     ...(state.overgrownTerrain ? { overgrownTerrain: [...state.overgrownTerrain] } : {}),
+    ...(state.usedPlacesOfPower ? { usedPlacesOfPower: [...state.usedPlacesOfPower] } : {}),
+    ...(state.turnStartObjectives ? { turnStartObjectives: { ...state.turnStartObjectives } } : {}),
+    ...(state.turnStartInCombat ? { turnStartInCombat: [...state.turnStartInCombat] } : {}),
+    ...(state.destroyedByChargeCombat
+      ? { destroyedByChargeCombat: [...state.destroyedByChargeCombat] }
+      : {}),
+    ...(state.unitsDestroyedThisTurn
+      ? { unitsDestroyedThisTurn: [...state.unitsDestroyedThisTurn] }
+      : {}),
+    ...(state.damagedInPhases
+      ? {
+          damagedInPhases: Object.fromEntries(
+            Object.entries(state.damagedInPhases).map(([k, v]) => [k, [...v]]),
+          ),
+        }
+      : {}),
   };
 }
 
 // ─── Turn sequence ──────────────────────────────────────────────────────────────
 
 function startTurn(ctx: Ctx): void {
-  const { s } = ctx;
+  const { s, scenario } = ctx;
   for (const id of s.unitOrder) {
     const u = s.units[id]!;
     u.moved = null;
@@ -116,7 +154,10 @@ function startTurn(ctx: Ctx): void {
   }
   for (const p of s.players) {
     p.spellsAttempted = [];
+    p.furyUsedThisTurn = [];
   }
+  s.usedPlacesOfPower = [];
+  recordTurnStartForTactics(scenario, s);
   s.banishedThisTurn = [];
   s.reactionsOffered = [];
   s.fightTier = null;
@@ -141,12 +182,18 @@ function beginRound(ctx: Ctx): void {
 }
 
 function startRound(ctx: Ctx): void {
-  const { s } = ctx;
+  const { s, scenario } = ctx;
   ctx.events.push({ t: 'roundStart', round: s.round });
+  s.seizedThisRound = null;
   for (const p of [0, 1] as PlayerId[]) {
     s.players[p].cp = 0;
     s.players[p].vpByRound.push(0);
   }
+  if (s.round === 1) {
+    initFury(s, 0);
+    initBattleTactics(scenario, s);
+  }
+  applySimmeringRage(s);
   if (s.round === 1) {
     // Round 1: the attacker (player 0) takes the first turn.
     s.firstPlayer = 0;
@@ -167,6 +214,7 @@ function choosePriority(ctx: Ctx, value: string): void {
   const first = value === 'first' ? frame.winner : opponent(frame.winner);
   if (seizes(s, frame.winner, s.firstPlayer, first)) {
     s.seizedBy = first;
+    s.seizedThisRound = first;
     ctx.events.push({ t: 'note', text: `Player ${first + 1} seizes the initiative.` });
   }
   s.firstPlayer = first;
@@ -195,6 +243,13 @@ function endTurn(ctx: Ctx): void {
     s.players[player].vpByRound[s.round - 1] =
       (s.players[player].vpByRound[s.round - 1] ?? 0) + line.vp;
     ctx.events.push({ t: 'score', player, vp: line.vp, reason: line.reason });
+  }
+  const scoredTactics = evaluateEndOfTurnTactics(scenario, s, player);
+  for (const st of scoredTactics) {
+    s.players[player].vp += st.vp;
+    s.players[player].vpByRound[s.round - 1] =
+      (s.players[player].vpByRound[s.round - 1] ?? 0) + st.vp;
+    ctx.events.push({ t: 'score', player, vp: st.vp, reason: `${st.cardName} (${st.tacticName})` });
   }
 }
 
@@ -394,7 +449,7 @@ export function createEngine(scenario: Scenario): Engine {
             reason: top.reason,
             allowance: top.allowance,
             dice: top.dice,
-            canPass: true,
+            canPass: top.reason !== 'deploy',
           };
         case 'targets':
           return {
@@ -450,6 +505,15 @@ export function createEngine(scenario: Scenario): Engine {
         if (canRally(scenario, state, unit)) {
           opts.push({ t: 'command', command: 'rally', cost: 1 });
         }
+        if (canUsePlaceOfPower(scenario, state, unit)) {
+          opts.push({
+            t: 'ability',
+            abilityId: 'place-of-power',
+            name: 'Place of Power',
+            kind: 'activated',
+            targets: [],
+          });
+        }
         return opts;
       }
       case 'movement': {
@@ -480,11 +544,21 @@ export function createEngine(scenario: Scenario): Engine {
         return opts;
       }
       case 'end': {
+        const opts: UnitOption[] = [];
         const targets = powerThroughTargets(scenario, state, unit);
         if (targets.length > 0) {
-          return [{ t: 'command', command: 'powerThrough', cost: 1, targets }];
+          opts.push({ t: 'command', command: 'powerThrough', cost: 1, targets });
         }
-        return [];
+        if (canUseEruptionOfFury(scenario, state, unit)) {
+          opts.push({
+            t: 'ability',
+            abilityId: 'eruption-of-fury',
+            name: 'Eruption of Fury',
+            kind: 'activated',
+            targets: eruptionOfFuryTargets(scenario, state, unit).map((u) => u.id),
+          });
+        }
+        return opts;
       }
       default:
         return [];
@@ -503,6 +577,9 @@ export function createEngine(scenario: Scenario): Engine {
     }
     if (placement.unit !== d.unit) {
       return [{ code: 'WRONG_MODELS', message: 'That is not the unit being placed.' }];
+    }
+    if (d.reason === 'deploy') {
+      return checkDeployPlacement(scenario, state, unitById(state, d.unit), placement);
     }
     const top = state.stack[state.stack.length - 1];
     return checkMovePlacement(scenario, state, unitById(state, d.unit), placement, {
@@ -682,12 +759,19 @@ export function createEngine(scenario: Scenario): Engine {
     const violations = checkPlacement(s, placement);
     if (violations.length > 0) illegal(violations[0]!.message, violations);
     const unit = s.units[frame.unit]!;
-    const distance = frame.reason === 'summon' ? 0 : placementDistance(unit, placement);
+    const distance =
+      frame.reason === 'summon' || frame.reason === 'deploy'
+        ? 0
+        : placementDistance(unit, placement);
     for (const m of placement.models) {
       const model = unit.models[m.i]!;
       model.x = m.x;
       model.y = m.y;
       model.rot = m.rot;
+    }
+    if (frame.reason === 'deploy') {
+      unit.status = 'battlefield';
+      unit.setUpThisTurn = true;
     }
     if (frame.reason === 'normal' || frame.reason === 'run' || frame.reason === 'retreat') {
       unit.moved = frame.reason;
@@ -695,6 +779,9 @@ export function createEngine(scenario: Scenario): Engine {
     if (frame.reason === 'charge') unit.charged = true;
     s.stack.pop();
     ctx.events.push({ t: 'moved', unit: unit.id, kind: frame.reason, dice: frame.dice, distance });
+    if (frame.reason === 'deploy' && s.stack.length === 0) {
+      startRound(ctx);
+    }
     if (frame.reason === 'retreat') {
       const roll = ctx.rng.int(1, 3);
       ctx.events.push({
@@ -706,7 +793,7 @@ export function createEngine(scenario: Scenario): Engine {
       inflictMortalDamage(ctx, unit, roll, 'Retreat');
     }
 
-    if (frame.reason !== 'summon' && unit.status === 'battlefield') {
+    if (frame.reason !== 'summon' && frame.reason !== 'deploy' && unit.status === 'battlefield') {
       fireTriggers(ctx, 'afterMove', {
         unit,
         moveKind:
@@ -1118,7 +1205,24 @@ export function createEngine(scenario: Scenario): Engine {
         } else if (action.t === 'move') {
           declareMove(ctx, action.unit, action.kind, action.atTheDouble);
         } else if (action.t === 'ability' && d.phase === 'hero') {
-          declareAbility(ctx, action);
+          if (action.abilityId === 'place-of-power') {
+            resolvePlaceOfPower(ctx, s.units[action.unit]!);
+          } else {
+            declareAbility(ctx, action);
+          }
+        } else if (
+          action.t === 'ability' &&
+          d.phase === 'end' &&
+          action.abilityId === 'eruption-of-fury'
+        ) {
+          const unit = s.units[action.unit]!;
+          const targets = eruptionOfFuryTargets(scenario, s, unit);
+          if (targets.length === 0) illegal('No engaged enemy targets for Eruption of Fury.');
+          const profile = profileOf(scenario, unit);
+          const melee = profile.weapons.find((w) => w.kind === 'melee');
+          if (!melee) illegal('No melee weapon for Eruption of Fury.');
+          const pState = s.players[unit.owner];
+          resolveEruptionOfFury(ctx, unit, targets[0]!, melee, Math.min(3, pState.rageDice ?? 0));
         } else if (action.t === 'command') {
           if (d.phase === 'hero' && action.command === 'rally') {
             rally(ctx, action.unit);
@@ -1149,8 +1253,11 @@ export function createEngine(scenario: Scenario): Engine {
         break;
       }
       case 'place':
-        if (action.t === 'pass') skipPlace(ctx);
-        else if (action.t === 'place') place(ctx, action.placement);
+        if (action.t === 'pass') {
+          if (d.reason === 'deploy')
+            illegal('Deployment placement is mandatory; pass is not allowed.');
+          skipPlace(ctx);
+        } else if (action.t === 'place') place(ctx, action.placement);
         else if (
           action.t === 'command' &&
           action.command === 'forwardToVictory' &&
@@ -1181,9 +1288,12 @@ export function createEngine(scenario: Scenario): Engine {
   // Set-up uses no dice, so it is computed once per engine and copied for each game.
   let deployed: UnitState[] | null = null;
 
-  function newGame(seed: number): GameState {
-    deployed ??= deployArmies(scenario);
-    const units = deployed.map((u) => ({ ...u, models: u.models.map((m) => ({ ...m })) }));
+  function newGame(seed: number, options?: NewGameOptions): GameState {
+    const isDeployMode = Boolean(options?.deploy);
+    const unitsList = isDeployMode
+      ? createReserveUnits(scenario)
+      : (deployed ??= deployArmies(scenario));
+    const units = unitsList.map((u) => ({ ...u, models: u.models.map((m) => ({ ...m })) }));
     const s: GameState = {
       seed,
       rng: rngFromSeed(seed),
@@ -1209,8 +1319,13 @@ export function createEngine(scenario: Scenario): Engine {
       banishedThisTurn: [],
       reactionsOffered: [],
     };
+    initFury(s, 0);
     const ctx: Ctx = { scenario, s, events: [], rng: new RngCursor(s.rng) };
-    startRound(ctx);
+    if (isDeployMode) {
+      s.stack = buildDeploymentFrames(scenario, s.units);
+    } else {
+      startRound(ctx);
+    }
     s.rng = ctx.rng.state;
     return s;
   }
@@ -1224,6 +1339,14 @@ export function createEngine(scenario: Scenario): Engine {
       case 'fightPick':
         if (d.canPass) return { t: 'pass' };
         return { t: 'fight', unit: eligibleFighters(scenario, state, d.player)[0]!.id };
+      case 'place':
+        if (d.reason === 'deploy') {
+          return {
+            t: 'place',
+            placement: npcDeployPlacement(scenario, state, unitById(state, d.unit)),
+          };
+        }
+        return { t: 'pass' };
       case 'targets':
         return {
           t: 'targets',

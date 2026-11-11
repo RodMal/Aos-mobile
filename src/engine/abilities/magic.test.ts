@@ -196,7 +196,11 @@ describe('Magic & Prayers Core Mechanics', () => {
     ).toBe(true);
     // Alarielle is Wizard (3), miscast sets castsUsed to full power level (3)
     expect(r.state.units[ALARIELLE]!.castsUsed).toBe(3);
-    expect(engine.unitOptions(r.state, ALARIELLE).filter((o) => o.t === 'ability')).toHaveLength(0);
+    expect(
+      engine
+        .unitOptions(r.state, ALARIELLE)
+        .filter((o) => o.t === 'ability' && o.abilityId !== 'place-of-power'),
+    ).toHaveLength(0);
     expect(r.state.effects?.some((e) => e.id === JADE_THORNS)).toBeFalsy();
   });
 
@@ -503,12 +507,12 @@ describe('M3a Lore Abilities (16 abilities)', () => {
 
     it('Song Of Dread (4c37-4bd5-f9d5-170a): inflicts D3 mortal damage when target moves ending in creeping overgrowth (and 8+ hits second target)', () => {
       const s = baseArena([WARSONG, SAURUS_GUARD, KROXIGOR]);
-      const terrain = scenario.battlefield.terrain[0]!;
+      const terrain = scenario.battlefield.terrain.find((t) => t.id === 'outcrop-w')!;
       const [tx, ty] = terrain.polygon[0]!;
       s.overgrownTerrain = scenario.battlefield.terrain.map((t) => t.id);
       // Place Warsong 10" away in Y so Saurus Guard is within 18" for the prayer and not in combat (>3")
       placeUnit(scenario, s, SAURUS_GUARD, tx, ty);
-      placeUnit(scenario, s, KROXIGOR, Math.min(50, tx + 8), ty);
+      placeUnit(scenario, s, KROXIGOR, tx + 8, ty);
       placeUnit(scenario, s, WARSONG, tx, ty < 22 ? ty + 10 : ty - 10);
       s.units[WARSONG]!.ritualPoints = 5;
 
@@ -1073,12 +1077,12 @@ describe('Six Remaining Commands', () => {
     const s = baseArena([DURTHU, SAURUS_GUARD]);
     s.phase = 'end';
     // Durthu (Health 14) charged and is in combat with Saurus Guard (Health 2)
-    placeUnit(scenario, s, DURTHU, 20, 22);
+    placeUnit(scenario, s, DURTHU, 18, 22);
     placeUnit(scenario, s, SAURUS_GUARD, 24, 22);
     s.units[DURTHU]!.charged = true;
     expect(inCombat(scenario, s, s.units[DURTHU]!)).toBe(true);
 
-    expect(engine.unitOptions(s, DURTHU)).toEqual([
+    expect(engine.unitOptions(s, DURTHU).filter((o) => o.t === 'command')).toEqual([
       { t: 'command', command: 'powerThrough', cost: 1, targets: [SAURUS_GUARD] },
     ]);
 

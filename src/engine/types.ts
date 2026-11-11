@@ -88,6 +88,8 @@ export interface UnitState {
   magicalIntervention?: boolean;
 }
 
+export type TacticTier = 'affray' | 'strike' | 'domination' | 'completed';
+
 export interface PlayerState {
   cp: number;
   vp: number;
@@ -97,6 +99,18 @@ export interface PlayerState {
   commandsUsed?: CommandId[];
   /** Non-UNLIMITED spell and prayer ability IDs attempted by this army in the current turn. */
   spellsAttempted?: string[];
+  /** GHB 2026-27 Scourge of Aqshy Fury level (0..7; attacker starts at 1, defender at 2). */
+  furyLevel?: number;
+  /** GHB 2026-27 Fury season Rage dice pool for this player. */
+  rageDice?: number;
+  /** Fury season abilities used by this player in the current turn. */
+  furyUsedThisTurn?: string[];
+  /** Current step ('affray' -> 'strike' -> 'domination' -> 'completed') for each Battle Tactic card ID. */
+  tacticProgress?: Record<string, TacticTier>;
+  /** Enemy Hero chosen as the fugitive for Burning for Vengeance. */
+  fugitiveUnit?: UnitId | null;
+  /** Terrain feature ID chosen as the enemy hideout for Blazing Onslaught. */
+  hideoutTerrain?: string | null;
 }
 
 export interface ObjectiveState {
@@ -178,7 +192,7 @@ export type Frame =
       t: 'endPhase';
     };
 
-export type PlaceReason = MoveKind | 'charge' | 'pileIn' | 'summon' | 'powerThrough';
+export type PlaceReason = MoveKind | 'charge' | 'pileIn' | 'summon' | 'powerThrough' | 'deploy';
 export type AttackMode = 'shoot' | 'fight';
 export type FightTier = 'strikeFirst' | 'normal' | 'strikeLast';
 
@@ -213,6 +227,8 @@ export interface GameState {
    * that opponent seizes in turn. Absent or null when nobody has.
    */
   seizedBy?: PlayerId | null;
+  /** The player who seized the initiative in the current round (bars scoring Battle Tactics on their first turn). */
+  seizedThisRound?: PlayerId | null;
   /** Timed effects currently in play. */
   effects?: ActiveEffect[];
   /** Warscroll IDs of manifestations removed/destroyed in the current turn. */
@@ -221,6 +237,18 @@ export interface GameState {
   reactionsOffered?: string[];
   /** Terrain feature IDs that have an overgrown token for each player (for Sylvaneth rules). */
   overgrownTerrain?: string[];
+  /** Terrain feature IDs whose Place of Power ability has been used in the current turn. */
+  usedPlacesOfPower?: string[];
+  /** Objective controllers recorded at the start of the current turn (for Battle Tactics). */
+  turnStartObjectives?: Record<string, PlayerId | null>;
+  /** Unit IDs that were in combat at the start of the current turn (for Daring Rescue). */
+  turnStartInCombat?: UnitId[];
+  /** Enemy Unit IDs destroyed this turn by a combat attack from a unit that charged this turn. */
+  destroyedByChargeCombat?: UnitId[];
+  /** Units destroyed during the current turn (for Battle Tactics). */
+  unitsDestroyedThisTurn?: { id: UnitId; owner: PlayerId; isHero: boolean }[];
+  /** Phases in which each unit had at least 1 damage point allocated to it this turn. */
+  damagedInPhases?: Record<UnitId, Phase[]>;
 }
 
 // ─── Decisions ──────────────────────────────────────────────────────────────────
@@ -371,7 +399,9 @@ export interface Violation {
     | 'STILL_IN_COMBAT'
     | 'NOT_IN_CHARGE_RANGE'
     | 'PILE_IN_FURTHER'
-    | 'BLOCKED';
+    | 'BLOCKED'
+    | 'OUTSIDE_TERRITORY'
+    | 'TOO_CLOSE_TO_ENEMY_TERRITORY';
   message: string;
   models?: number[];
 }
@@ -469,10 +499,15 @@ export interface StepResult {
   events: GameEvent[];
 }
 
+export interface NewGameOptions {
+  /** When true, units start in reserve and players alternate deploying regiments and faction terrain. */
+  deploy?: boolean;
+}
+
 export interface Engine {
   readonly scenario: Scenario;
-  /** A new game with both armies set up on the battlefield. */
-  newGame(seed: number): GameState;
+  /** A new game with both armies set up on the battlefield (or in deployment phase if `options.deploy` is true). */
+  newGame(seed: number, options?: NewGameOptions): GameState;
   /** The pending decision, or null when the game has ended. */
   decision(state: GameState): Decision | null;
   /** What `unit` may do under the current `main` or `fightPick` decision ([] if nothing). */

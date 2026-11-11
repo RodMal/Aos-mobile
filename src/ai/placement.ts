@@ -78,7 +78,7 @@ export function moveTowards(
 }
 
 /** Closest pairs (own model, enemy model) by edge-to-edge gap, nearest first. */
-function closestPairs(
+export function closestPairs(
   engine: Engine,
   state: GameState,
   unitId: UnitId,
@@ -114,17 +114,28 @@ export function chargePlacement(
   if (!info) return null;
   const unit = state.units[unitId]!;
   const base = currentPlacement(unit);
-  const pairs = closestPairs(engine, state, unitId).slice(0, 8);
+  const pairs = closestPairs(engine, state, unitId)
+    .filter((p) => p.gap <= info.allowance + 0.5)
+    .slice(0, 10);
   for (const p of pairs) {
     const dx = p.to.x - p.from.x;
     const dy = p.to.y - p.from.y;
     const len = Math.hypot(dx, dy);
     if (len === 0) continue;
-    for (const end of [0.05, 0.25, 0.45]) {
-      const step = p.gap - end;
-      if (step > info.allowance || step < 0) continue;
-      const shifted = shiftPlacement(base, (dx / len) * step, (dy / len) * step);
-      if (legal(engine, state, shifted)) return shifted;
+    for (const end of [0.1, 0.25, 0.4]) {
+      const baseStep = p.gap - end;
+      if (baseStep < 0 || baseStep > info.allowance) continue;
+      for (const extra of [0, 0.5]) {
+        const step = baseStep + extra;
+        if (step > info.allowance) continue;
+        for (const deg of [0, 10, -10, 20, -20]) {
+          const a = (deg * Math.PI) / 180;
+          const ux = (dx / len) * Math.cos(a) - (dy / len) * Math.sin(a);
+          const uy = (dx / len) * Math.sin(a) + (dy / len) * Math.cos(a);
+          const shifted = shiftPlacement(base, ux * step, uy * step);
+          if (legal(engine, state, shifted)) return shifted;
+        }
+      }
     }
   }
   return null;

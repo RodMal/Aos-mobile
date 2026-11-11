@@ -48,6 +48,7 @@ export function inches(n: number): string {
 }
 
 const MOVE_VERB: Record<PlaceReason, string> = {
+  deploy: 'deployed',
   normal: 'moved',
   run: 'ran',
   retreat: 'retreated',

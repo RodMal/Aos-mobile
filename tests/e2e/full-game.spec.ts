@@ -60,17 +60,49 @@ test('a charge can be declared, placed in contact and fought', async ({ page }) 
     const myChargePhase =
       (await page.getByTestId('turn').textContent()) === 'Your turn' &&
       /charge/i.test((await phase.textContent()) ?? '');
-    if (!charged && myChargePhase && (await usable(chips.first()))) {
-      // Declare charges until one rolls high enough to reach.
-      await chips.first().click();
-      await page.locator('[data-action="charge"]').click();
-      if (await page.getByTestId('place-panel').isVisible()) {
-        // The unit starts placed in contact with the nearest enemy.
-        await expect(page.getByTestId('place-status')).toContainText('Ready to confirm');
-        await page.getByTestId('place-confirm').click();
-        charged = true;
+    if (!charged && myChargePhase) {
+      const chargeBtn = page.locator('[data-action="charge"]');
+      if (await usable(chargeBtn)) {
+        await chargeBtn.click();
+        if (await page.getByTestId('place-panel').isVisible()) {
+          const confirmBtn = page.getByTestId('place-confirm');
+          if (await confirmBtn.isEnabled()) {
+            await confirmBtn.click();
+            charged = true;
+            continue;
+          }
+          // The charge roll succeeded but no legal placement was found (e.g. unit is screened by allies). Give up.
+          const cancelBtn = page.getByTestId('place-cancel');
+          if (await usable(cancelBtn)) {
+            await cancelBtn.click();
+            continue;
+          }
+        } else {
+          const close = page.getByTestId('unit-panel').getByRole('button', { name: 'Close' });
+          if (await usable(close)) await close.click();
+          continue;
+        }
       }
-      continue;
+      const close = page.getByTestId('unit-panel').getByRole('button', { name: 'Close' });
+      if (await usable(close)) {
+        await close.click();
+      } else {
+        const count = await chips.count();
+        let clicked = false;
+        for (let c = 0; c < count; c++) {
+          const chip = chips.nth(c);
+          if (await usable(chip)) {
+            await chip.click();
+            if (await usable(chargeBtn)) {
+              clicked = true;
+              break;
+            }
+            const cl = page.getByTestId('unit-panel').getByRole('button', { name: 'Close' });
+            if (await usable(cl)) await cl.click();
+          }
+        }
+        if (clicked) continue;
+      }
     }
     const did = await step(page);
     if (did) idle = 0;

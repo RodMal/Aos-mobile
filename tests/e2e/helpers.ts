@@ -147,6 +147,7 @@ export async function minimalPlayerStep(page: Page): Promise<string | null> {
     ['fight', page.locator('[data-action="fight"]')],
     ['end phase', page.getByTestId('end-phase')],
     ['pick unit', page.locator('[data-testid="ready-units"] .chip').first()],
+    ['close card', page.getByTestId('unit-panel').getByRole('button', { name: 'Close' })],
   ];
   for (const [name, control] of controls) {
     if (await usable(control)) {

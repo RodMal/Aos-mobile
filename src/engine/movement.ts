@@ -22,6 +22,7 @@ import {
   unitFootprints,
   unitsOf,
 } from './query.js';
+import { pathBlockedModels, unstableTerrainViolations } from './terrain.js';
 import type {
   GameState,
   Placement,
@@ -265,6 +266,27 @@ export function checkMovePlacement(
       });
     }
   }
+
+  const unstable = unstableTerrainViolations(scenario, unit, placement);
+  if (unstable.length > 0) {
+    violations.push({
+      code: 'BLOCKED',
+      message: 'Models cannot end a move on unstable terrain.',
+      models: unstable,
+    });
+  }
+
+  if (rules.reason !== 'summon') {
+    const blocked = pathBlockedModels(scenario, state, unit, placement);
+    if (blocked.length > 0) {
+      violations.push({
+        code: 'BLOCKED',
+        message: 'Non-flying models cannot move across other models.',
+        models: blocked,
+      });
+    }
+  }
+
   return violations;
 }
 

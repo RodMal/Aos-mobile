@@ -9,6 +9,7 @@ import type { ObjectiveSpec } from '../../data/battlefield.js';
 import { footprintGap, type Footprint } from '../../geom/index.js';
 import { DIST_EPS, modelFootprint, profileOf } from '../../engine/query.js';
 import type { GameState, PlayerId, Scenario, UnitState } from '../../engine/types.js';
+import { battleplanRules } from '../battleplans/index.js';
 
 /** Edge-of-base distance from a footprint to a point. */
 export function footprintToPoint(fp: Footprint, x: number, y: number): number {
@@ -39,16 +40,30 @@ export function contestedObjective(
 export function controlScores(scenario: Scenario, state: GameState): Map<string, [number, number]> {
   const scores = new Map<string, [number, number]>();
   for (const o of scenario.battlefield.objectives) scores.set(o.id, [0, 0]);
+  const bp = battleplanRules(scenario.battlefield.id);
   for (const id of state.unitOrder) {
     const unit = state.units[id]!;
     if (unit.status !== 'battlefield') continue;
     const profile = profileOf(scenario, unit);
     if (profile.control <= 0 || profile.isFactionTerrain || profile.isManifestation) continue;
+    const contestingObjectives = new Set<string>();
     unit.models.forEach((m, i) => {
       if (!m.alive) return;
       const o = contestedObjective(scenario, unit, i);
-      if (o) scores.get(o.id)![unit.owner] += profile.control;
+      if (o) {
+        contestingObjectives.add(o.id);
+        scores.get(o.id)![unit.owner] += profile.control;
+      }
     });
+    if (bp.controlBonus && contestingObjectives.size > 0) {
+      for (const objId of contestingObjectives) {
+        const obj = scenario.battlefield.objectives.find((o) => o.id === objId)!;
+        const bonus = bp.controlBonus(scenario, state, unit, obj);
+        if (bonus > 0) {
+          scores.get(objId)![unit.owner] += bonus;
+        }
+      }
+    }
   }
   return scores;
 }

@@ -30,6 +30,10 @@ import {
   unitsOf,
 } from './query.js';
 import type { GameState, Scenario, UnitState } from './types.js';
+import {
+  recordDamageAllocatedForTactics,
+  recordUnitDestroyedForTactics,
+} from '../rules/core/battleTactics.js';
 
 export type StepCtx = Ctx;
 
@@ -50,6 +54,7 @@ export function allocateDamage(
   source: string,
 ): DamageResult {
   if (unit.status !== 'battlefield' || amount <= 0) return { taken: 0, slain: 0, destroyed: false };
+  recordDamageAllocatedForTactics(ctx.s, unit.id, ctx.s.phase);
   const health = profileOf(ctx.scenario, unit).health;
   let slain = 0;
   unit.damage += amount;
@@ -61,6 +66,9 @@ export function allocateDamage(
   }
   if (onBattlefield()) slain += restoreCoherency(ctx.scenario, ctx.s, unit);
   const destroyed = !onBattlefield();
+  if (destroyed) {
+    recordUnitDestroyedForTactics(ctx.scenario, ctx.s, unit);
+  }
   ctx.events.push({ t: 'damage', unit: unit.id, amount, slain, destroyed, source });
   return { taken: amount, slain, destroyed };
 }
@@ -98,6 +106,7 @@ export function healUnit(ctx: Ctx, unit: UnitState, amount: number, source: stri
 /** Destroys or banishes a unit/manifestation immediately. */
 export function destroyUnit(ctx: Ctx, unit: UnitState, source: string): void {
   if (unit.status !== 'battlefield') return;
+  recordUnitDestroyedForTactics(ctx.scenario, ctx.s, unit);
   let slain = 0;
   for (const m of unit.models) {
     if (m.alive) {

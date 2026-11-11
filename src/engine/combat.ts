@@ -19,6 +19,7 @@ import {
   unitsOf,
   opponent,
 } from './query.js';
+import { effectiveWeaponRange, isGuardedHero, isUnitVisible } from './terrain.js';
 import type { Weapon } from '../data/profile.js';
 import type {
   Allocation,
@@ -153,9 +154,12 @@ export function weaponTargets(
       (w) => w.kind === 'ranged' && (!engaged || hasAbility(w, 'shootInCombat')),
     );
     if (weapons.length === 0) return [];
-    const maxRange = Math.max(...weapons.map((w) => w.range));
+    const maxRange = Math.max(
+      ...weapons.map((w) => effectiveWeaponRange(scenario, state, unit, w.range)),
+    );
     const own = unitBounds(scenario, unit);
     candidates = unitsOf(state, opponent(unit.owner)).filter((e) => {
+      if (!isUnitVisible(scenario, state, unit, e)) return false;
       const b = unitBounds(scenario, e);
       return Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r <= maxRange + 1e-6;
     });
@@ -169,7 +173,14 @@ export function weaponTargets(
     const range = mode === 'shoot' ? weapon.range : COMBAT_RANGE;
     const targets: WeaponTargets['targets'] = [];
     for (const target of candidates) {
-      const indices = attackingModels(scenario, unit, target, weapon, range);
+      let allowedRange = range;
+      if (mode === 'shoot') {
+        allowedRange = effectiveWeaponRange(scenario, state, unit, weapon.range);
+        if (isGuardedHero(scenario, state, target).infantry) {
+          allowedRange = Math.min(allowedRange, 12);
+        }
+      }
+      const indices = attackingModels(scenario, unit, target, weapon, allowedRange);
       if (indices.length === 0) continue;
       targets.push({
         unit: target.id,
@@ -207,8 +218,14 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
     const weapon = profile.weapons.find((w) => w.id === alloc.weaponId)!;
     const target = s.units[alloc.target]!;
     if (target.status !== 'battlefield') continue;
-    const range = frame.mode === 'shoot' ? weapon.range : COMBAT_RANGE;
-    const indices = attackingModels(scenario, attacker, target, weapon, range);
+    let allowedRange = frame.mode === 'shoot' ? weapon.range : COMBAT_RANGE;
+    if (frame.mode === 'shoot') {
+      allowedRange = effectiveWeaponRange(scenario, s, attacker, weapon.range);
+      if (isGuardedHero(scenario, s, target).infantry) {
+        allowedRange = Math.min(allowedRange, 12);
+      }
+    }
+    const indices = attackingModels(scenario, attacker, target, weapon, allowedRange);
     if (indices.length === 0) continue;
     const tp = profileOf(scenario, target);
     const targetWard = effectiveWard(scenario, s, target) ?? null;
@@ -249,7 +266,11 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
     pending.set(target.id, (pending.get(target.id) ?? 0) + ward.taken);
   }
   for (const [id, amount] of pending) {
-    allocateDamage(ctx, s.units[id]!, amount, `${attacker.name} (${frame.mode})`);
+    const target = s.units[id]!;
+    const res = allocateDamage(ctx, target, amount, `${attacker.name} (${frame.mode})`);
+    if (res.destroyed && frame.mode === 'fight' && attacker.charged) {
+      s.destroyedByChargeCombat = [...(s.destroyedByChargeCombat ?? []), id];
+    }
   }
   clearExpiredEffects(s, 'attack');
 }

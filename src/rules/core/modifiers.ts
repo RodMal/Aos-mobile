@@ -9,7 +9,9 @@ import { abilityAttackModifiers } from '../../engine/abilities/effects.js';
 import '../../engine/abilities/commands.js';
 import type { AttackMods } from '../../engine/expected.js';
 import { hasKeyword } from '../../engine/query.js';
+import { isGuardedHero, unitHasCover } from '../../engine/terrain.js';
 import type { AttackMode, GameState, Scenario, UnitState } from '../../engine/types.js';
+import { battleplanRules } from '../battleplans/index.js';
 
 export type ModifierStat = 'hit' | 'wound' | 'save' | 'rend' | 'damage';
 
@@ -72,6 +74,19 @@ export function attackModifiers(
     out.push({ stat: 'damage', value: charge, source: 'Charge', appliesToCompanion: true });
   }
   out.push(...abilityAttackModifiers(scenario, state, a));
+
+  if (unitHasCover(scenario, state, a.attacker, a.target, a.mode)) {
+    out.push({ stat: 'hit', value: -1, source: 'Cover' });
+  }
+
+  if (a.mode === 'shoot' && isGuardedHero(scenario, state, a.target).guarded) {
+    out.push({ stat: 'hit', value: -1, source: 'Guarded Hero' });
+  }
+
+  const bp = battleplanRules(scenario.battlefield.id);
+  if (bp.attackModifiers) {
+    out.push(...bp.attackModifiers(scenario, state, a));
+  }
   return out;
 }
 
