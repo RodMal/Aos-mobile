@@ -1,6 +1,13 @@
 /** The ability panel: spells, summons, prayers and reactions through the touch UI. */
 import { expect, test, type Page } from '@playwright/test';
-import { minimalPlayerStep, modelCentre, selectFromRoster, startGame } from './helpers.js';
+import {
+  isDesktop,
+  minimalPlayerStep,
+  modelCentre,
+  selectFromRoster,
+  startGame,
+  tapAt,
+} from './helpers.js';
 
 const JADE_THORNS = '97df-e136-9fb4-5aca';
 const PENDULUM = '678b-96e1-66bb-1de8';
@@ -53,16 +60,18 @@ test('a target can be chosen by tapping it on the board, and Cancel closes the p
   const confirm = page.getByTestId('ability-confirm');
   await expect(confirm).toBeDisabled();
   // Tap the highlighted Dryads on the table (the board is framed on the caster and targets).
-  const sheetTop = (await page.locator('.sheet-body').boundingBox())!.y;
+  // On the phone the sheet covers the bottom of the board; on desktop it sits to the right.
+  const sheetBox = (await page.locator('.sheet-body').boundingBox())!;
   const boardBox = (await page.getByTestId('board').boundingBox())!;
+  const bottom = isDesktop() ? boardBox.y + boardBox.height : sheetBox.y;
+  const right = isDesktop() ? sheetBox.x : boardBox.x + boardBox.width;
   let at: { x: number; y: number } | null = null;
   for (let m = 0; m < 10 && !at; m++) {
     const c = await modelCentre(page, '0:6', m).catch(() => null);
-    if (c && c.y < sheetTop - 20 && c.y > boardBox.y + 20 && c.x > 60 && c.x < boardBox.width - 60)
-      at = c;
+    if (c && c.y < bottom - 20 && c.y > boardBox.y + 20 && c.x > 60 && c.x < right - 60) at = c;
   }
-  expect(at, 'a Dryad is on screen above the sheet').not.toBeNull();
-  await page.touchscreen.tap(at!.x, at!.y);
+  expect(at, 'a Dryad is on screen beside the sheet').not.toBeNull();
+  await tapAt(page, at!);
   await expect(confirm).toBeEnabled();
   await expect(page.getByTestId('ability-panel').locator('[data-target="0:6"]')).toHaveAttribute(
     'aria-checked',

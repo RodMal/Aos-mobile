@@ -1,5 +1,5 @@
 /** The battlefield: one SVG, one view transform, touch gestures and the camera. */
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { modelFootprint, unitCentre, unitFootprints } from '../../engine/index.js';
 import { scenario, engine } from '../game/engine.js';
 import { editDraft } from '../game/draftActions.js';
@@ -35,10 +35,13 @@ import {
   visibleCentre,
   zoomAbout,
   type Pt,
+  type Rot,
   type View,
   type Viewport,
 } from './view.js';
 
+/** The width at which styles.css puts the sheet beside the board. */
+const WIDE_LAYOUT = '(min-width: 820px)';
 const TABLE = { w: scenario.battlefield.width, h: scenario.battlefield.height };
 /** Finger slop for picking, in screen pixels. */
 const SLOP_PX = 22;
@@ -53,7 +56,11 @@ function placingNow(): boolean {
 
 export function Board() {
   const human = useHuman();
-  const rot = rotationFor(human);
+  const draft = useUi((s) => s.draft);
+  // On a wide window the table is shown the way it is laid out (60" across the screen) instead
+  // of turned to run down a portrait phone; the phone layout never takes this branch.
+  const [landscape, setLandscape] = useState(false);
+  const rot: Rot = landscape ? 0 : rotationFor(human);
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
   const viewRef = useRef<View | null>(null);
@@ -214,6 +221,22 @@ export function Board() {
 
   useGestures(svgRef, refs);
 
+  // Landscape when the sheet sits beside the board (the wide layout) and the board is wider
+  // than tall; the margin keeps it from flipping back and forth around a square window.
+  useLayoutEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const check = () => {
+      const r = svg.getBoundingClientRect();
+      const wide = window.matchMedia(WIDE_LAYOUT).matches;
+      setLandscape((was) => wide && r.width > 0 && r.width / r.height >= (was ? 1.0 : 1.15));
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, []);
+
   // Size: fit on first layout and keep the view valid as the viewport changes.
   useLayoutEffect(() => {
     const svg = svgRef.current;
@@ -299,8 +322,9 @@ export function Board() {
   return (
     <svg
       ref={svgRef}
-      className="board"
+      className={`board ${draft ? 'placing' : ''}`}
       data-testid="board"
+      data-rot={rot}
       role="application"
       aria-label="Battlefield"
     >

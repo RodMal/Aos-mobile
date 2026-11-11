@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Phone-sized viewports only: this app is built for touch. Both projects use Chromium so the
-// suite needs a single browser; the iPhone project still gets the iPhone viewport and touch.
+// Two phone projects (touch) and one desktop project (mouse, wheel, keyboard). All use Chromium so
+// the suite needs a single browser; the iPhone project still gets the iPhone viewport and touch.
+// Touch-only specs skip themselves on `desktop` and mouse equivalents live in the shared helpers.
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
@@ -17,6 +18,15 @@ export default defineConfig({
     {
       name: 'iphone-14',
       use: { ...devices['iPhone 14'], browserName: 'chromium', defaultBrowserType: 'chromium' },
+    },
+    {
+      name: 'desktop',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+        hasTouch: false,
+        isMobile: false,
+      },
     },
   ],
   webServer: {
