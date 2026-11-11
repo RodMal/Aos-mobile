@@ -18,6 +18,7 @@ const TITLES: Record<string, string> = {
   pileIn: 'Pile in',
   summon: 'Set up manifestation',
   powerThrough: 'Power Through',
+  deploy: 'Deploy',
 };
 
 function Tool({
@@ -67,17 +68,19 @@ export function PlacePanel() {
           ? 'Stay put'
           : 'Cancel';
   const note =
-    d.reason === 'charge'
-      ? 'Placed in contact with the nearest enemy. Drag to choose another spot within ½" of an enemy unit.'
-      : d.reason === 'pileIn'
-        ? 'Piled in towards the nearest enemy. Each model may move up to 3" and must not end further from it.'
-        : d.reason === 'summon'
-          ? 'Drag to set up wholly within range of the caster, then confirm.'
-          : d.reason === 'powerThrough'
-            ? 'Move up to your allowance and end out of combat.'
-            : draft.adjust
-              ? 'Tap a model, then drag anywhere to move it.'
-              : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
+    d.reason === 'deploy'
+      ? 'Drag or rotate to set up wholly within your territory (>= 9" from enemy territory).'
+      : d.reason === 'charge'
+        ? 'Placed in contact with the nearest enemy. Drag to choose another spot within ½" of an enemy unit.'
+        : d.reason === 'pileIn'
+          ? 'Piled in towards the nearest enemy. Each model may move up to 3" and must not end further from it.'
+          : d.reason === 'summon'
+            ? 'Drag to set up wholly within range of the caster, then confirm.'
+            : d.reason === 'powerThrough'
+              ? 'Move up to your allowance and end out of combat.'
+              : draft.adjust
+                ? 'Tap a model, then drag anywhere to move it.'
+                : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
   const canForwardToVictory =
     d.reason === 'charge' &&
     !commandBlocker(state, d.player, 'forwardToVictory', unit) &&
@@ -112,10 +115,10 @@ export function PlacePanel() {
       </p>
       {first && <p className="panel-hint small">{note}</p>}
       <div className="tools" role="toolbar" aria-label="Formation">
-        {(d.reason === 'charge' || d.reason === 'pileIn') && (
+        {(d.reason === 'charge' || d.reason === 'pileIn' || d.reason === 'deploy') && (
           <Tool
             icon="engage"
-            label="Engage"
+            label={d.reason === 'deploy' ? 'Auto' : 'Engage'}
             onClick={() => {
               if (!engageDraft())
                 useGame.getState().showToast('No legal position found. Drag the unit.', 'error');

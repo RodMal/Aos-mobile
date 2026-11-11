@@ -45,7 +45,7 @@ interface GameStore {
   lastFocus: { unit: string; nonce: number } | null;
   dispatch(action: Action): boolean;
   undo(): void;
-  newGame(seed: number, humanPlayer: PlayerId): void;
+  newGame(seed: number, humanPlayer: PlayerId, options?: { deploy?: boolean }): void;
   showToast(text: string, tone?: Toast['tone']): void;
   clearToast(): void;
 }
@@ -82,7 +82,12 @@ export function initialSession(opts: UrlOptions): Session {
       // The saved actions no longer replay (the engine changed): start afresh.
     }
   }
-  const session = newSession(engine, opts.seed ?? randomSeed(), opts.side ?? 0);
+  const session = newSession(
+    engine,
+    opts.seed ?? randomSeed(),
+    opts.side ?? 0,
+    opts.deploy ? { deploy: true } : undefined,
+  );
   save(session);
   return session;
 }
@@ -141,8 +146,8 @@ export function createGameStore(initial: Session, fast: boolean) {
       save(next);
       set({ session: next, toast: { id: ++toastId, text: 'Undone', tone: 'info' } });
     },
-    newGame(seed, humanPlayer) {
-      const session = newSession(engine, seed, humanPlayer);
+    newGame(seed, humanPlayer, options) {
+      const session = newSession(engine, seed, humanPlayer, options);
       save(session);
       set((s) => ({ session, toast: null, gameId: s.gameId + 1, lastFocus: null }));
     },

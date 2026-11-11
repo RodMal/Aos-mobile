@@ -461,7 +461,6 @@ export function canUsePlaceOfPower(
   state: GameState,
   unit: UnitState,
 ): TerrainFeature | null {
-  if (state.phase !== 'hero' || state.active !== unit.owner) return null;
   if (unit.status !== 'battlefield') return null;
   if (!hasEffectiveKeyword(scenario, state, unit, 'HERO')) return null;
   if (inCombat(scenario, state, unit)) return null;
@@ -479,12 +478,21 @@ export function canUsePlaceOfPower(
 }
 
 /**
- * Resolves `Activate Place of Power` for `unit`.
- * Marks the terrain feature and unit ability as used, adds the turn-long Place of Power
- * bonus effect (+1 cast/chant/unbind/banish), and rolls 1D6: on a 1, `unit` suffers D3
- * mortal damage; on a 2+ with `'ignite_fury'`, the player also gains 2 rage dice.
+ * Resolves `Activate Place of Power` for `unit` with player's chosen `boon`
+ * (Ignite Fury, Channelled Wrath, or Dizzying Rage).
+ *
+ * Rolls 1D6:
+ * - On a 1: The Hero takes D3 mortal damage. Backfire!
+ * - On a 2+: The chosen boon is granted:
+ *   - Ignite Fury: Gain 2 rage dice and increase fury level by 2 (max 7).
+ *   - Channelled Wrath: +1 to casting and chanting rolls for this hero this turn.
+ *   - Dizzying Rage: Hero can Unbind or Banish once this turn.
  */
-export function resolvePlaceOfPower(ctx: Ctx, unit: UnitState, choice?: PlaceOfPowerBoon): void {
+export function resolvePlaceOfPower(
+  ctx: Ctx,
+  unit: UnitState,
+  choice: PlaceOfPowerBoon = 'channelled_wrath',
+): void {
   const terrain = canUsePlaceOfPower(ctx.scenario, ctx.s, unit);
   if (!terrain) {
     illegal(`${unit.name} cannot use Place of Power now.`);
@@ -493,39 +501,70 @@ export function resolvePlaceOfPower(ctx: Ctx, unit: UnitState, choice?: PlaceOfP
   ctx.s.usedPlacesOfPower = [...(ctx.s.usedPlacesOfPower ?? []), terrain.id];
   unit.abilitiesUsed = [...(unit.abilitiesUsed ?? []), PLACE_OF_POWER_ID];
 
-  const profile = profileOf(ctx.scenario, unit);
-  const isCasterOrPriest = (profile.wizard ?? 0) > 0 || (profile.priest ?? 0) > 0;
-  const boon: PlaceOfPowerBoon = choice ?? (isCasterOrPriest ? 'channelled_wrath' : 'ignite_fury');
-
-  addEffect(ctx.s, {
-    id: PLACE_OF_POWER_ID,
-    name: 'Place of Power',
-    sourceUnit: unit.id,
-    targetUnit: unit.id,
-    owner: unit.owner,
-    expires: 'turn',
-    data: {
-      boon,
-      castBonus: 1,
-      chantBonus: 1,
-      unbindBonus: 1,
-      banishBonus: 1,
-    },
-  });
-
   const roll = ctx.rng.int(1, 6);
   ctx.events.push({
     t: 'roll',
     player: unit.owner,
-    label: 'Place of Power',
+    label: `Place of Power (${choice})`,
     dice: [roll],
   });
 
   if (roll === 1) {
     const dmg = ctx.rng.int(1, 3);
+    ctx.events.push({
+      t: 'roll',
+      player: unit.owner,
+      label: 'Place of Power backfire (D3 mortal damage)',
+      dice: [dmg],
+    });
     allocateDamage(ctx, unit, dmg, 'Place of Power');
-  } else if (boon === 'ignite_fury') {
+    return;
+  }
+
+  if (choice === 'ignite_fury') {
     const playerState = ctx.s.players[unit.owner];
     playerState.rageDice = (playerState.rageDice ?? 0) + 2;
+    playerState.furyLevel = Math.min(7, (playerState.furyLevel ?? 0) + 2);
+    ctx.events.push({
+      t: 'note',
+      text: `${unit.name} activates Place of Power (Ignite Fury): +2 rage dice, +2 fury level.`,
+    });
+  } else if (choice === 'channelled_wrath') {
+    addEffect(ctx.s, {
+      id: PLACE_OF_POWER_ID,
+      name: 'Place of Power (Channelled Wrath)',
+      sourceUnit: unit.id,
+      targetUnit: unit.id,
+      owner: unit.owner,
+      expires: 'turn',
+      data: {
+        boon: 'channelled_wrath',
+        castBonus: 1,
+        chantBonus: 1,
+      },
+    });
+    ctx.events.push({
+      t: 'note',
+      text: `${unit.name} activates Place of Power (Channelled Wrath): +1 to casting and chanting rolls this turn.`,
+    });
+  } else if (choice === 'dizzying_rage') {
+    addEffect(ctx.s, {
+      id: PLACE_OF_POWER_ID,
+      name: 'Place of Power (Dizzying Rage)',
+      sourceUnit: unit.id,
+      targetUnit: unit.id,
+      owner: unit.owner,
+      expires: 'turn',
+      data: {
+        boon: 'dizzying_rage',
+        unbindBonus: 1,
+        banishBonus: 1,
+        canUnbindOrBanish: true,
+      },
+    });
+    ctx.events.push({
+      t: 'note',
+      text: `${unit.name} activates Place of Power (Dizzying Rage): can unbind or banish once this turn.`,
+    });
   }
 }

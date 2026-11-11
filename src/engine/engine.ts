@@ -48,7 +48,8 @@ import {
   initFury,
   resolveEruptionOfFury,
 } from '../rules/core/fury.js';
-import { canUsePlaceOfPower, resolvePlaceOfPower } from './terrain.js';
+import { canUsePlaceOfPower, resolvePlaceOfPower, type PlaceOfPowerBoon } from './terrain.js';
+import { applyEverGrowing, resolveEndlessGrowth } from '../rules/factions/sylvaneth.js';
 import {
   PHASES,
   type Action,
@@ -132,6 +133,7 @@ export function cloneState(state: GameState): GameState {
           ),
         }
       : {}),
+    ...(state.alarielleSeason ? { alarielleSeason: { ...state.alarielleSeason } } : {}),
   };
 }
 
@@ -178,6 +180,12 @@ function beginRound(ctx: Ctx): void {
   }
   s.turnIndex = 0;
   s.active = s.firstPlayer;
+  const alarielle = Object.values(s.units).find(
+    (u) => u.status === 'battlefield' && u.name.toLowerCase().includes('alarielle'),
+  );
+  if (alarielle && !s.alarielleSeason?.[s.round]) {
+    s.alarielleSeason = { ...(s.alarielleSeason ?? {}), [s.round]: 'burgeoning' };
+  }
   startTurn(ctx);
 }
 
@@ -194,6 +202,7 @@ function startRound(ctx: Ctx): void {
     initBattleTactics(scenario, s);
   }
   applySimmeringRage(s);
+  applyEverGrowing(scenario, s);
   if (s.round === 1) {
     // Round 1: the attacker (player 0) takes the first turn.
     s.firstPlayer = 0;
@@ -232,6 +241,7 @@ function endGame(ctx: Ctx): void {
 /** End of a turn: resolve objective control, then the player whose turn it was scores. */
 function endTurn(ctx: Ctx): void {
   const { s, scenario } = ctx;
+  resolveEndlessGrowth(ctx, s.active);
   clearExpiredEffects(s, 'turn');
   for (const change of resolveControl(scenario, s)) {
     s.objectives.find((o) => o.id === change.id)!.controller = change.controller;
@@ -471,6 +481,21 @@ export function createEngine(scenario: Scenario): Engine {
             player: unitById(state, top.unit).owner,
             phase: 'hero',
           };
+        case 'placeOfPower':
+          return {
+            kind: 'placeOfPower',
+            player: top.player,
+            hero: top.hero,
+            terrain: top.terrain,
+            boons: ['ignite_fury', 'channelled_wrath', 'dizzying_rage'],
+          };
+        case 'alarielleSeason':
+          return {
+            kind: 'alarielleSeason',
+            player: top.player,
+            unit: top.unit,
+            seasons: ['burgeoning', 'reaping', 'dwindling', 'everdusk'],
+          };
         case 'resolve':
         case 'spell':
         case 'endPhase':
@@ -509,7 +534,7 @@ export function createEngine(scenario: Scenario): Engine {
           opts.push({
             t: 'ability',
             abilityId: 'place-of-power',
-            name: 'Place of Power',
+            name: 'Place of Power (Start of Turn)',
             kind: 'activated',
             targets: [],
           });
@@ -1162,6 +1187,13 @@ export function createEngine(scenario: Scenario): Engine {
         s.stack.pop();
         continue;
       }
+      if (top.t === 'placeOfPower') {
+        const u = s.units[top.hero];
+        if (!u || !canUsePlaceOfPower(scenario, s, u)) {
+          s.stack.pop();
+          continue;
+        }
+      }
       if (top.t === 'endPhase') {
         if (offerEndOfPhaseReaction(ctx)) {
           continue;
@@ -1204,12 +1236,18 @@ export function createEngine(scenario: Scenario): Engine {
           }
         } else if (action.t === 'move') {
           declareMove(ctx, action.unit, action.kind, action.atTheDouble);
+        } else if (action.t === 'ability' && action.abilityId === 'place-of-power') {
+          const hero = s.units[action.unit]!;
+          const terrain = canUsePlaceOfPower(scenario, s, hero);
+          if (!terrain) illegal(`${hero.name} cannot use Place of Power.`);
+          s.stack.push({
+            t: 'placeOfPower',
+            player: hero.owner,
+            hero: hero.id,
+            terrain: terrain.id,
+          });
         } else if (action.t === 'ability' && d.phase === 'hero') {
-          if (action.abilityId === 'place-of-power') {
-            resolvePlaceOfPower(ctx, s.units[action.unit]!);
-          } else {
-            declareAbility(ctx, action);
-          }
+          declareAbility(ctx, action);
         } else if (
           action.t === 'ability' &&
           d.phase === 'end' &&
@@ -1279,6 +1317,36 @@ export function createEngine(scenario: Scenario): Engine {
       case 'reaction':
         answerReaction(ctx, action);
         break;
+      case 'placeOfPower': {
+        const frame = s.stack.pop();
+        if (frame?.t !== 'placeOfPower') illegal('Not at Place of Power.');
+        if (action.t === 'pass') {
+          break;
+        }
+        if (action.t === 'choose') {
+          const boon = action.value as PlaceOfPowerBoon;
+          if (!['ignite_fury', 'channelled_wrath', 'dizzying_rage'].includes(boon)) {
+            illegal('Invalid Place of Power boon.');
+          }
+          const hero = s.units[frame.hero]!;
+          resolvePlaceOfPower(ctx, hero, boon);
+          break;
+        }
+        illegal('Choose a Place of Power boon or pass.');
+        break;
+      }
+      case 'alarielleSeason': {
+        const frame = s.stack.pop();
+        if (frame?.t !== 'alarielleSeason') illegal('Not choosing Alarielle season.');
+        if (action.t !== 'choose') illegal('Choose a season of war.');
+        const season = action.value;
+        s.alarielleSeason = { ...(s.alarielleSeason ?? {}), [s.round]: season };
+        ctx.events.push({
+          t: 'note',
+          text: `Alarielle proclaims the Season of War: ${season}.`,
+        });
+        break;
+      }
     }
     settle(ctx);
     s.rng = ctx.rng.state;
@@ -1336,6 +1404,10 @@ export function createEngine(scenario: Scenario): Engine {
     switch (d.kind) {
       case 'priority':
         return { t: 'choose', value: 'first' };
+      case 'placeOfPower':
+        return { t: 'choose', value: 'ignite_fury' };
+      case 'alarielleSeason':
+        return { t: 'choose', value: d.seasons[0]! };
       case 'fightPick':
         if (d.canPass) return { t: 'pass' };
         return { t: 'fight', unit: eligibleFighters(scenario, state, d.player)[0]!.id };

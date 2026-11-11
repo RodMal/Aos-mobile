@@ -43,6 +43,14 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
       return mine
         ? { title: 'Reaction', hint: 'Use a command, or skip.' }
         : { title: `${who} may react`, hint: 'The opponent is deciding…' };
+    case 'placeOfPower':
+      return mine
+        ? { title: 'Place of Power', hint: 'Choose a boon or pass.' }
+        : { title: `${who} at Place of Power`, hint: 'The opponent is choosing…' };
+    case 'alarielleSeason':
+      return mine
+        ? { title: 'Season of War', hint: 'Pick a season of war for this battle round.' }
+        : { title: `${who} season of war`, hint: 'The opponent is choosing…' };
   }
 }
 
@@ -98,7 +106,7 @@ export function DecisionPanel() {
       {mine && d.kind === 'fightPick' && <ReadyUnits label="Can fight" />}
       {mine && d.kind === 'main' && (
         <button className="btn primary wide" onClick={endPhase} data-testid="end-phase">
-          End {phaseName(d.phase).toLowerCase()} phase
+          End {d.phase === 'end' ? 'turn' : `${phaseName(d.phase).toLowerCase()} phase`}
         </button>
       )}
       {mine && d.kind === 'fightPick' && d.canPass && (

@@ -108,6 +108,86 @@ export function DecisionPrompts() {
       </Modal>
     );
   }
+  if (d.kind === 'placeOfPower') {
+    const heroName = state.units[d.hero]?.name ?? 'Hero';
+    return (
+      <Modal title="Place of Power" testId="place-of-power">
+        <p>
+          <strong>{heroName}</strong> is within 3&quot; of an unused Place of Power. Choose a boon
+          for this turn, or pass to save it.
+        </p>
+        <p className="muted small">
+          Roll 1D6: on a 1, {heroName} suffers D3 mortal damage backfire. On a 2+, the chosen boon
+          is granted.
+        </p>
+        <div className="stack">
+          <button
+            className="btn wide"
+            onClick={() => dispatch({ t: 'choose', value: 'ignite_fury' })}
+          >
+            <strong>Ignite Fury</strong>
+            <span className="muted small block">+2 Rage Dice &amp; +2 Fury Level</span>
+          </button>
+          <button
+            className="btn wide"
+            onClick={() => dispatch({ t: 'choose', value: 'channelled_wrath' })}
+          >
+            <strong>Channelled Wrath</strong>
+            <span className="muted small block">+1 to Casting &amp; Chanting rolls</span>
+          </button>
+          <button
+            className="btn wide"
+            onClick={() => dispatch({ t: 'choose', value: 'dizzying_rage' })}
+          >
+            <strong>Dizzying Rage</strong>
+            <span className="muted small block">Can Unbind or Banish once this turn</span>
+          </button>
+          <button className="btn primary wide" onClick={() => dispatch({ t: 'pass' })}>
+            Pass
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+  if (d.kind === 'alarielleSeason') {
+    return (
+      <Modal title="Alarielle: Season of War" testId="alarielle-season">
+        <p>
+          Pick a Season of War to be in effect for your army until the end of this battle round:
+        </p>
+        <div className="stack">
+          <button
+            className="btn wide"
+            onClick={() => dispatch({ t: 'choose', value: 'burgeoning' })}
+          >
+            <strong>The Burgeoning</strong>
+            <span className="muted small block">
+              Ward (5+) for friendly Sylvaneth in overgrowth
+            </span>
+          </button>
+          <button className="btn wide" onClick={() => dispatch({ t: 'choose', value: 'reaping' })}>
+            <strong>The Reaping</strong>
+            <span className="muted small block">
+              +1 to cast &amp; chant wholly within 12&quot; of Alarielle
+            </span>
+          </button>
+          <button
+            className="btn wide"
+            onClick={() => dispatch({ t: 'choose', value: 'dwindling' })}
+          >
+            <strong>The Dwindling</strong>
+            <span className="muted small block">
+              Can charge after retreat; no retreat mortal damage
+            </span>
+          </button>
+          <button className="btn wide" onClick={() => dispatch({ t: 'choose', value: 'everdusk' })}>
+            <strong>The Everdusk</strong>
+            <span className="muted small block">Creeping Dread can pick up to 3 enemy units</span>
+          </button>
+        </div>
+      </Modal>
+    );
+  }
   return null;
 }
 

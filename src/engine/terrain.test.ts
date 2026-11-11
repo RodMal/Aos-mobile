@@ -347,10 +347,9 @@ describe('Place of Power', () => {
     const effs = effectsOnUnit(stateOk, warsongOk.id);
     expect(effs).toHaveLength(1);
     expect(effs[0]!.data).toMatchObject({
+      boon: 'channelled_wrath',
       castBonus: 1,
       chantBonus: 1,
-      unbindBonus: 1,
-      banishBonus: 1,
     });
 
     // Case 2: Roll === 1 (inflicts D3 mortal damage)

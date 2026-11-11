@@ -13,6 +13,7 @@ export function Menu() {
   const newGame = useGame((s) => s.newGame);
   const showToast = useGame((s) => s.showToast);
   const [side, setSide] = useState<PlayerId>(session.humanPlayer);
+  const [deploy, setDeploy] = useState<boolean>(true);
   const [seed, setSeed] = useState('');
   const [record, setRecord] = useState<string | null>(null);
   const ui = useUi.getState();
@@ -20,7 +21,7 @@ export function Menu() {
   const start = () => {
     const n = /^\d+$/.test(seed.trim()) ? Number(seed.trim()) : randomSeed();
     ui.reset();
-    newGame(n, side);
+    newGame(n, side, { deploy });
     ui.moveCamera({ kind: 'fit' });
   };
 
@@ -62,6 +63,25 @@ export function Menu() {
               {playerName(p)}
             </button>
           ))}
+        </div>
+        <p className="muted small">Setup</p>
+        <div className="seg" role="radiogroup" aria-label="Setup mode">
+          <button
+            role="radio"
+            aria-checked={deploy}
+            className={`seg-btn ${deploy ? 'on' : ''}`}
+            onClick={() => setDeploy(true)}
+          >
+            Alternating deploy
+          </button>
+          <button
+            role="radio"
+            aria-checked={!deploy}
+            className={`seg-btn ${!deploy ? 'on' : ''}`}
+            onClick={() => setDeploy(false)}
+          >
+            Quick start
+          </button>
         </div>
         <label className="field">
           <span className="muted small">Seed (optional)</span>

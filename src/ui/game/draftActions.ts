@@ -23,23 +23,29 @@ export function editDraft(
  * A legal position that brings the unit into contact for the pending charge or pile-in, or
  * null if there is none (or the pending placement is something else).
  */
+import { npcDeployPlacement } from '../../engine/deployment.js';
+
 export function engagePlacement(state: GameState, unitId: string): Placement | null {
   const d = engine.decision(state);
   if (!d || d.kind !== 'place' || d.unit !== unitId) return null;
   if (d.reason === 'charge') return chargePlacement(engine, state, unitId);
   if (d.reason === 'pileIn') return pileInPlacement(engine, state, unitId);
+  if (d.reason === 'deploy')
+    return npcDeployPlacement(engine.scenario, state, state.units[unitId]!);
   return null;
 }
 
 /**
- * Starts a fresh draft for the unit being placed. With `suggest`, a charge or pile-in starts
- * from a legal engaged position, so the player can confirm at once or adjust it.
+ * Starts a fresh draft for the unit being placed. With `suggest`, a charge, pile-in or deploy starts
+ * from a legal position, so the player can confirm at once or adjust it.
  */
 export function beginDraft(state: GameState, unitId: string, suggest = false): void {
   const unit = state.units[unitId];
   if (!unit) return;
   const d = startDraft(state, unit);
-  const placement = (suggest ? engagePlacement(state, unitId) : null) ?? d.placement;
+  const dec = engine.decision(state);
+  const isDeploy = dec?.kind === 'place' && dec.reason === 'deploy';
+  const placement = (suggest || isDeploy ? engagePlacement(state, unitId) : null) ?? d.placement;
   useUi.getState().setDraft({
     ...d,
     placement,

@@ -190,6 +190,23 @@ export type Frame =
    */
   | {
       t: 'endPhase';
+    }
+  /**
+   * Start of turn: an eligible Hero within 3" of an unused Place of Power chooses a boon or passes.
+   */
+  | {
+      t: 'placeOfPower';
+      player: PlayerId;
+      hero: UnitId;
+      terrain: string;
+    }
+  /**
+   * Start of battle round: Alarielle chooses a season of war for the round.
+   */
+  | {
+      t: 'alarielleSeason';
+      player: PlayerId;
+      unit: UnitId;
     };
 
 export type PlaceReason = MoveKind | 'charge' | 'pileIn' | 'summon' | 'powerThrough' | 'deploy';
@@ -249,6 +266,8 @@ export interface GameState {
   unitsDestroyedThisTurn?: { id: UnitId; owner: PlayerId; isHero: boolean }[];
   /** Phases in which each unit had at least 1 damage point allocated to it this turn. */
   damagedInPhases?: Record<UnitId, Phase[]>;
+  /** Alarielle's season of war chosen for each battle round: round -> season. */
+  alarielleSeason?: Record<number, string>;
 }
 
 // ─── Decisions ──────────────────────────────────────────────────────────────────
@@ -274,7 +293,22 @@ export type Decision =
   /** Assign this unit's weapons to targets, then the attacks are rolled. */
   | { kind: 'targets'; player: PlayerId; unit: UnitId; mode: AttackMode }
   /** Optionally use a reaction (a command or ability) before play continues. */
-  | { kind: 'reaction'; player: PlayerId; options: ReactionOption[]; trigger: string };
+  | { kind: 'reaction'; player: PlayerId; options: ReactionOption[]; trigger: string }
+  /** Choose a Place of Power boon at start of turn, or pass. */
+  | {
+      kind: 'placeOfPower';
+      player: PlayerId;
+      hero: UnitId;
+      terrain: string;
+      boons: ('ignite_fury' | 'channelled_wrath' | 'dizzying_rage')[];
+    }
+  /** Alarielle's player picks a season of war for the battle round. */
+  | {
+      kind: 'alarielleSeason';
+      player: PlayerId;
+      unit: UnitId;
+      seasons: ('burgeoning' | 'reaping' | 'dwindling' | 'everdusk')[];
+    };
 
 export type DecisionKind = Decision['kind'];
 

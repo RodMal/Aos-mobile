@@ -79,6 +79,14 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       const allOutAttack = allocations.length > 0 && value >= 2 && canAllOutAttack(state, unit);
       return { t: 'targets', allocations, ...(allOutAttack ? { allOutAttack } : {}) };
     }
+    case 'placeOfPower': {
+      const hero = state.units[d.hero]!;
+      const profile = profileOf(engine.scenario, hero);
+      const isCasterOrPriest = (profile.wizard ?? 0) > 0 || (profile.priest ?? 0) > 0;
+      return { t: 'choose', value: isCasterOrPriest ? 'channelled_wrath' : 'ignite_fury' };
+    }
+    case 'alarielleSeason':
+      return { t: 'choose', value: d.seasons[0]! };
     case 'main':
       return mainAction(engine, state, d.player, d.phase) ?? { t: 'pass' };
   }

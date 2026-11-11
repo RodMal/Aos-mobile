@@ -38,8 +38,13 @@ const RecordSchema = z.object({
   actions: z.array(z.looseObject({ t: z.string() })),
 });
 
-export function newSession(engine: Engine, seed: number, humanPlayer: PlayerId): Session {
-  const state = engine.newGame(seed);
+export function newSession(
+  engine: Engine,
+  seed: number,
+  humanPlayer: PlayerId,
+  options?: { deploy?: boolean },
+): Session {
+  const state = engine.newGame(seed, options);
   return {
     seed,
     humanPlayer,
@@ -121,6 +126,8 @@ export interface UrlOptions {
   fast: boolean;
   /** Ignore a saved game. */
   fresh: boolean;
+  /** Interactive alternating deployment. */
+  deploy?: boolean;
 }
 
 export function parseUrlOptions(search: string): UrlOptions {
@@ -129,7 +136,14 @@ export function parseUrlOptions(search: string): UrlOptions {
   const seed = seedRaw !== null && /^-?\d+$/.test(seedRaw) ? Number(seedRaw) : null;
   const sideRaw = q.get('side');
   const side = sideRaw === '0' ? 0 : sideRaw === '1' ? 1 : null;
-  return { seed, side, fast: q.get('fast') === '1', fresh: q.get('new') === '1' };
+  const deploy = q.get('deploy') === '1' || q.get('deploy') === 'true' ? true : undefined;
+  return {
+    seed,
+    side,
+    fast: q.get('fast') === '1',
+    fresh: q.get('new') === '1',
+    ...(deploy !== undefined ? { deploy } : {}),
+  };
 }
 
 /**
