@@ -38,11 +38,21 @@ export function TopBar() {
               {state.players[human].vp}
             </span>
             <span className="cp">{state.players[human].cp} CP</span>
+            {state.players[human].furyLevel != null && (
+              <span className="cp" data-testid="fury-you" title="Fury level & Rage dice">
+                F{state.players[human].furyLevel} · {state.players[human].rageDice ?? 0}R
+              </span>
+            )}
           </div>
           <div className="score-side enemy" title={playerName(enemy)}>
             <span className="side-mark enemy" aria-hidden="true" />
             <span className="vp">{state.players[enemy].vp}</span>
             <span className="cp">{state.players[enemy].cp} CP</span>
+            {state.players[enemy].furyLevel != null && (
+              <span className="cp" data-testid="fury-enemy" title="Fury level & Rage dice">
+                F{state.players[enemy].furyLevel} · {state.players[enemy].rageDice ?? 0}R
+              </span>
+            )}
           </div>
         </div>
       </div>

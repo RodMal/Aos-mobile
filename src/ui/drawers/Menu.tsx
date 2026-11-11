@@ -95,7 +95,9 @@ export function Menu() {
           />
         )}
       </section>
-      <p className="muted small credits">
+      <p className="muted small credits" data-testid="version-tag">
+        AoS Mobile · Milestone M3b (Fury Season & Battle Tactics)
+        <br />
         Game data from the community BSData project. Warhammer Age of Sigmar is © Games Workshop.
         Unofficial fan project.
       </p>
