@@ -101,7 +101,7 @@ export function PlacePanel() {
           {TITLES[d.reason] ?? 'Place'} {unit.name}
         </h2>
         <p className="panel-hint">
-          Up to {inches(d.allowance)}
+          {Number.isFinite(d.allowance) ? `Up to ${inches(d.allowance)}` : 'Anywhere legal'}
           {diceText}
         </p>
       </header>
