@@ -3,6 +3,7 @@ import { INTO_THE_FIRE, type Battlefield } from '../data/battlefield.js';
 import { resolveArmy, type ArmyList } from '../data/lists.js';
 import type { Side } from '../data/map-schema.js';
 import { buildProfile, type UnitProfile } from '../data/profile.js';
+import { WYLDWOOD_OUTLINES } from '../data/wyldwood.js';
 import type { Scenario } from './types.js';
 
 export interface ScenarioOptions {
@@ -22,7 +23,25 @@ export function createScenario(
   const profiles: Record<string, UnitProfile> = {};
   for (const army of armies) {
     for (const unit of army.units) profiles[unit.profile.id] = unit.profile;
-    if (army.factionTerrain) profiles[army.factionTerrain.id] = army.factionTerrain;
+    if (army.factionTerrain) {
+      const ft = army.factionTerrain;
+      profiles[ft.id] = ft;
+      // Further Awakened Wyldwood pieces use the other two traced outlines (src/data/wyldwood.ts).
+      if (ft.name === 'Awakened Wyldwood') {
+        for (const piece of [2, 3]) {
+          profiles[`${ft.id}:piece${piece}`] = {
+            ...ft,
+            id: `${ft.id}:piece${piece}`,
+            models: [
+              {
+                ...ft.models[0]!,
+                base: { kind: 'outline', points: WYLDWOOD_OUTLINES[piece - 1]! },
+              },
+            ],
+          };
+        }
+      }
+    }
   }
   for (const ws of UNIVERSAL.warscrolls) {
     if (ws.isManifestation && !profiles[ws.id]) {

@@ -94,7 +94,12 @@ describe('faction terrain (owner ruling, 2026-11-11)', () => {
     let s = nearEngine();
     for (const phase of ['hero', 'movement', 'shooting', 'charge', 'combat', 'end'] as const) {
       s = passTo(engine, s, phase);
-      expect(engine.unitOptions(s, WYLDWOOD)).toEqual([]);
+      // The only option is the player's: setting up a further Wyldwood in the hero phase.
+      expect(
+        engine
+          .unitOptions(s, WYLDWOOD)
+          .filter((o) => !(o.t === 'ability' && o.abilityId === 'awakened-wyldwood-setup')),
+      ).toEqual([]);
     }
     const move = passTo(engine, nearEngine(), 'movement');
     expect(() => engine.apply(move, { t: 'move', unit: WYLDWOOD, kind: 'normal' })).toThrow(

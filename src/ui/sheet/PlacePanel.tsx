@@ -20,6 +20,7 @@ const TITLES: Record<string, string> = {
   summon: 'Set up manifestation',
   powerThrough: 'Power Through',
   deploy: 'Deploy',
+  setUp: 'Set up',
 };
 
 function Tool({
@@ -77,13 +78,15 @@ export function PlacePanel() {
           ? 'Piled in towards the nearest enemy. Each model may move up to 3" and must not end further from it.'
           : d.reason === 'summon'
             ? 'Drag to set up wholly within range of the caster, then confirm.'
-            : d.reason === 'powerThrough'
-              ? 'Move up to your allowance and end out of combat.'
-              : draft.adjust
-                ? `${tapWord()} a model, then drag anywhere to move it.`
-                : finePointer()
-                  ? 'Drag anywhere to move the unit. The wheel zooms; Enter confirms.'
-                  : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
+            : d.reason === 'setUp'
+              ? 'Drag or rotate to set up more than 3" from every objective, terrain feature and unit.'
+              : d.reason === 'powerThrough'
+                ? 'Move up to your allowance and end out of combat.'
+                : draft.adjust
+                  ? `${tapWord()} a model, then drag anywhere to move it.`
+                  : finePointer()
+                    ? 'Drag anywhere to move the unit. The wheel zooms; Enter confirms.'
+                    : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
   const canForwardToVictory =
     d.reason === 'charge' &&
     !commandBlocker(state, d.player, 'forwardToVictory', unit) &&
@@ -101,7 +104,11 @@ export function PlacePanel() {
           {TITLES[d.reason] ?? 'Place'} {unit.name}
         </h2>
         <p className="panel-hint">
-          {Number.isFinite(d.allowance) ? `Up to ${inches(d.allowance)}` : 'Anywhere legal'}
+          {d.reason === 'setUp'
+            ? 'Hero phase · anywhere legal'
+            : Number.isFinite(d.allowance)
+              ? `Up to ${inches(d.allowance)}`
+              : 'Anywhere legal'}
           {diceText}
         </p>
       </header>

@@ -112,6 +112,8 @@ export interface PlayerState {
   tacticProgress?: Record<string, TacticTier>;
   /** Enemy Hero chosen as the fugitive for Burning for Vengeance. */
   fugitiveUnit?: UnitId | null;
+  /** `round:turnIndex` of the turn in which this player last set up a further Awakened Wyldwood. */
+  wyldwoodSetUpTurn?: string;
   /** Terrain feature ID chosen as the enemy hideout for Blazing Onslaught. */
   hideoutTerrain?: string | null;
 }
@@ -232,7 +234,15 @@ export type Frame =
       units: UnitId[];
     };
 
-export type PlaceReason = MoveKind | 'charge' | 'pileIn' | 'summon' | 'powerThrough' | 'deploy';
+export type PlaceReason =
+  | MoveKind
+  | 'charge'
+  | 'pileIn'
+  | 'summon'
+  | 'powerThrough'
+  | 'deploy'
+  /** A further Awakened Wyldwood set up in the hero phase; `pass` cancels it. */
+  | 'setUp';
 export type AttackMode = 'shoot' | 'fight';
 export type FightTier = 'strikeFirst' | 'normal' | 'strikeLast';
 
@@ -484,7 +494,8 @@ export interface Violation {
     | 'PILE_IN_FURTHER'
     | 'BLOCKED'
     | 'OUTSIDE_TERRITORY'
-    | 'TOO_CLOSE_TO_ENEMY_TERRITORY';
+    | 'TOO_CLOSE_TO_ENEMY_TERRITORY'
+    | 'TOO_CLOSE';
   message: string;
   models?: number[];
 }

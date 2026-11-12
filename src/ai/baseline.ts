@@ -264,6 +264,10 @@ function placeAction(
   if (d.reason === 'deploy') {
     return { t: 'place', placement: npcDeployPlacement(engine.scenario, state, unit) };
   }
+  if (d.reason === 'setUp') {
+    // A further Awakened Wyldwood starts at a legal spot near an objective: keep it there.
+    return { t: 'place', placement: currentPlacement(unit) };
+  }
   if (d.reason === 'summon') {
     const cur = currentPlacement(unit);
     if (engine.checkPlacement(state, cur).length === 0) {
@@ -320,6 +324,11 @@ function chooseHeroAbilityAction(
         unit: unit.id,
         abilityId: summon.abilityId,
       };
+    }
+
+    // 3. Further Awakened Wyldwood (set up at the suggested spot)
+    if (abilOpts.some((o) => o.abilityId === 'awakened-wyldwood-setup')) {
+      return { t: 'ability', unit: unit.id, abilityId: 'awakened-wyldwood-setup' };
     }
 
     // 3. Place of Power

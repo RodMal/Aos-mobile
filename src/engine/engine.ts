@@ -71,6 +71,14 @@ import {
   type PlaceOfPowerBoon,
 } from './terrain.js';
 import { applyEverGrowing, resolveEndlessGrowth } from '../rules/factions/sylvaneth.js';
+import { isAwakenedWyldwood } from './overgrowth.js';
+import {
+  WYLDWOOD_SETUP_ID,
+  canSetUpWyldwood,
+  checkWyldwoodSetUp,
+  nextWyldwoodPiece,
+  suggestWyldwoodSetUp,
+} from './wyldwood.js';
 import {
   PHASES,
   type Action,
@@ -611,7 +619,36 @@ export function createEngine(scenario: Scenario): Engine {
     const d = decision(state);
     const unit = state.units[unitId];
     if (!d || !unit || unit.status !== 'battlefield' || unit.owner !== d.player) return [];
+    if (
+      d.kind === 'main' &&
+      wyldwoodHandle(state, unit) &&
+      canSetUpWyldwood(scenario, state, unit.owner)
+    ) {
+      // Not the terrain acting: the player sets up a further piece (owner, 2026-11-11).
+      const setUp: UnitOption = {
+        t: 'ability',
+        abilityId: WYLDWOOD_SETUP_ID,
+        name: 'Set up an Awakened Wyldwood',
+        kind: 'activated',
+        targets: [],
+      };
+      if (isFactionTerrainUnit(scenario, unit)) return [setUp];
+      return [...unitOptionsInner(state, unit, d), setUp];
+    }
     if (isFactionTerrainUnit(scenario, unit)) return [];
+    return unitOptionsInner(state, unit, d);
+  }
+
+  /**
+   * The unit a player taps to set up a further Wyldwood: any of their Awakened Wyldwoods on the
+   * battlefield (with none left, no further piece can be set up; see docs/RULES-DECISIONS.md).
+   */
+  function wyldwoodHandle(_state: GameState, unit: UnitState): boolean {
+    return isAwakenedWyldwood(scenario, unit);
+  }
+
+  function unitOptionsInner(state: GameState, unit: UnitState, d: Decision): UnitOption[] {
+    const unitId = unit.id;
     const top = state.stack[state.stack.length - 1];
     if (top?.t === 'magicalIntervention') {
       if (top.unit !== unitId) return [];
@@ -699,6 +736,9 @@ export function createEngine(scenario: Scenario): Engine {
     }
     if (d.reason === 'deploy') {
       return checkDeployPlacement(scenario, state, unitById(state, d.unit), placement);
+    }
+    if (d.reason === 'setUp') {
+      return checkWyldwoodSetUp(scenario, state, unitById(state, d.unit), placement);
     }
     const top = state.stack[state.stack.length - 1];
     return checkMovePlacement(scenario, state, unitById(state, d.unit), placement, {
@@ -871,6 +911,35 @@ export function createEngine(scenario: Scenario): Engine {
     }
   }
 
+  /** Hero phase: sets up a further Awakened Wyldwood at a suggested legal spot, then places it. */
+  function setUpWyldwood(ctx: Ctx, handleId: UnitId): void {
+    const { s } = ctx;
+    const handle = s.units[handleId]!;
+    if (
+      !unitOptions(s, handleId).some((o) => o.t === 'ability' && o.abilityId === WYLDWOOD_SETUP_ID)
+    ) {
+      illegal('No further Awakened Wyldwood can be set up now.');
+    }
+    const piece = nextWyldwoodPiece(scenario, s, handle.owner);
+    const spot = suggestWyldwoodSetUp(scenario, s, piece);
+    if (!spot) illegal('There is no room to set up another Awakened Wyldwood.');
+    const m = spot.models[0]!;
+    piece.models[0] = { x: m.x, y: m.y, rot: m.rot, alive: true };
+    s.units[piece.id] = piece;
+    s.unitOrder.push(piece.id);
+    s.players[handle.owner].wyldwoodSetUpTurn = `${s.round}:${s.turnIndex}`;
+    s.stack.push({ t: 'place', unit: piece.id, reason: 'setUp', allowance: 0, dice: [] });
+  }
+
+  /** Cancels a pending Wyldwood set-up: the piece is taken away and may be set up later. */
+  function cancelWyldwood(ctx: Ctx, unitId: UnitId): void {
+    const { s } = ctx;
+    const unit = s.units[unitId]!;
+    s.units = Object.fromEntries(Object.entries(s.units).filter(([id]) => id !== unitId));
+    s.unitOrder = s.unitOrder.filter((id) => id !== unitId);
+    delete s.players[unit.owner].wyldwoodSetUpTurn;
+  }
+
   function place(ctx: Ctx, placement: Placement): void {
     const { s } = ctx;
     const frame = s.stack[s.stack.length - 1];
@@ -879,7 +948,7 @@ export function createEngine(scenario: Scenario): Engine {
     if (violations.length > 0) illegal(violations[0]!.message, violations);
     const unit = s.units[frame.unit]!;
     const distance =
-      frame.reason === 'summon' || frame.reason === 'deploy'
+      frame.reason === 'summon' || frame.reason === 'deploy' || frame.reason === 'setUp'
         ? 0
         : placementDistance(unit, placement);
     for (const m of placement.models) {
@@ -912,7 +981,12 @@ export function createEngine(scenario: Scenario): Engine {
       inflictMortalDamage(ctx, unit, roll, 'Retreat');
     }
 
-    if (frame.reason !== 'summon' && frame.reason !== 'deploy' && unit.status === 'battlefield') {
+    if (
+      frame.reason !== 'summon' &&
+      frame.reason !== 'deploy' &&
+      frame.reason !== 'setUp' &&
+      unit.status === 'battlefield'
+    ) {
       fireTriggers(ctx, 'afterMove', {
         unit,
         moveKind:
@@ -992,6 +1066,7 @@ export function createEngine(scenario: Scenario): Engine {
     const options: ReactionOption[] = [];
     for (const id of new Set(allocations.map((a) => a.target))) {
       const target = s.units[id]!;
+      if (isFactionTerrainUnit(scenario, target)) continue; // terrain never acts (owner ruling)
       if (!commandBlocker(s, defender, 'allOutDefence', target)) {
         options.push({ command: 'allOutDefence', unit: id, cost: 1 });
       }
@@ -1327,11 +1402,16 @@ export function createEngine(scenario: Scenario): Engine {
    * Every action that names a unit must name a unit that exists and belongs to the player
    * who is deciding (the active player cannot act with enemy units, and vice versa).
    */
-  function requireOwnUnit(state: GameState, unitId: UnitId, player: PlayerId): UnitState {
+  function requireOwnUnit(
+    state: GameState,
+    unitId: UnitId,
+    player: PlayerId,
+    allowTerrain = false,
+  ): UnitState {
     const unit = state.units[unitId];
     if (!unit) illegal(`There is no unit "${unitId}".`);
     if (unit.owner !== player) illegal(`${unit.name} belongs to the other player.`);
-    if (isFactionTerrainUnit(scenario, unit)) {
+    if (isFactionTerrainUnit(scenario, unit) && !allowTerrain) {
       illegal(`${unit.name} is faction terrain: it cannot move, shoot, charge or fight.`);
     }
     return unit;
@@ -1345,7 +1425,12 @@ export function createEngine(scenario: Scenario): Engine {
       typeof action.unit === 'string' &&
       (d.kind === 'main' || d.kind === 'fightPick' || d.kind === 'reaction')
     ) {
-      requireOwnUnit(state, action.unit, d.player);
+      requireOwnUnit(
+        state,
+        action.unit,
+        d.player,
+        action.t === 'ability' && action.abilityId === WYLDWOOD_SETUP_ID,
+      );
     }
     const s = cloneState(state);
     const ctx: Ctx = { scenario, s, events: [], rng: new RngCursor(s.rng) };
@@ -1378,6 +1463,8 @@ export function createEngine(scenario: Scenario): Engine {
           }
         } else if (action.t === 'move') {
           declareMove(ctx, action.unit, action.kind, action.atTheDouble);
+        } else if (action.t === 'ability' && action.abilityId === WYLDWOOD_SETUP_ID) {
+          setUpWyldwood(ctx, action.unit);
         } else if (action.t === 'ability' && action.abilityId === 'place-of-power') {
           illegal('A Place of Power can only be activated at the start of a turn.');
         } else if (action.t === 'ability' && d.phase === 'hero') {
@@ -1444,7 +1531,10 @@ export function createEngine(scenario: Scenario): Engine {
         if (action.t === 'pass') {
           if (d.reason === 'deploy')
             illegal('Deployment placement is mandatory; pass is not allowed.');
-          skipPlace(ctx);
+          if (d.reason === 'setUp') {
+            s.stack.pop();
+            cancelWyldwood(ctx, d.unit);
+          } else skipPlace(ctx);
         } else if (action.t === 'place') place(ctx, action.placement);
         else if (
           action.t === 'command' &&

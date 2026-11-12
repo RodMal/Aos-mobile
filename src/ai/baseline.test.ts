@@ -26,7 +26,7 @@ describe('baseline NPC', () => {
       expect(first.kinds.has(t), t).toBe(true);
     }
     expect(play().state).toEqual(first.state);
-  });
+  }, 20_000); // two whole games; the sim suite (tests/sim) holds the speed budget
 
   it('does not consume the RNG when choosing', () => {
     const s = startGame(engine, 5);
