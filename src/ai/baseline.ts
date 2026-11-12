@@ -15,6 +15,7 @@ import {
   controlScores,
   currentPlacement,
   enemiesInCombat,
+  expectedDamage,
   opponent,
   profileOf,
   unitCentre,
@@ -27,6 +28,7 @@ import {
   type Engine,
   type GameState,
   type PlayerId,
+  type ReactionOption,
   type UnitOption,
   type UnitState,
 } from '../engine/index.js';
@@ -51,6 +53,8 @@ export function chooseAction(engine: Engine, state: GameState): Action {
     }
     case 'reaction': {
       if (d.options.length === 0) return { t: 'pass' };
+      const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
+      if (pain) return painAction(engine, state, pain);
       const unbindOpt = d.options.find((o) => o.ability === 'unbind');
       if (unbindOpt) {
         return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };
@@ -82,14 +86,70 @@ export function chooseAction(engine: Engine, state: GameState): Action {
     case 'placeOfPower': {
       const hero = state.units[d.hero]!;
       const profile = profileOf(engine.scenario, hero);
+      // Channelled Wrath only helps a Wizard or Priest in its own turn (casting and chanting
+      // happen in your hero phase); otherwise Ignite Fury, which always helps the army.
       const isCasterOrPriest = (profile.wizard ?? 0) > 0 || (profile.priest ?? 0) > 0;
-      return { t: 'choose', value: isCasterOrPriest ? 'channelled_wrath' : 'ignite_fury' };
+      const ownTurn = state.active === d.player;
+      return {
+        t: 'choose',
+        value: isCasterOrPriest && ownTurn ? 'channelled_wrath' : 'ignite_fury',
+      };
     }
     case 'alarielleSeason':
       return { t: 'choose', value: d.seasons[0]! };
+    case 'fugitive':
+      // The engine's default is the sensible pick: the enemy Hero easiest to slay.
+      return engine.defaultAction(state);
     case 'main':
       return mainAction(engine, state, d.player, d.phase) ?? { t: 'pass' };
   }
+}
+
+/**
+ * Eruption of Fury: the weapon and target with the most expected damage per attack (no crits);
+ * every die it may spend, except one when the unit has 3 or fewer wounds left (each 1 rolled
+ * costs it D3 mortal damage).
+ */
+export function eruptionAction(
+  engine: Engine,
+  state: GameState,
+  unit: UnitState,
+  option: Extract<UnitOption, { t: 'ability' }>,
+): Action {
+  const profile = profileOf(engine.scenario, unit);
+  let best: { target: string; weaponId: string; value: number } | null = null;
+  for (const w of profile.weapons.filter((x) => x.kind === 'melee')) {
+    const noCrit = { ...w, abilities: w.abilities.filter((a) => !a.t.startsWith('crit')) };
+    for (const id of option.targets) {
+      const tp = profileOf(engine.scenario, state.units[id]!);
+      const value = expectedDamage(noCrit, 1, { save: tp.save, ward: tp.ward ?? null }).total;
+      if (!best || value > best.value) best = { target: id, weaponId: w.id, value };
+    }
+  }
+  const max = option.maxRageDice ?? 1;
+  const woundsLeft = profile.health * aliveIndices(unit).length - unit.damage;
+  const rageDice = woundsLeft <= 3 ? 1 : max;
+  return {
+    t: 'ability',
+    unit: unit.id,
+    abilityId: 'eruption-of-fury',
+    rageDice,
+    ...(best ? { target: best.target, weaponId: best.weaponId } : {}),
+  };
+}
+
+/**
+ * Fight Through the Pain: spend rage dice only when the damage would slay a model (each die
+ * lowers fury, so future rage), one die per point of damage up to what is held.
+ */
+export function painAction(engine: Engine, state: GameState, option: ReactionOption): Action {
+  const unit = state.units[option.unit]!;
+  const health = profileOf(engine.scenario, unit).health;
+  const damage = option.damage ?? 0;
+  if (unit.damage + damage < health) return { t: 'pass' };
+  const rageDice = Math.min(option.maxRageDice ?? 0, damage);
+  if (rageDice < 1) return { t: 'pass' };
+  return { t: 'ability', unit: unit.id, abilityId: 'fight-through-the-pain', rageDice };
 }
 
 function points(engine: Engine, state: GameState, unitId: string): number {
@@ -342,8 +402,8 @@ function mainAction(
         const eruption = engine
           .unitOptions(state, unit.id)
           .find((o) => o.t === 'ability' && o.abilityId === 'eruption-of-fury');
-        if (eruption) {
-          return { t: 'ability', unit: unit.id, abilityId: 'eruption-of-fury' };
+        if (eruption && eruption.t === 'ability') {
+          return eruptionAction(engine, state, unit, eruption);
         }
       }
       if (cp < SPARE_CP) return null;

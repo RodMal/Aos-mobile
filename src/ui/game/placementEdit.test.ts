@@ -12,10 +12,11 @@ import {
   startDraft,
   translateDraft,
 } from './placementEdit.js';
+import { startGame } from '../../engine/test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
-const state = engine.newGame(1);
+const state = startGame(engine, 1);
 const dryads = state.units['0:6']!;
 
 describe('placement drafts', () => {

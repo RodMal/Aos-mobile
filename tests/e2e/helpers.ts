@@ -132,6 +132,60 @@ export async function startGame(page: Page, query = 'seed=5&side=0&fast=1&new=1'
   await page.goto(`./?${query}`);
   await expect(page.getByTestId('board')).toBeVisible();
   await expect(page.locator('[data-unit-id] [data-model]').first()).toBeVisible();
+  await answerPreBattle(page);
+}
+
+/**
+ * Answers the pre-battle prompts a quick-start game opens with (the Burning for Vengeance
+ * fugitive, the first-turn choice) with their first option and declines the optional Place of
+ * Power, so a test starts in the hero phase.
+ */
+export async function answerPreBattle(page: Page): Promise<void> {
+  // Answer prompts until the player's own hero phase shows (the opponent's own start-of-turn
+  // choice comes in between, from the worker). In a game where the opponent goes first this
+  // gives up after a few seconds and leaves the rest to the test.
+  for (let i = 0; i < 60; i++) {
+    if (await answerStartPrompt(page)) continue;
+    if (await usable(page.getByTestId('end-phase'))) break;
+    await page.waitForTimeout(100);
+  }
+  // Those answers leave a toast that would catch the next tap on the board; let it go first.
+  await expect(page.getByTestId('toast')).toHaveCount(0, { timeout: 6000 });
+}
+
+/**
+ * While the opponent plays: answers a start-of-turn prompt, skips a reaction or takes the
+ * damage instead of Fight Through the Pain. True when it answered something.
+ */
+export async function answerOpponentTurnPrompt(page: Page): Promise<boolean> {
+  if (await answerStartPrompt(page)) return true;
+  for (const l of [
+    page.getByRole('button', { name: 'Skip', exact: true }),
+    page.getByTestId('pain-skip'),
+  ]) {
+    if (await usable(l)) {
+      await l.click();
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Answers one pre-battle or start-of-turn prompt if one is showing (the fugitive pick, the
+ * first-turn choice, the optional Place of Power, declined). True when it answered one.
+ */
+export async function answerStartPrompt(page: Page): Promise<boolean> {
+  const fugitive = page.locator('[data-fugitive]').first();
+  const first = page.getByRole('button', { name: 'Take first turn' });
+  const power = page.getByTestId('place-of-power').getByRole('button', { name: 'Pass' });
+  for (const l of [fugitive, first, power]) {
+    if (await usable(l)) {
+      await l.click();
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -184,14 +238,20 @@ export const usable = async (l: Locator): Promise<boolean> =>
   (await l.isVisible().catch(() => false)) && (await l.isEnabled().catch(() => false));
 
 /**
- * One step of a minimal player: ends its own phases, answers the priority roll, skips
- * reactions, and fights back when it must. Returns what it clicked, or null if nothing applied.
+ * One step of a minimal player: ends its own phases, answers the priority roll and the fugitive
+ * pick, skips reactions (taking the damage instead of Fight Through the Pain), and fights back when it must. Returns what it clicked, or null if nothing applied.
  */
 export async function minimalPlayerStep(page: Page): Promise<string | null> {
   const controls: [string, Locator][] = [
     ['confirm', page.getByTestId('confirm-ok')],
     ['priority', page.getByRole('button', { name: 'Take first turn' })],
+    ['fugitive', page.locator('[data-fugitive]').first()],
     ['skip reaction', page.getByRole('button', { name: 'Skip', exact: true })],
+    ['take the damage', page.getByTestId('pain-skip')],
+    [
+      'pass place of power',
+      page.getByTestId('place-of-power').getByRole('button', { name: 'Pass' }),
+    ],
     ['roll', page.getByTestId('roll-attacks')],
     ['confirm placement', page.getByTestId('place-confirm')],
     ['cancel placement', page.getByTestId('place-cancel')],

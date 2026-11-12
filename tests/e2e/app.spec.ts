@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
+  answerPreBattle,
+  answerOpponentTurnPrompt,
   ahead,
   boardPoint,
   boardScale,
@@ -136,11 +138,21 @@ test('passing every phase reaches battle round 2', async ({ page }) => {
   }
   // The opponent plays its turn on its own; round 2 then starts with a priority roll, so
   // either player may have the first turn.
-  await expect(page.getByTestId('round')).toContainText('Round 2', { timeout: 30_000 });
+  // The player may be offered a Place of Power or a reaction in the opponent's turn: decline.
+  await expect
+    .poll(
+      async () => {
+        await answerOpponentTurnPrompt(page);
+        return page.getByTestId('round').textContent();
+      },
+      { timeout: 30_000 },
+    )
+    .toContain('Round 2');
 });
 
 test('reloading the page resumes the same game', async ({ page }) => {
   await page.goto('./?seed=11&side=0&fast=1');
+  await answerPreBattle(page);
   await endPhaseUntil(page, /Movement/);
   await selectFromRoster(page, '0:7');
   await page.locator('[data-action="normal"]').click();
@@ -162,7 +174,15 @@ test('playing as Seraphon puts their army at the bottom', async ({ page }) => {
   const theirs = await modelCentre(page, '0:6', 0);
   expect(ours.y).toBeGreaterThan(theirs.y);
   // The opponent (Sylvaneth) takes the first turn and passes it to us.
-  await expect(page.getByTestId('turn')).toHaveText('Your turn', { timeout: 10_000 });
+  await expect
+    .poll(
+      async () => {
+        await answerOpponentTurnPrompt(page);
+        return page.getByTestId('turn').textContent();
+      },
+      { timeout: 10_000 },
+    )
+    .toBe('Your turn');
 });
 
 test('undo reverts a move that rolled no dice', async ({ page }) => {

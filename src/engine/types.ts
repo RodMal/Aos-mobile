@@ -172,6 +172,17 @@ export type Frame =
       coveringFire?: boolean;
     }
   /**
+   * Attack damage rolled and waiting to be allocated, one entry per target unit, kept under a
+   * Fight Through the Pain `reaction` frame while the target's owner decides on rage dice.
+   * Never the top frame when a decision is asked for.
+   */
+  | {
+      t: 'allocate';
+      attacker: UnitId;
+      mode: AttackMode;
+      pending: { target: UnitId; amount: number }[];
+    }
+  /**
    * A spell that met its casting value and is waiting under an Unbind `reaction` frame.
    */
   | {
@@ -210,6 +221,15 @@ export type Frame =
       t: 'alarielleSeason';
       player: PlayerId;
       unit: UnitId;
+    }
+  /**
+   * Start of the battle, before the first turn is decided: a player with Burning for Vengeance
+   * picks an enemy Hero (on the battlefield or in reserve) to be the fugitive.
+   */
+  | {
+      t: 'fugitive';
+      player: PlayerId;
+      units: UnitId[];
     };
 
 export type PlaceReason = MoveKind | 'charge' | 'pileIn' | 'summon' | 'powerThrough' | 'deploy';
@@ -265,6 +285,8 @@ export interface GameState {
   overgrown?: [string[], string[]];
   /** Terrain feature IDs whose Place of Power ability has been used in the current turn. */
   usedPlacesOfPower?: string[];
+  /** Players who have activated a Place of Power this turn (once per turn per army). */
+  placeOfPowerUsedBy?: PlayerId[];
   /** Objective controllers recorded at the start of the current turn (for Battle Tactics). */
   turnStartObjectives?: Record<string, PlayerId | null>;
   /** Unit IDs that were in combat at the start of the current turn (for Daring Rescue). */
@@ -317,7 +339,9 @@ export type Decision =
       player: PlayerId;
       unit: UnitId;
       seasons: ('burgeoning' | 'reaping' | 'dwindling' | 'everdusk')[];
-    };
+    }
+  /** Burning for Vengeance: pick the enemy fugitive (answer with `choose` and a unit ID). */
+  | { kind: 'fugitive'; player: PlayerId; units: UnitId[] };
 
 export type DecisionKind = Decision['kind'];
 
@@ -335,9 +359,17 @@ export type CommandId =
 
 export interface ReactionOption {
   command?: CommandId;
-  ability?: 'unbind';
+  /**
+   * `fightThroughThePain`: answer with `{ t: 'ability', unit, abilityId: 'fight-through-the-pain',
+   * rageDice }`, or pass to take all the damage.
+   */
+  ability?: 'unbind' | 'fightThroughThePain';
   unit: UnitId;
   cost: number;
+  /** Fight Through the Pain: the damage points about to be allocated to `unit`. */
+  damage?: number;
+  /** Fight Through the Pain: the most rage dice that may be spent. */
+  maxRageDice?: number;
 }
 
 // ─── Actions ────────────────────────────────────────────────────────────────────
@@ -357,7 +389,7 @@ export interface Allocation {
 export type Action =
   /** End the phase, decline a reaction, skip a pile-in, or leave a unit in place. */
   | { t: 'pass' }
-  /** Answer a choice: priority takes 'first' or 'second'. */
+  /** Answer a choice: priority takes 'first' or 'second'; a fugitive pick takes a unit ID. */
   | { t: 'choose'; value: string }
   /** Declare a move. Run rolls a D6 and retreat rolls its damage; then a `place` follows. */
   | {
@@ -392,6 +424,10 @@ export type Action =
       target?: UnitId;
       secondTarget?: UnitId;
       choice?: string;
+      /** Eruption of Fury: rage dice to spend, 1 up to `UnitOption.maxRageDice` (default: the maximum). */
+      rageDice?: number;
+      /** Eruption of Fury: the melee weapon to attack with (default: the first one). */
+      weaponId?: string;
     };
 
 export type AbilityOptionKind = 'spell' | 'prayer' | 'summon' | 'banish' | 'activated';
@@ -415,6 +451,10 @@ export type UnitOption =
       kind: AbilityOptionKind;
       targetValue?: number;
       targets: UnitId[];
+      /** Eruption of Fury: the most rage dice that may be spent now. */
+      maxRageDice?: number;
+      /** Eruption of Fury: the melee weapons the unit may attack with. */
+      weapons?: { id: string; name: string }[];
     };
 
 /** The legal targets of one weapon, for a `shoot` action or a `targets` decision. */

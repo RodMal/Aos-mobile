@@ -2,9 +2,9 @@
  * Using a spell, prayer, summon, ability or targeted command: what it is, its full printed
  * text, the legal targets (tap one here or on the board), and one button that rolls.
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { COMMANDS } from '../../engine/index.js';
-import { optionLabel, runOption } from '../game/actions.js';
+import { dispatch, optionLabel, runOption } from '../game/actions.js';
 import { findAbility } from '../game/engine.js';
 import { COMMAND_NAMES } from '../game/eventText.js';
 import { useGameState, useHumanDecision } from '../game/hooks.js';
@@ -48,6 +48,21 @@ export function AbilityPanel() {
   useEffect(() => {
     if (frameKey && sheetHeight > 0) moveCamera({ kind: 'frame', units: frameKey.split('|') });
   }, [frameKey, sheetHeight, moveCamera]);
+  // Eruption of Fury: rage dice to spend and the melee weapon (null = the maximum / the first).
+  // The choice is kept with the pick it was made for, so a new pick starts from the defaults.
+  const pickKey = pick
+    ? `${pick.unit}|${pick.option.t === 'ability' ? pick.option.abilityId : ''}`
+    : '';
+  const [choice, setChoice] = useState<{
+    key: string;
+    rage: number | null;
+    weaponId: string | null;
+  }>({ key: '', rage: null, weaponId: null });
+  const current = choice.key === pickKey ? choice : { key: pickKey, rage: null, weaponId: null };
+  const rage = current.rage;
+  const weaponId = current.weaponId;
+  const setRage = (n: number) => setChoice({ ...current, rage: n });
+  const setWeaponId = (id: string) => setChoice({ ...current, weaponId: id });
   if (!pick || stale) return null;
   const unit = state.units[pick.unit];
   if (!unit) return null;
@@ -66,9 +81,26 @@ export function AbilityPanel() {
     return `${name} ${same.indexOf(id) + 1}`;
   };
 
+  const maxRage = option.t === 'ability' ? (option.maxRageDice ?? 0) : 0;
+  const weapons = option.t === 'ability' ? (option.weapons ?? []) : [];
+  const eruption = option.t === 'ability' && maxRage > 0;
+  const dice = Math.min(rage ?? maxRage, maxRage);
+  const weapon = weaponId ?? weapons[0]?.id;
+
   const confirm = () => {
     if (needsTarget && !pick.target) return;
-    runOption(pick.unit, option, pick.target ?? undefined);
+    if (eruption && option.t === 'ability') {
+      dispatch({
+        t: 'ability',
+        unit: pick.unit,
+        abilityId: option.abilityId,
+        target: pick.target ?? targets[0],
+        rageDice: dice,
+        ...(weapon ? { weaponId: weapon } : {}),
+      });
+    } else {
+      runOption(pick.unit, option, pick.target ?? undefined);
+    }
     setPick(null);
   };
 
@@ -87,6 +119,13 @@ export function AbilityPanel() {
       <div className="ability-text">
         {ability ? (
           <AbilityView ability={ability} />
+        ) : eruption ? (
+          <p>
+            <strong>Eruption of Fury.</strong> Spend 1 to {maxRage} rage dice: one combat attack per
+            die with the chosen melee weapon, no critical hits. Each unmodified 6 inflicts D3 mortal
+            damage on every enemy unit in combat with this unit and raises the opponent&apos;s fury;
+            each unmodified 1 inflicts D3 mortal damage on this unit.
+          </p>
         ) : option.t === 'command' ? (
           <p>
             <strong>{COMMAND_NAMES[option.command]}.</strong> {COMMANDS[option.command].effect}
@@ -118,6 +157,49 @@ export function AbilityPanel() {
             ))}
           </div>
         </>
+      )}
+      {eruption && (
+        <div className="rage-choice" data-testid="rage-choice">
+          <div className="stepper" role="group" aria-label="Rage dice">
+            <span className="stepper-label">Rage dice</span>
+            <button
+              className="btn"
+              aria-label="Fewer rage dice"
+              disabled={dice <= 1}
+              onClick={() => setRage(Math.max(1, dice - 1))}
+            >
+              −
+            </button>
+            <span className="stepper-value" data-testid="rage-dice">
+              {dice}
+            </span>
+            <button
+              className="btn"
+              aria-label="More rage dice"
+              disabled={dice >= maxRage}
+              onClick={() => setRage(Math.min(maxRage, dice + 1))}
+            >
+              +
+            </button>
+            <span className="muted small">of {maxRage}</span>
+          </div>
+          {weapons.length > 1 && (
+            <div className="ready" role="radiogroup" aria-label="Weapon" data-testid="rage-weapons">
+              {weapons.map((w) => (
+                <button
+                  key={w.id}
+                  role="radio"
+                  aria-checked={weapon === w.id}
+                  className={`chip ${weapon === w.id ? 'chosen' : ''}`}
+                  data-weapon={w.id}
+                  onClick={() => setWeaponId(w.id)}
+                >
+                  {w.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
       <div className="confirm-row">
         <button className="btn" onClick={() => setPick(null)} data-testid="ability-cancel">

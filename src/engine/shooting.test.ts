@@ -8,7 +8,7 @@ import {
   type Action,
   type GameState,
 } from './index.js';
-import { editable, keepOnly, passTo, placeUnit } from './test-helpers.js';
+import { editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
@@ -19,7 +19,7 @@ const SAURUS = '1:1';
 
 /** Player `active`'s shooting phase with Durthu, Dryads, Skinks and Saurus Guard set up. */
 function arena(active: 0 | 1 = 0): GameState {
-  const s = editable(engine.newGame(1));
+  const s = editable(startGame(engine, 1));
   s.active = active;
   s.firstPlayer = active;
   keepOnly(s, [DURTHU, DRYADS, SKINKS, SAURUS]);
@@ -27,6 +27,9 @@ function arena(active: 0 | 1 = 0): GameState {
   placeUnit(scenario, s, DRYADS, 10, 35);
   placeUnit(scenario, s, SKINKS, 34, 22, 270);
   placeUnit(scenario, s, SAURUS, 50, 40);
+  // No Fight Through the Pain prompts (src/engine/fury-pain.test.ts covers them).
+  s.players[0].rageDice = 0;
+  s.players[1].rageDice = 0;
   return passTo(engine, s, 'shooting');
 }
 

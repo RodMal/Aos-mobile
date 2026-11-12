@@ -7,7 +7,7 @@ import {
   type Action,
   type GameState,
 } from './index.js';
-import { applyUntil, editable, keepOnly, passTo, placeUnit } from './test-helpers.js';
+import { applyUntil, editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
@@ -17,12 +17,15 @@ const DRYADS_2 = '0:7';
 const SKINKS = '1:7';
 
 function arena(): GameState {
-  const s = editable(engine.newGame(1));
+  const s = editable(startGame(engine, 1));
   keepOnly(s, [DURTHU, DRYADS, DRYADS_2, SKINKS]);
   placeUnit(scenario, s, DURTHU, 20, 22);
   placeUnit(scenario, s, DRYADS, 10, 35);
   placeUnit(scenario, s, DRYADS_2, 10, 10);
   placeUnit(scenario, s, SKINKS, 34, 22, 270);
+  // No Fight Through the Pain prompts (src/engine/fury-pain.test.ts covers them).
+  s.players[0].rageDice = 0;
+  s.players[1].rageDice = 0;
   return s;
 }
 

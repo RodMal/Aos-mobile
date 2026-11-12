@@ -261,8 +261,9 @@ export function controlsTerrain(
 // ─── Initialisation & per-turn tracking ────────────────────────────────────────
 
 /**
- * Sets initial `tacticProgress` ('affray' for each chosen card) and pre-game nominations
- * (`fugitiveUnit` for Burning for Vengeance, `hideoutTerrain` for Blazing Onslaught).
+ * Sets initial `tacticProgress` ('affray' for each chosen card) and the Blazing Onslaught
+ * `hideoutTerrain`. The Burning for Vengeance fugitive is the player's choice: see
+ * `needsFugitive` and the engine's `fugitive` decision.
  */
 export function initBattleTactics(scenario: Scenario, state: GameState): void {
   for (const p of [0, 1] as PlayerId[]) {
@@ -271,17 +272,6 @@ export function initBattleTactics(scenario: Scenario, state: GameState): void {
     pState.tacticProgress ??= {};
     for (const card of cards) {
       pState.tacticProgress[card.id] ??= 'affray';
-    }
-
-    if (cards.some((c) => c.id === BURNING_FOR_VENGEANCE_ID) && !pState.fugitiveUnit) {
-      const opp = opponent(p);
-      const enemyUnits = Object.values(state.units).filter(
-        (u) => u.owner === opp && !u.isManifestation && hasKeyword(scenario, u, 'HERO'),
-      );
-      const general = enemyUnits.find(
-        (u) => scenario.armies[opp].units[u.armyIndex]?.general === true,
-      );
-      pState.fugitiveUnit = (general ?? enemyUnits[0])?.id ?? null;
     }
 
     if (cards.some((c) => c.id === BLAZING_ONSLAUGHT_ID) && !pState.hideoutTerrain) {
@@ -294,6 +284,61 @@ export function initBattleTactics(scenario: Scenario, state: GameState): void {
       pState.hideoutTerrain = (terrainInEnemy ?? scenario.battlefield.terrain[0])?.id ?? null;
     }
   }
+}
+
+/** True when `player` has Burning for Vengeance and has not picked the fugitive yet. */
+export function needsFugitive(scenario: Scenario, state: GameState, player: PlayerId): boolean {
+  return (
+    scenario.armies[player].tacticCards.some((c) => c.id === BURNING_FOR_VENGEANCE_ID) &&
+    state.players[player].fugitiveUnit == null &&
+    fugitiveCandidates(scenario, state, player).length > 0
+  );
+}
+
+/** Enemy Heroes on the battlefield or in reserve that `player` may pick as the fugitive. */
+export function fugitiveCandidates(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+): UnitId[] {
+  const opp = opponent(player);
+  return state.unitOrder.filter((id) => {
+    const u = state.units[id]!;
+    return (
+      u.owner === opp &&
+      u.status !== 'destroyed' &&
+      !profileOf(scenario, u).isManifestation &&
+      !profileOf(scenario, u).isFactionTerrain &&
+      hasKeyword(scenario, u, 'HERO')
+    );
+  });
+}
+
+/**
+ * A sensible fugitive: the candidate with the fewest effective wounds (wounds left divided by
+ * the chance of failing its save), so it is easiest to hunt down, or to slay, which completes
+ * Quick Pursuit outright.
+ */
+export function suggestFugitive(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+): UnitId | null {
+  let best: UnitId | null = null;
+  let bestScore = Infinity;
+  for (const id of fugitiveCandidates(scenario, state, player)) {
+    const u = state.units[id]!;
+    const profile = profileOf(scenario, u);
+    const wounds = profile.health * aliveIndices(u).length - u.damage;
+    // Effective wounds: wounds divided by the chance an attack gets through the save.
+    const failSave = (Math.min(7, Math.max(2, profile.save)) - 1) / 6;
+    const score = wounds / failSave;
+    if (score < bestScore) {
+      bestScore = score;
+      best = id;
+    }
+  }
+  return best;
 }
 
 /**

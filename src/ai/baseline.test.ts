@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import { createEngine, createScenario, unitCentre, type GameState } from '../engine/index.js';
-import { editable, keepOnly, passTo, placeUnit } from '../engine/test-helpers.js';
+import { editable, keepOnly, passTo, placeUnit, startGame } from '../engine/test-helpers.js';
 import { chooseAction, isRanged } from './baseline.js';
 import { moveTowards } from './placement.js';
 
@@ -11,7 +11,7 @@ const engine = createEngine(scenario);
 describe('baseline NPC', () => {
   it('plays a whole game with legal actions, deterministically', () => {
     const play = (): { state: GameState; kinds: Set<string> } => {
-      let s = engine.newGame(21);
+      let s = startGame(engine, 21);
       const kinds = new Set<string>();
       for (let i = 0; i < 5000 && engine.decision(s); i++) {
         const a = chooseAction(engine, s);
@@ -29,14 +29,14 @@ describe('baseline NPC', () => {
   });
 
   it('does not consume the RNG when choosing', () => {
-    const s = engine.newGame(5);
+    const s = startGame(engine, 5);
     const copy = JSON.parse(JSON.stringify(s)) as GameState;
     chooseAction(engine, s);
     expect(s).toEqual(copy);
   });
 
   it('takes the first turn unless behind on VP', () => {
-    let s = engine.newGame(2);
+    let s = startGame(engine, 2);
     while (engine.decision(s)?.kind !== 'priority')
       s = engine.apply(s, engine.defaultAction(s)).state;
     const d = engine.decision(s)!;
@@ -49,7 +49,7 @@ describe('baseline NPC', () => {
   });
 
   it('shoots with each weapon at the target with the best expected damage', () => {
-    const s = editable(engine.newGame(1));
+    const s = editable(startGame(engine, 1));
     keepOnly(s, ['0:2', '1:7', '1:1']);
     placeUnit(scenario, s, '0:2', 20, 22);
     placeUnit(scenario, s, '1:7', 33, 22, 270);
@@ -64,7 +64,7 @@ describe('baseline NPC', () => {
   });
 
   it('knows ranged units from melee units', () => {
-    const s = engine.newGame(1);
+    const s = startGame(engine, 1);
     expect(isRanged(engine, s.units['1:7']!)).toBe(true); // Skinks
     expect(isRanged(engine, s.units['0:6']!)).toBe(false); // Dryads
   });
@@ -72,7 +72,7 @@ describe('baseline NPC', () => {
 
 describe('placement builders', () => {
   it('moveTowards returns a legal placement that gets closer, or null', () => {
-    const s = passTo(engine, engine.newGame(1), 'movement');
+    const s = passTo(engine, startGame(engine, 1), 'movement');
     const declared = engine.apply(s, { t: 'move', unit: '0:6', kind: 'normal' }).state;
     const target = { x: 30, y: 22 };
     const p = moveTowards(engine, declared, '0:6', target)!;

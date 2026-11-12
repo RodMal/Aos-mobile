@@ -3,7 +3,16 @@ import { SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists
 import { effectsOnUnit } from './abilities/effects.js';
 import type { Ctx } from './ctx.js';
 import { cloneState } from './engine.js';
-import { createEngine, createScenario, formPlacement, unitsOf } from './index.js';
+import { chooseAction } from '../ai/baseline.js';
+import { eligibleUnbinders, magicOptionsForUnit } from './abilities/magic.js';
+import {
+  createEngine,
+  createScenario,
+  formPlacement,
+  profileOf,
+  unitsOf,
+  type GameState,
+} from './index.js';
 import { RngCursor } from './rng.js';
 import {
   canUsePlaceOfPower,
@@ -25,6 +34,7 @@ import {
   unitWithinTerrain,
   unstableTerrainViolations,
 } from './terrain.js';
+import { applyUntil, startGame } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
@@ -48,7 +58,7 @@ describe('terrain distance & overlap helpers', () => {
       true,
     );
 
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const warsong = unitsOf(state, 0).find((u) => u.name === 'Warsong Revenant')!;
     warsong.models[0]!.x = 15;
     warsong.models[0]!.y = 4.5;
@@ -59,7 +69,7 @@ describe('terrain distance & overlap helpers', () => {
 
 describe('unstable terrain', () => {
   it('flags models ending a placement on unstable terrain (ruin-nw)', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const dryads = unitsOf(state, 0).find((u) => u.name === 'Dryads')!;
     const ruinNw = findTerrain('ruin-nw'); // (15, 4.5)
 
@@ -76,7 +86,7 @@ describe('unstable terrain', () => {
 
 describe('fly and path-blocking', () => {
   it('blocks non-FLY models moving across another unit, while FLY models ignore it, and allows crossing unstable terrain', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const spites = unitsOf(state, 0).find((u) => u.name === 'Spite-Revenants')!;
     spites.models.forEach((m, idx) => {
       m.alive = idx === 0;
@@ -138,7 +148,7 @@ describe('fly and path-blocking', () => {
 
 describe('line of sight and obscuring terrain', () => {
   it('hides non-Monster/non-Fly units behind or within 1" of spire-w and halves their weapon range, while MONSTER and FLY remain visible', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const spireW = findTerrain('spire-w'); // centre (7, 28), 5x5 -> x: 4.5..9.5, y: 25.5..30.5
     expect(segmentCrossesPolygon([2, 28], [13, 28], spireW.polygon)).toBe(true);
     expect(segmentCrossesPolygon([2, 20], [13, 20], spireW.polygon)).toBe(false);
@@ -194,7 +204,7 @@ describe('line of sight and obscuring terrain', () => {
 
 describe('cover', () => {
   it('grants cover to units wholly within 1" or behind cover terrain unless they charged or have FLY', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const outcropW = findTerrain('outcrop-w'); // centre (22, 17)
     const attacker = unitsOf(state, 1).find((u) => u.name === 'Spawn of Chotec')!;
     const spites = unitsOf(state, 0).find((u) => u.name === 'Spite-Revenants')!;
@@ -234,7 +244,7 @@ describe('cover', () => {
 
 describe('guarded hero', () => {
   it('identifies a Hero (Health <= 10, non-Monster) within 3" of a 3+ model non-Hero friendly unit and sets infantry flag', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const warsong = unitsOf(state, 0).find((u) => u.name === 'Warsong Revenant')!; // INFANTRY HERO, health 7
     const dryads = unitsOf(state, 0).find((u) => u.name === 'Dryads')!; // 10 models
     const durthu = unitsOf(state, 0).find((u) => u.name === 'Spirit of Durthu')!; // MONSTER HERO, health 14
@@ -288,7 +298,7 @@ describe('guarded hero', () => {
 
 describe('terrain control', () => {
   it('computes the controlling player from models within 3" of a terrain feature', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const outcropW = findTerrain('outcrop-w'); // (22, 17)
     for (const id of state.unitOrder) {
       const u = state.units[id]!;
@@ -306,82 +316,192 @@ describe('terrain control', () => {
   });
 });
 
-describe('Place of Power', () => {
-  it('grants +1 cast/chant/unbind/banish effect and inflicts D3 mortal damage on a 1D6 roll of 1', () => {
-    const spireW = findTerrain('spire-w'); // (7, 28)
+describe('Place of Power (owner ruling, 2026-11-11)', () => {
+  const spireW = findTerrain('spire-w'); // (7, 28), player 0's side
+  const spireE = findTerrain('spire-e'); // (53, 17)
 
-    // Find a seed where rng.int(1, 6) rolls > 1 and a seed where it rolls 1
-    let seedSuccess = 1;
-    while (new RngCursor(seedSuccess).int(1, 6) === 1) seedSuccess++;
-    let seedBackfire = 1;
-    while (new RngCursor(seedBackfire).int(1, 6) !== 1) seedBackfire++;
-
-    // Case 1: Roll >= 2 (no mortal damage, effect added)
-    const stateOk = cloneState(engine.newGame(1));
-    for (const id of stateOk.unitOrder) {
-      const u = stateOk.units[id]!;
-      for (const m of u.models) {
-        m.x = 50;
-        m.y = u.owner === 0 ? 5 : 39;
-      }
+  /** Every unit far away, then one hero of each army next to a spire. */
+  function heroesAtSpires() {
+    const s = cloneState(startGame(engine, 1));
+    for (const id of s.unitOrder) {
+      const u = s.units[id]!;
+      u.models.forEach((m, i) => {
+        m.x = 20 + (i % 10) * 2;
+        m.y = u.owner === 0 ? 3 + Math.floor(i / 10) * 2 : 41 - Math.floor(i / 10) * 2;
+      });
+      // Spread units out so they do not overlap each other.
+      u.models.forEach((m) => (m.x += u.armyIndex * 0.01));
     }
-    const warsongOk = unitsOf(stateOk, 0).find((u) => u.name === 'Warsong Revenant')!;
-    warsongOk.models[0]!.x = spireW.centre[0];
-    warsongOk.models[0]!.y = spireW.centre[1] - 3; // within 3" of spire-w
-
-    expect(canUsePlaceOfPower(scenario, stateOk, warsongOk)?.id).toBe('spire-w');
-
-    const ctxOk: Ctx = {
-      scenario,
-      s: stateOk,
-      events: [],
-      rng: new RngCursor(seedSuccess),
-    };
-    resolvePlaceOfPower(ctxOk, warsongOk);
-
-    expect(stateOk.usedPlacesOfPower).toContain('spire-w');
-    expect(warsongOk.abilitiesUsed).toContain(PLACE_OF_POWER_ID);
-    expect(canUsePlaceOfPower(scenario, stateOk, warsongOk)).toBeNull();
-    expect(warsongOk.damage).toBe(0);
-
-    const effs = effectsOnUnit(stateOk, warsongOk.id);
-    expect(effs).toHaveLength(1);
-    expect(effs[0]!.data).toMatchObject({
-      boon: 'channelled_wrath',
-      castBonus: 1,
-      chantBonus: 1,
+    const warsong = unitsOf(s, 0).find((u) => u.name === 'Warsong Revenant')!;
+    warsong.models[0]!.x = spireW.centre[0];
+    warsong.models[0]!.y = spireW.centre[1] - 4;
+    const enemyHero = unitsOf(s, 1).find((u) => profileOf(scenario, u).isHero)!;
+    enemyHero.models.forEach((m) => {
+      m.x = spireE.centre[0];
+      m.y = spireE.centre[1] + 4;
     });
+    return { s, warsong, enemyHero };
+  }
 
-    // Case 2: Roll === 1 (inflicts D3 mortal damage)
-    const stateFail = cloneState(engine.newGame(1));
-    for (const id of stateFail.unitOrder) {
-      const u = stateFail.units[id]!;
-      for (const m of u.models) {
-        m.x = 50;
-        m.y = u.owner === 0 ? 5 : 39;
-      }
+  /** Passes every decision until the next turn starts. */
+  function toNextTurn(s0: GameState): GameState {
+    let s = s0;
+    const turn = `${s.round}:${s.turnIndex}`;
+    while (`${s.round}:${s.turnIndex}` === turn) {
+      const d = engine.decision(s)!;
+      s = engine.apply(s, d.kind === 'priority' ? engine.defaultAction(s) : { t: 'pass' }).state;
     }
-    const warsongFail = unitsOf(stateFail, 0).find((u) => u.name === 'Warsong Revenant')!;
-    warsongFail.models[0]!.x = spireW.centre[0];
-    warsongFail.models[0]!.y = spireW.centre[1] - 3;
+    return s;
+  }
 
-    const expectedRng = new RngCursor(seedBackfire);
-    expect(expectedRng.int(1, 6)).toBe(1);
-    const expectedDmg = expectedRng.int(1, 3);
+  it('is offered at the start of each turn to both players, the active player first', () => {
+    const { s, warsong, enemyHero } = heroesAtSpires();
+    const next = toNextTurn(s);
+    expect(next.active).toBe(1);
+    expect(engine.decision(next)).toMatchObject({
+      kind: 'placeOfPower',
+      player: 1,
+      hero: enemyHero.id,
+    });
+    const after = engine.apply(next, { t: 'pass' }).state;
+    expect(engine.decision(after)).toMatchObject({
+      kind: 'placeOfPower',
+      player: 0,
+      hero: warsong.id,
+    });
+    expect(engine.decision(engine.apply(after, { t: 'pass' }).state)).toMatchObject({
+      kind: 'main',
+      phase: 'hero',
+    });
+  });
 
-    const ctxFail: Ctx = {
-      scenario,
-      s: stateFail,
-      events: [],
-      rng: new RngCursor(seedBackfire),
-    };
-    resolvePlaceOfPower(ctxFail, warsongFail);
+  it('is once per turn per army, needs no control, and is not offered in the hero phase', () => {
+    const { s, warsong } = heroesAtSpires();
+    // An enemy unit contesting the spire does not matter.
+    const ctx: Ctx = { scenario, s, events: [], rng: new RngCursor(5) };
+    expect(canUsePlaceOfPower(scenario, s, warsong)?.id).toBe('spire-w');
+    resolvePlaceOfPower(ctx, warsong, 'ignite_fury');
+    const alarielle = unitsOf(s, 0).find((u) => u.name === 'Alarielle the Everqueen')!;
+    alarielle.models[0]!.x = spireW.centre[0] + 4;
+    alarielle.models[0]!.y = spireW.centre[1];
+    expect(canUsePlaceOfPower(scenario, s, alarielle)).toBeNull();
+    // Not usable as a hero-phase action.
+    const hero = passToPhase(cloneState(startGame(engine, 1)), 'hero');
+    expect(() =>
+      engine.apply(hero, {
+        t: 'ability',
+        unit: warsong.id,
+        abilityId: PLACE_OF_POWER_ID,
+      }),
+    ).toThrow(/start of a turn/);
+  });
 
-    expect(warsongFail.damage).toBe(expectedDmg);
+  it('the default declines; the NPC picks a boon that helps that hero', () => {
+    const { s, warsong } = heroesAtSpires();
+    s.stack.push({ t: 'placeOfPower', player: 0, hero: warsong.id, terrain: spireW.id });
+    expect(engine.decision(s)).toMatchObject({ kind: 'placeOfPower', player: 0 });
+    expect(engine.defaultAction(s)).toEqual({ t: 'pass' });
+    // A Priest in its own turn chants: Channelled Wrath. In the enemy turn it cannot.
+    s.active = 0;
+    expect(chooseAction(engine, s)).toEqual({ t: 'choose', value: 'channelled_wrath' });
+    s.active = 1;
+    expect(chooseAction(engine, s)).toEqual({ t: 'choose', value: 'ignite_fury' });
+    // A hero that is neither Wizard nor Priest never takes Channelled Wrath.
+    const plain = unitsOf(s, 0).find((u) => {
+      const p = profileOf(scenario, u);
+      return p.isHero && !(p.wizard ?? 0) && !(p.priest ?? 0);
+    });
+    if (plain) {
+      s.active = 0;
+      s.stack[s.stack.length - 1] = {
+        t: 'placeOfPower',
+        player: 0,
+        hero: plain.id,
+        terrain: spireW.id,
+      };
+      expect(chooseAction(engine, s)).toEqual({ t: 'choose', value: 'ignite_fury' });
+    }
+  });
+
+  it('backfires on a 1 with D3 mortal damage, which wards can stop', () => {
+    let seed = 1;
+    while (new RngCursor(seed).int(1, 6) !== 1) seed++;
+    const { s, warsong } = heroesAtSpires();
+    const ctx: Ctx = { scenario, s, events: [], rng: new RngCursor(seed) };
+    resolvePlaceOfPower(ctx, warsong, 'channelled_wrath');
     expect(
-      ctxFail.events.some(
-        (e) => e.t === 'damage' && e.unit === warsongFail.id && e.amount === expectedDmg,
-      ),
+      ctx.events.some((e) => e.t === 'roll' && e.label.startsWith('Place of Power backfire')),
     ).toBe(true);
+    expect(ctx.events.some((e) => e.t === 'damage' && e.unit === warsong.id)).toBe(true);
+    expect(effectsOnUnit(s, warsong.id)).toHaveLength(0);
+  });
+
+  it('Channelled Wrath adds 1 to the chanting roll; Dizzying Rage lets a non-wizard unbind', () => {
+    let seed = 1;
+    while (new RngCursor(seed).int(1, 6) === 1) seed++;
+    const { s, warsong, enemyHero } = heroesAtSpires();
+    resolvePlaceOfPower(
+      { scenario, s, events: [], rng: new RngCursor(seed) },
+      warsong,
+      'channelled_wrath',
+    );
+    // An enemy unit in spell range.
+    const foe = unitsOf(s, 1).find((u) => u.id !== enemyHero.id && u.armyIndex >= 0)!;
+    foe.models.forEach((m, i) => {
+      m.x = warsong.models[0]!.x + 8 + (i % 5) * 1.3;
+      m.y = warsong.models[0]!.y + Math.floor(i / 5) * 1.3;
+    });
+    // The Warsong Revenant is a priest: its chanting roll gets the +1.
+    const prayer = magicOptionsForUnit(scenario, s, warsong).find(
+      (o) => o.t === 'ability' && o.kind === 'prayer',
+    );
+    if (prayer?.t !== 'ability') throw new Error('no prayer');
+    const chant = applyUntil(
+      engine,
+      s,
+      { t: 'ability', unit: warsong.id, abilityId: prayer.abilityId, target: prayer.targets[0] },
+      (r) => r.events.some((e) => e.t === 'chant' && e.die > 1),
+    );
+    const ev = chant.events.find((e) => e.t === 'chant');
+    if (ev?.t !== 'chant') throw new Error('no chant');
+    expect(ev.total).toBe(ev.die + 1);
+
+    // Dizzying Rage: an enemy hero that is no wizard becomes an unbinder for one spell.
+    const t = cloneState(s);
+    const plain = unitsOf(t, 1).find(
+      (u) => profileOf(scenario, u).isHero && (profileOf(scenario, u).wizard ?? 0) === 0,
+    );
+    if (!plain) return;
+    plain.models.forEach((m, i) => {
+      m.x = warsong.models[0]!.x + 10 + i;
+      m.y = warsong.models[0]!.y;
+    });
+    expect(eligibleUnbinders(scenario, t, t.units[warsong.id]!).map((u) => u.id)).not.toContain(
+      plain.id,
+    );
+    t.effects = [
+      ...(t.effects ?? []),
+      {
+        id: PLACE_OF_POWER_ID,
+        name: 'Place of Power (Dizzying Rage)',
+        sourceUnit: plain.id,
+        targetUnit: plain.id,
+        owner: 1,
+        expires: 'turn',
+        data: { boon: 'dizzying_rage' },
+      },
+    ];
+    expect(eligibleUnbinders(scenario, t, t.units[warsong.id]!).map((u) => u.id)).toContain(
+      plain.id,
+    );
+    void enemyHero;
   });
 });
+
+function passToPhase(s0: GameState, phase: GameState['phase']): GameState {
+  let s = s0;
+  while (engine.decision(s)?.kind !== 'main' || s.phase !== phase) {
+    s = engine.apply(s, { t: 'pass' }).state;
+  }
+  return s;
+}

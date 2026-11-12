@@ -10,7 +10,7 @@ import type {
 import type { AttackPlan } from './attackPlan.js';
 import type { PlacementDraft } from './placementEdit.js';
 
-export type Drawer = 'roster' | 'log' | 'army' | 'menu' | null;
+export type Drawer = 'roster' | 'log' | 'army' | 'menu' | 'tactics' | null;
 
 export type CameraRequest =
   | { kind: 'unit'; unit: UnitId; zoom: boolean; onlyIfHidden: boolean }

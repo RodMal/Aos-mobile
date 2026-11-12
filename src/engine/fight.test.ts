@@ -10,7 +10,7 @@ import {
   shiftPlacement,
   type GameState,
 } from './index.js';
-import { applyUntil, editable, keepOnly, passTo, placeUnit } from './test-helpers.js';
+import { applyUntil, editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
@@ -21,7 +21,7 @@ const SKINKS = '1:7';
 
 /** Dryads at (20, 22) and Saurus Guard centred at x = saurusX (23.5 is about 1" apart, 30 about 7.4"). */
 function arena(phase: GameState['phase'], saurusX: number): GameState {
-  const s = editable(engine.newGame(1));
+  const s = editable(startGame(engine, 1));
   keepOnly(s, [DRYADS, BELTHANOS, SAURUS, SKINKS]);
   placeUnit(scenario, s, DRYADS, 20, 22, 90);
   placeUnit(scenario, s, SAURUS, saurusX, 22, 270);
@@ -29,6 +29,9 @@ function arena(phase: GameState['phase'], saurusX: number): GameState {
   placeUnit(scenario, s, SKINKS, 52, 40);
   s.players[0].cp = 0; // no All-out Defence prompts unless a test wants them
   s.players[1].cp = 0;
+  // No Fight Through the Pain prompts (src/engine/fury-pain.test.ts covers them).
+  s.players[0].rageDice = 0;
+  s.players[1].rageDice = 0;
   return passTo(engine, s, phase);
 }
 

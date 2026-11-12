@@ -43,6 +43,32 @@ export function remainingPowerLevel(scenario: Scenario, unit: UnitState): number
   return Math.max(0, power - (unit.castsUsed ?? 0));
 }
 
+/** Place of Power boons that change magic (Core Rules / GHB 2026-27, docs I36). */
+function placeOfPowerBoon(state: GameState, unit: UnitState): string | null {
+  const eff = (state.effects ?? []).find(
+    (e) => e.id === 'place-of-power' && e.targetUnit === unit.id,
+  );
+  const boon = eff?.data?.['boon'];
+  return typeof boon === 'string' ? boon : null;
+}
+
+/** Channelled Wrath: +1 to casting and chanting rolls for the hero this turn. */
+function channelledWrathBonus(state: GameState, unit: UnitState): number {
+  return placeOfPowerBoon(state, unit) === 'channelled_wrath' ? 1 : 0;
+}
+
+/** Dizzying Rage: the hero can unbind or banish once this turn, even if it is no wizard. */
+function hasDizzyingRage(state: GameState, unit: UnitState): boolean {
+  return unit.status === 'battlefield' && placeOfPowerBoon(state, unit) === 'dizzying_rage';
+}
+
+/** Uses up the Dizzying Rage boon. Mutates `state`. */
+function spendDizzyingRage(state: GameState, unit: UnitState): void {
+  state.effects = (state.effects ?? []).filter(
+    (e) => !(e.id === 'place-of-power' && e.targetUnit === unit.id),
+  );
+}
+
 export function canCastSpells(scenario: Scenario, unit: UnitState): boolean {
   if (unit.status !== 'battlefield') return false;
   const p = profileOf(scenario, unit);
@@ -265,7 +291,11 @@ export function magicOptionsForUnit(
   }
 
   // Banish Manifestation: Your Hero Phase only
-  if (inHeroMain && canUsePowerLevelAbility(scenario, unit) && !usedByUnit.includes('banish')) {
+  if (
+    inHeroMain &&
+    (canUsePowerLevelAbility(scenario, unit) || hasDizzyingRage(state, unit)) &&
+    !usedByUnit.includes('banish')
+  ) {
     const enemyManifestations = unitsOf(state, opponent(unit.owner)).filter(
       (e) => profileOf(scenario, e).isManifestation && unitsWithin(scenario, unit, e, BANISH_RANGE),
     );
@@ -290,7 +320,7 @@ export function eligibleUnbinders(
 ): UnitState[] {
   return unitsOf(state, opponent(caster.owner)).filter(
     (u) =>
-      canCastSpells(scenario, u) &&
+      (canCastSpells(scenario, u) || hasDizzyingRage(state, u)) &&
       !(u.abilitiesUsed ?? []).includes('unbind') &&
       unitsWithin(scenario, caster, u, UNBIND_RANGE),
   );
@@ -337,7 +367,12 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
     const target = unitById(ctx.s, targetId);
     const tp = profileOf(ctx.scenario, target);
     const targetValue = tp.banishment ?? 7;
-    markAbilityAttempted(ctx.s, unit, 'banish', true);
+    if (hasDizzyingRage(ctx.s, unit)) {
+      spendDizzyingRage(ctx.s, unit);
+      unit.abilitiesUsed = [...(unit.abilitiesUsed ?? []), 'banish'];
+    } else {
+      markAbilityAttempted(ctx.s, unit, 'banish', true);
+    }
     const dice = roll2D6(ctx);
     const total = dice[0] + dice[1];
     const banished = total >= targetValue;
@@ -373,7 +408,7 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
     markAbilityAttempted(ctx.s, unit, def.id, def.unlimited);
     const dice = roll2D6(ctx);
     const miscast = dice[0] === 1 && dice[1] === 1;
-    const total = Math.max(2, dice[0] + dice[1] + penalty);
+    const total = Math.max(2, dice[0] + dice[1] + penalty + channelledWrathBonus(ctx.s, unit));
     const success = !miscast && total >= cv;
     ctx.events.push({
       t: 'cast',
@@ -437,7 +472,7 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
       return;
     }
 
-    const modifiedDie = Math.max(1, die + penalty);
+    const modifiedDie = Math.max(1, die + penalty + channelledWrathBonus(ctx.s, unit));
     const currentPoints = (unit.ritualPoints ?? 0) + modifiedDie;
     const bankOnly = action.choice === 'bank' || currentPoints < cv;
     if (bankOnly) {
@@ -503,7 +538,8 @@ export function resolvePendingSpell(
 
   if (unbinderId) {
     const unbinder = unitById(ctx.s, unbinderId);
-    unbinder.castsUsed = (unbinder.castsUsed ?? 0) + 1;
+    if (hasDizzyingRage(ctx.s, unbinder)) spendDizzyingRage(ctx.s, unbinder);
+    else unbinder.castsUsed = (unbinder.castsUsed ?? 0) + 1;
     unbinder.abilitiesUsed = [...(unbinder.abilitiesUsed ?? []), 'unbind'];
     const dice = roll2D6(ctx);
     const total = dice[0] + dice[1];

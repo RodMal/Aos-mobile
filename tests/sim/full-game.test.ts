@@ -23,6 +23,7 @@ import {
   footprintsOverlap,
   type Footprint,
 } from '../../src/geom/index.js';
+import { startGame } from '../../src/engine/test-helpers.js';
 
 const SEEDS = Number(process.env.SIM_SEEDS ?? 5);
 const MAX_STEPS = 20_000;
@@ -105,13 +106,13 @@ const results: { seed: number; winner: GameState['winner']; vp: [number, number]
 describe('full games, baseline NPC against itself', () => {
   const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
   const engine = createEngine(scenario);
-  engine.newGame(0); // warm the set-up cache
+  startGame(engine, 0); // warm the set-up cache
 
   for (let seed = 1; seed <= SEEDS; seed++) {
     it(`seed ${seed} finishes five rounds with every invariant holding`, () => {
       const t0 = performance.now();
       const checker = new InvariantChecker(engine);
-      let state = engine.newGame(seed);
+      let state = startGame(engine, seed);
       const actions: Action[] = [];
       checker.check(state, true);
       let turn = `${state.round}:${state.turnIndex}`;
@@ -133,7 +134,7 @@ describe('full games, baseline NPC against itself', () => {
       expect(state.winner).not.toBeNull();
 
       // The same seed and actions reproduce the same game.
-      let replay = engine.newGame(seed);
+      let replay = startGame(engine, seed);
       for (const a of actions) replay = engine.apply(replay, a).state;
       expect(replay).toEqual(state);
       results.push({
@@ -147,7 +148,7 @@ describe('full games, baseline NPC against itself', () => {
 
   it('plays a game without invariant checks quickly', () => {
     const t0 = performance.now();
-    let state = engine.newGame(SEEDS + 1);
+    let state = startGame(engine, SEEDS + 1);
     while (engine.decision(state)) state = engine.apply(state, chooseAction(engine, state)).state;
     expect(state.status).toBe('ended');
     // A game takes about 0.4 s on a development machine. This budget leaves room for slower

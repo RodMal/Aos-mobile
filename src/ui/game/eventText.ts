@@ -225,6 +225,10 @@ export function reactionText(trigger: string, ctx: LogContext): string {
     const [, moverId] = trigger.split(':');
     return `${moverId ? ctx.unitName(moverId) : 'Enemy unit'} finished a move nearby.`;
   }
+  if (trigger.startsWith('pain:')) {
+    const [, unitId, amount] = trigger.split(':');
+    return `${unitId ? ctx.unitName(unitId) : 'Your unit'} is about to take ${amount} damage. Fight Through the Pain?`;
+  }
   if (trigger.startsWith('phase:')) {
     return 'End of phase reaction opportunity.';
   }

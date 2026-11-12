@@ -11,7 +11,15 @@ import { priorityWinner, roundCommandPoints, seizes } from '../rules/core/round.
 import { clearExpiredEffects, fireTriggers, strikeOrder, unitGrants } from './abilities/effects.js';
 import './abilities/lores.js';
 import { declareAbility, magicOptionsForUnit, resolvePendingSpell } from './abilities/magic.js';
-import { checkAllocations, mayShoot, resolveAttacks, weaponTargets } from './combat.js';
+import {
+  FIGHT_THROUGH_THE_PAIN_ID,
+  allocateOne,
+  allocatePending,
+  checkAllocations,
+  mayShoot,
+  resolveAttacks,
+  weaponTargets,
+} from './combat.js';
 import { d6, d6s, illegal, rollD3, type Ctx } from './ctx.js';
 import { inflictMortalDamage, returnPosition } from './damage.js';
 import { checkMovePlacement, PILE_IN_DISTANCE, placementDistance } from './movement.js';
@@ -42,6 +50,9 @@ import {
 import {
   evaluateEndOfTurnTactics,
   initBattleTactics,
+  needsFugitive,
+  fugitiveCandidates,
+  suggestFugitive,
   recordTurnStartForTactics,
 } from '../rules/core/battleTactics.js';
 import {
@@ -49,9 +60,16 @@ import {
   canUseEruptionOfFury,
   eruptionOfFuryTargets,
   initFury,
+  MAX_ERUPTION_RAGE_DICE,
   resolveEruptionOfFury,
+  spendRageToNegateDamage,
 } from '../rules/core/fury.js';
-import { canUsePlaceOfPower, resolvePlaceOfPower, type PlaceOfPowerBoon } from './terrain.js';
+import {
+  canUsePlaceOfPower,
+  placeOfPowerCandidate,
+  resolvePlaceOfPower,
+  type PlaceOfPowerBoon,
+} from './terrain.js';
 import { applyEverGrowing, resolveEndlessGrowth } from '../rules/factions/sylvaneth.js';
 import {
   PHASES,
@@ -124,6 +142,7 @@ export function cloneState(state: GameState): GameState {
       ? { overgrown: [[...state.overgrown[0]], [...state.overgrown[1]]] as [string[], string[]] }
       : {}),
     ...(state.usedPlacesOfPower ? { usedPlacesOfPower: [...state.usedPlacesOfPower] } : {}),
+    ...(state.placeOfPowerUsedBy ? { placeOfPowerUsedBy: [...state.placeOfPowerUsedBy] } : {}),
     ...(state.turnStartObjectives ? { turnStartObjectives: { ...state.turnStartObjectives } } : {}),
     ...(state.turnStartInCombat ? { turnStartInCombat: [...state.turnStartInCombat] } : {}),
     ...(state.destroyedByChargeCombat
@@ -165,6 +184,7 @@ function startTurn(ctx: Ctx): void {
     p.furyUsedThisTurn = [];
   }
   s.usedPlacesOfPower = [];
+  s.placeOfPowerUsedBy = [];
   recordTurnStartForTactics(scenario, s);
   s.banishedThisTurn = [];
   s.reactionsOffered = [];
@@ -175,6 +195,19 @@ function startTurn(ctx: Ctx): void {
   s.fightPicker = null;
   ctx.events.push({ t: 'turnStart', player: s.active, round: s.round });
   ctx.events.push({ t: 'phaseStart', phase: s.phase, player: s.active });
+  offerPlacesOfPower(ctx);
+}
+
+/**
+ * Start of turn: each player with a hero within 3" of a Place of Power may activate it, the
+ * active player first (owner's ruling, 2026-11-11).
+ */
+function offerPlacesOfPower(ctx: Ctx): void {
+  const { s, scenario } = ctx;
+  for (const player of [opponent(s.active), s.active]) {
+    const c = placeOfPowerCandidate(scenario, s, player);
+    if (c) s.stack.push({ t: 'placeOfPower', player, hero: c.hero.id, terrain: c.terrain.id });
+  }
 }
 
 /** After priority: command points (with the underdog's extra point), then the first turn. */
@@ -210,15 +243,46 @@ function startRound(ctx: Ctx): void {
   applySimmeringRage(s);
   for (const text of applyEverGrowing(scenario, s)) ctx.events.push({ t: 'note', text });
   if (s.round === 1) {
-    // Round 1: the attacker (player 0) takes the first turn.
-    s.firstPlayer = 0;
-    beginRound(ctx);
+    roundOneFirstTurn(ctx);
     return;
   }
   const rolls: [number, number] = [d6(ctx), d6(ctx)];
   const winner = priorityWinner(rolls, s.firstPlayer);
   ctx.events.push({ t: 'priority', rolls, winner });
   s.stack.push({ t: 'priority', winner, rolls });
+}
+
+/**
+ * Round 1, after every deployment ability and before the first turn is decided: pre-battle
+ * picks (the Burning for Vengeance fugitive, attacker first), then the first turn.
+ */
+function roundOneFirstTurn(ctx: Ctx): void {
+  const { s, scenario } = ctx;
+  for (const p of [0, 1] as PlayerId[]) {
+    if (needsFugitive(scenario, s, p)) {
+      s.stack.push({ t: 'fugitive', player: p, units: fugitiveCandidates(scenario, s, p) });
+      return;
+    }
+  }
+  // Round 1: the attacker (player 0) takes the first turn.
+  s.firstPlayer = 0;
+  beginRound(ctx);
+}
+
+function chooseFugitive(ctx: Ctx, value: string): void {
+  const { s } = ctx;
+  const frame = s.stack[s.stack.length - 1];
+  if (frame?.t !== 'fugitive') illegal('There is no fugitive to pick.');
+  if (!frame.units.includes(value)) {
+    illegal('Pick an enemy Hero on the battlefield or in reserve to be the fugitive.');
+  }
+  s.stack.pop();
+  s.players[frame.player].fugitiveUnit = value;
+  ctx.events.push({
+    t: 'note',
+    text: `Player ${frame.player + 1} picks ${s.units[value]!.name} as the fugitive.`,
+  });
+  roundOneFirstTurn(ctx);
 }
 
 function choosePriority(ctx: Ctx, value: string): void {
@@ -520,7 +584,10 @@ export function createEngine(scenario: Scenario): Engine {
             unit: top.unit,
             seasons: ['burgeoning', 'reaping', 'dwindling', 'everdusk'],
           };
+        case 'fugitive':
+          return { kind: 'fugitive', player: top.player, units: top.units };
         case 'resolve':
+        case 'allocate':
         case 'spell':
         case 'endPhase':
           throw new Error(`internal: unresolved ${top.t} frame on top of the stack`);
@@ -561,15 +628,6 @@ export function createEngine(scenario: Scenario): Engine {
         const opts: UnitOption[] = [...magicOptionsForUnit(scenario, state, unit)];
         if (canRally(scenario, state, unit)) {
           opts.push({ t: 'command', command: 'rally', cost: 1 });
-        }
-        if (canUsePlaceOfPower(scenario, state, unit)) {
-          opts.push({
-            t: 'ability',
-            abilityId: 'place-of-power',
-            name: 'Place of Power (Start of Turn)',
-            kind: 'activated',
-            targets: [],
-          });
         }
         return opts;
       }
@@ -613,6 +671,10 @@ export function createEngine(scenario: Scenario): Engine {
             name: 'Eruption of Fury',
             kind: 'activated',
             targets: eruptionOfFuryTargets(scenario, state, unit).map((u) => u.id),
+            maxRageDice: Math.min(MAX_ERUPTION_RAGE_DICE, state.players[unit.owner].rageDice ?? 0),
+            weapons: profileOf(scenario, unit)
+              .weapons.filter((w) => w.kind === 'melee')
+              .map((w) => ({ id: w.id, name: w.name })),
           });
         }
         return opts;
@@ -987,7 +1049,30 @@ export function createEngine(scenario: Scenario): Engine {
       return;
     }
 
-    // 3. Phase / move command reactions (rally, redeploy, coveringFire, counterCharge, magicalIntervention, powerThrough)
+    // 3. Fight Through the Pain before attack damage is allocated
+    if (under?.t === 'allocate') {
+      const option = reaction.options.find((o) => o.ability === 'fightThroughThePain')!;
+      const incoming = option.damage ?? 0;
+      let amount = incoming;
+      if (action.t === 'ability' && action.abilityId === FIGHT_THROUGH_THE_PAIN_ID) {
+        if (action.unit !== option.unit) illegal('Fight Through the Pain protects the unit hit.');
+        const max = option.maxRageDice ?? 0;
+        const dice = action.rageDice ?? max;
+        if (!Number.isInteger(dice) || dice < 1 || dice > max) {
+          illegal(`Spend between 1 and ${max} rage dice on Fight Through the Pain.`);
+        }
+        amount -= spendRageToNegateDamage(ctx, reaction.player, incoming, dice).damageNegated;
+      } else if (action.t !== 'pass') {
+        illegal('Spend rage dice on Fight Through the Pain, or take the damage.');
+      }
+      s.stack.pop(); // reaction
+      const frame = s.stack.pop() as Extract<Frame, { t: 'allocate' }>;
+      allocateOne(ctx, frame, amount);
+      allocatePending(ctx, frame);
+      return;
+    }
+
+    // 4. Phase / move command reactions (rally, redeploy, coveringFire, counterCharge, magicalIntervention, powerThrough)
     s.stack.pop(); // pop reaction frame (leaving `endPhase` on the stack if present)
     if (action.t === 'pass') {
       if (under?.t === 'endPhase') {
@@ -1270,6 +1355,10 @@ export function createEngine(scenario: Scenario): Engine {
         if (action.t !== 'choose') illegal('Choose to take the first or second turn.');
         choosePriority(ctx, action.value);
         break;
+      case 'fugitive':
+        if (action.t !== 'choose') illegal('Pick the enemy Hero to be the fugitive.');
+        chooseFugitive(ctx, action.value);
+        break;
       case 'main': {
         const top = s.stack[s.stack.length - 1];
         if (top?.t === 'magicalIntervention') {
@@ -1290,15 +1379,7 @@ export function createEngine(scenario: Scenario): Engine {
         } else if (action.t === 'move') {
           declareMove(ctx, action.unit, action.kind, action.atTheDouble);
         } else if (action.t === 'ability' && action.abilityId === 'place-of-power') {
-          const hero = s.units[action.unit]!;
-          const terrain = canUsePlaceOfPower(scenario, s, hero);
-          if (!terrain) illegal(`${hero.name} cannot use Place of Power.`);
-          s.stack.push({
-            t: 'placeOfPower',
-            player: hero.owner,
-            hero: hero.id,
-            terrain: terrain.id,
-          });
+          illegal('A Place of Power can only be activated at the start of a turn.');
         } else if (action.t === 'ability' && d.phase === 'hero') {
           declareAbility(ctx, action);
         } else if (
@@ -1318,16 +1399,18 @@ export function createEngine(scenario: Scenario): Engine {
             illegal('Eruption of Fury must target an enemy unit in combat with the unit.');
           }
           const profile = profileOf(scenario, unit);
-          const melee = profile.weapons.find((w) => w.kind === 'melee');
-          if (!melee) illegal('No melee weapon for Eruption of Fury.');
-          const pState = s.players[unit.owner];
-          resolveEruptionOfFury(
-            ctx,
-            unit,
-            s.units[targetId]!,
-            melee,
-            Math.min(3, pState.rageDice ?? 0),
-          );
+          const meleeWeapons = profile.weapons.filter((w) => w.kind === 'melee');
+          const melee =
+            action.weaponId === undefined
+              ? meleeWeapons[0]
+              : meleeWeapons.find((w) => w.id === action.weaponId);
+          if (!melee) illegal(`${unit.name} has no such melee weapon for Eruption of Fury.`);
+          const max = option.maxRageDice ?? 1;
+          const dice = action.rageDice ?? max;
+          if (!Number.isInteger(dice) || dice < 1 || dice > max) {
+            illegal(`Spend between 1 and ${max} rage dice on Eruption of Fury.`);
+          }
+          resolveEruptionOfFury(ctx, unit, s.units[targetId]!, melee, dice);
         } else if (action.t === 'command') {
           if (d.phase === 'hero' && action.command === 'rally') {
             rally(ctx, action.unit);
@@ -1481,9 +1564,12 @@ export function createEngine(scenario: Scenario): Engine {
       case 'priority':
         return { t: 'choose', value: 'first' };
       case 'placeOfPower':
-        return { t: 'choose', value: 'ignite_fury' };
+        // Optional: the default declines, so engine-driven games keep their dice.
+        return { t: 'pass' };
       case 'alarielleSeason':
         return { t: 'choose', value: d.seasons[0]! };
+      case 'fugitive':
+        return { t: 'choose', value: suggestFugitive(scenario, state, d.player) ?? d.units[0]! };
       case 'fightPick':
         if (d.canPass) return { t: 'pass' };
         return { t: 'fight', unit: eligibleFighters(scenario, state, d.player)[0]!.id };

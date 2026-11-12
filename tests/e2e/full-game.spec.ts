@@ -6,13 +6,22 @@
  */
 import { expect, test } from '@playwright/test';
 import { isDesktop, minimalPlayerStep as step, startGame, usable } from './helpers.js';
+import { openPosition } from './positions.js';
 
 test('a full five-round game can be played to the result screen', async ({ page }) => {
   test.setTimeout(180_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
 
-  await startGame(page, 'seed=4&side=0&fast=1&new=1');
+  // Start from the player's first charge phase with a unit that may charge (the NPC plays both
+  // sides up to there), so the flow does not depend on how one seed's battle goes.
+  await openPosition(page, 4, (engine, s, d) => {
+    if (d.kind !== 'main' || d.player !== 0 || d.phase !== 'charge') return null;
+    const ok = Object.values(s.units).some(
+      (u) => u.owner === 0 && engine.unitOptions(s, u.id).some((o) => o.t === 'charge'),
+    );
+    return ok ? 'charge' : null;
+  });
   const result = page.getByRole('heading', { name: /^(Victory|Defeat|A draw)$/ });
   const used = new Set<string>();
   let idle = 0;

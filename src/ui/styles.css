@@ -103,6 +103,7 @@ button {
 }
 
 .round-label {
+  white-space: nowrap;
   font-family: var(--serif);
   font-size: 18px;
   font-weight: 600;
@@ -130,6 +131,130 @@ button {
 .turn-chip.enemy {
   color: var(--enemy);
   border-style: dashed;
+}
+
+/* Battle tactics: a pip per tier, grouped by card, one row per side; opens the tracker. */
+.tactics-btn {
+  display: grid;
+  grid-auto-flow: row;
+  gap: 3px;
+  align-items: center;
+  min-height: 40px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  border: 1px solid #2b323a;
+  background: #181d23;
+  color: inherit;
+  cursor: pointer;
+}
+.tactics-btn-label {
+  display: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+.tactics-pips {
+  display: flex;
+  gap: 4px;
+}
+.pip-group {
+  display: flex;
+  gap: 1px;
+}
+.pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid #56606b;
+}
+.tactics-pips.friendly .pip.done {
+  background: var(--friendly);
+  border-color: var(--friendly);
+}
+.tactics-pips.enemy .pip.done {
+  background: var(--enemy);
+  border-color: var(--enemy);
+}
+.pip.next {
+  border-color: #c9d1d9;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.tactics h3 {
+  margin: 4px 0 8px;
+  font-family: var(--serif);
+  font-size: 17px;
+}
+.tactics-side.friendly h3 {
+  color: var(--friendly);
+}
+.tactics-side.enemy h3 {
+  color: var(--enemy);
+}
+.tactic-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tactic-card {
+  border: 1px solid #2b323a;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #171b20;
+}
+.tactic-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.tactic-count,
+.tactic-note,
+.tactics-foot {
+  color: var(--muted);
+  font-size: 13px;
+}
+.tactic-tiers {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tactic-tier {
+  display: grid;
+  grid-template-columns: 16px 84px 1fr;
+  gap: 4px;
+  font-size: 14px;
+}
+.tactic-tier.done {
+  color: var(--friendly);
+}
+.tactics-side.enemy .tactic-tier.done {
+  color: var(--enemy);
+}
+.tactic-tier.later {
+  color: var(--muted);
+}
+.tactic-tier.next .tier-name {
+  font-weight: 600;
+}
+.tactic-condition {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  border-left: 2px solid #3a434d;
+  padding-left: 8px;
 }
 
 .score {
@@ -1471,6 +1596,19 @@ button {
     display: inline;
   }
 
+  .tactics-btn {
+    grid-template-columns: auto auto auto;
+    grid-auto-flow: column;
+    gap: 10px;
+  }
+  .tactics-btn-label {
+    display: inline;
+  }
+  .pip {
+    width: 9px;
+    height: 9px;
+  }
+
   /* Chips wrap instead of scrolling sideways; there is room, and a mouse cannot swipe. */
   .ready {
     flex-wrap: wrap;
@@ -1569,4 +1707,30 @@ button {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Eruption of Fury: how many rage dice, and which weapon. */
+.rage-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stepper .btn {
+  min-width: 44px;
+}
+.stepper-label {
+  font-size: 14px;
+  margin-right: 4px;
+}
+.stepper-value {
+  font-family: var(--serif);
+  font-size: 22px;
+  min-width: 20px;
+  text-align: center;
 }

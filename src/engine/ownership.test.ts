@@ -7,7 +7,7 @@ import {
   type Action,
   type GameState,
 } from './index.js';
-import { editable, keepOnly, passTo, placeUnit } from './test-helpers.js';
+import { editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
 const engine = createEngine(scenario);
@@ -22,7 +22,7 @@ function expectIllegal(s: GameState, action: Action) {
 
 describe('ownership of acting units', () => {
   it('the active player cannot Rally or use Magical Intervention with enemy units', () => {
-    const s = editable(engine.newGame(1));
+    const s = editable(startGame(engine, 1));
     expect(s.active).toBe(0);
     const krox = unitNamed(s, 'Kroxigor');
     krox.damage = 1;
@@ -34,7 +34,7 @@ describe('ownership of acting units', () => {
   });
 
   it('rejects move, shoot, charge and ability actions naming an enemy unit', () => {
-    const s = editable(engine.newGame(1));
+    const s = editable(startGame(engine, 1));
     const enemy = unitNamed(s, 'Saurus Warriors');
     const mv = passTo(engine, s, 'movement');
     expectIllegal(mv, { t: 'move', unit: enemy.id, kind: 'normal' });
@@ -46,7 +46,7 @@ describe('ownership of acting units', () => {
   });
 
   it('the active player cannot use Eruption of Fury with an enemy unit or spend its rage', () => {
-    const s = editable(engine.newGame(1));
+    const s = editable(startGame(engine, 1));
     const belthanos = unitNamed(s, 'Belthanos, First Thorn of Kurnoth');
     const krox = unitNamed(s, 'Kroxigor');
     keepOnly(s, [belthanos.id, krox.id]);
@@ -74,7 +74,7 @@ describe('ownership of acting units', () => {
 
 describe('unknown units', () => {
   it('every action naming a unit that does not exist throws IllegalActionError', () => {
-    const s = editable(engine.newGame(1));
+    const s = editable(startGame(engine, 1));
     const phases = ['hero', 'movement', 'shooting', 'charge', 'end'] as const;
     const actions: Action[] = [
       { t: 'ability', unit: 'nope', abilityId: 'place-of-power' },

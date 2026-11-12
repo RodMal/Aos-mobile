@@ -9,7 +9,7 @@ import {
   overgrownTokenIds,
   type GameState,
 } from './index.js';
-import { editable, keepOnly, placeUnit } from './test-helpers.js';
+import { editable, keepOnly, placeUnit, startGame } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
 const engine = createEngine(scenario);
@@ -23,7 +23,7 @@ function named(s: GameState, name: string) {
 
 /** A game with only the listed units on the battlefield (faction terrain included). */
 function arena(ids: string[]): GameState {
-  const s = editable(engine.newGame(1));
+  const s = editable(startGame(engine, 1));
   if (!s.units[WYLDWOOD]) {
     const reserve = engine.newGame(1, { deploy: true });
     for (const id of [WYLDWOOD, REALMSHAPER]) {
