@@ -748,6 +748,7 @@ export function createEngine(scenario: Scenario): Engine {
       ...(top?.t === 'place' && top.minEnemyGap !== undefined
         ? { minEnemyGap: top.minEnemyGap }
         : {}),
+      ...(top?.t === 'place' && top.engagedWith ? { engagedWith: top.engagedWith } : {}),
     });
   }
 
@@ -872,12 +873,16 @@ export function createEngine(scenario: Scenario): Engine {
     const dmg = rollD3(ctx, unit.owner, 'Power Through (D3 mortal damage)');
     inflictMortalDamage(ctx, target, dmg, 'Power Through');
     const allowance = profileOf(scenario, unit).move;
+    // It may stay in combat with the units it is in combat with now, but no others
+    // (owner's ruling, 2026-11-11).
+    const engagedWith = enemiesInCombat(scenario, s, unit).map((e) => e.id);
     s.stack.push({
       t: 'place',
       unit: unit.id,
       reason: 'powerThrough',
       allowance,
       dice: [],
+      engagedWith,
     });
   }
 

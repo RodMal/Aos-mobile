@@ -155,6 +155,8 @@ export type Frame =
       caster?: UnitId;
       /** For `reason: 'summon'`: minimum edge-to-edge distance from enemy units. */
       minEnemyGap?: number;
+      /** For `reason: 'powerThrough'`: the enemy units it was in combat with at the start. */
+      engagedWith?: UnitId[];
     }
   | { t: 'targets'; unit: UnitId; mode: AttackMode }
   | { t: 'reaction'; player: PlayerId; options: ReactionOption[]; trigger: string }

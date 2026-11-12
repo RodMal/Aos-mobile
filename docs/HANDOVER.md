@@ -162,4 +162,6 @@ Done:
 
 - 9 Song Of Dread: pile-ins no longer fire `afterMove` (`src/engine/engine.ts` `place`); I49. Test: `magic.test.ts` "Song Of Dread" (pile-in and Power Through cases).
 
-Remaining: items 10 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- 10 Power Through: the place frame carries `engagedWith` (additive on `Frame`), and `checkMovePlacement` only forbids combat with other units; I50. Test: `magic.test.ts` "powerThrough".
+
+Remaining: items 11 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).

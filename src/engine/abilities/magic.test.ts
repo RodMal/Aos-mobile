@@ -1102,11 +1102,12 @@ describe('Six Remaining Commands', () => {
   });
 
   it('powerThrough: in the End of Turn phase, a unit that charged inflicts D3 mortal damage on an engaged enemy with lower Health and moves out of combat for 1 CP', () => {
-    const s = baseArena([DURTHU, SAURUS_GUARD]);
+    const s = baseArena([DURTHU, SAURUS_GUARD, KROXIGOR]);
     s.phase = 'end';
     // Durthu (Health 14) charged and is in combat with Saurus Guard (Health 2)
     placeUnit(scenario, s, DURTHU, 18, 22);
     placeUnit(scenario, s, SAURUS_GUARD, 24, 22);
+    placeUnit(scenario, s, KROXIGOR, 18, 31); // not in combat with Durthu
     s.units[DURTHU]!.charged = true;
     expect(inCombat(scenario, s, s.units[DURTHU]!)).toBe(true);
 
@@ -1133,10 +1134,14 @@ describe('Six Remaining Commands', () => {
       allowance: profileOf(scenario, s.units[DURTHU]!).move,
     });
 
-    // Ending still in combat is illegal (STILL_IN_COMBAT)
+    // Owner's ruling, 2026-11-11: it may stay in combat with the unit it was fighting...
     const stayInCombat = currentPlacement(powered.state.units[DURTHU]!);
-    expect(engine.checkPlacement(powered.state, stayInCombat).map((v) => v.code)).toContain(
-      'STILL_IN_COMBAT',
+    expect(inCombat(scenario, powered.state, powered.state.units[KROXIGOR]!)).toBe(false);
+    expect(engine.checkPlacement(powered.state, stayInCombat)).toEqual([]);
+    // ...but not enter combat with a unit it was not already in combat with.
+    const intoKroxigor = shiftPlacement(stayInCombat, 0, 4);
+    expect(engine.checkPlacement(powered.state, intoKroxigor).map((v) => v.message)).toContain(
+      'Power Through cannot end in combat with a unit it was not already in combat with.',
     );
 
     // Moving 5" away ends out of combat and is legal

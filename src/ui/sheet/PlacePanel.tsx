@@ -81,7 +81,7 @@ export function PlacePanel() {
             : d.reason === 'setUp'
               ? 'Drag or rotate to set up more than 3" from every objective, terrain feature and unit.'
               : d.reason === 'powerThrough'
-                ? 'Move up to your allowance and end out of combat.'
+                ? 'Move up to your allowance. You may stay in combat with the units you were fighting, or leave, but not enter combat with any other unit.'
                 : draft.adjust
                   ? `${tapWord()} a model, then drag anywhere to move it.`
                   : finePointer()

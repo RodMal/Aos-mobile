@@ -52,6 +52,11 @@ export interface PlaceRules {
   allowance: number;
   caster?: UnitId;
   minEnemyGap?: number;
+  /**
+   * Power Through: enemy units the unit was in combat with when it started the move. It may
+   * stay in combat with them (or leave), but not enter combat with any other unit.
+   */
+  engagedWith?: readonly UnitId[];
 }
 
 /**
@@ -223,7 +228,13 @@ export function checkMovePlacement(
     rules.reason === 'retreat' ||
     rules.reason === 'powerThrough'
   ) {
-    const enemies = nearbyEnemyFootprints(scenario, state, unit, rules.allowance + COMBAT_RANGE);
+    const enemies = nearbyEnemyFootprints(
+      scenario,
+      state,
+      unit,
+      rules.allowance + COMBAT_RANGE,
+      rules.reason === 'powerThrough' ? (rules.engagedWith ?? []) : [],
+    );
     const fly = hasEffectiveKeyword(scenario, state, unit, 'FLY');
     const inRange = (fp: Footprint): boolean =>
       enemies.some((e) => !footprintGapAtLeast(fp, e, COMBAT_RANGE + DIST_EPS));
@@ -250,12 +261,14 @@ export function checkMovePlacement(
       }
     }
     if (endsInRange.length > 0) {
-      const startedInCombat = rules.reason === 'retreat' || rules.reason === 'powerThrough';
+      const startedInCombat = rules.reason === 'retreat';
       violations.push({
         code: startedInCombat ? 'STILL_IN_COMBAT' : 'ENEMY_COMBAT_RANGE',
         message: startedInCombat
           ? 'This move must end more than 3" from all enemy units.'
-          : 'This move cannot end within 3" of an enemy unit.',
+          : rules.reason === 'powerThrough'
+            ? 'Power Through cannot end in combat with a unit it was not already in combat with.'
+            : 'This move cannot end within 3" of an enemy unit.',
         models: endsInRange,
       });
     }
@@ -303,12 +316,14 @@ function nearbyEnemyFootprints(
   state: GameState,
   unit: UnitState,
   reach: number,
+  except: readonly UnitId[] = [],
 ): Footprint[] {
   const own = unitBounds(scenario, unit);
   const out: Footprint[] = [];
   for (const e of unitsOf(state, opponent(unit.owner))) {
     // Faction terrain creates no combat range and cannot be charged (owner's ruling).
     if (profileOf(scenario, e).isFactionTerrain) continue;
+    if (except.includes(e.id)) continue;
     const b = unitBounds(scenario, e);
     if (Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r > reach + COMBAT_RANGE) continue;
     out.push(...unitFootprints(scenario, e));
