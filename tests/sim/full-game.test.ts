@@ -20,9 +20,11 @@ import {
   boundingRadius,
   checkCoherencyFootprints,
   footprintInsidePolygon,
+  footprintOverlapsPolygon,
   footprintsOverlap,
   type Footprint,
 } from '../../src/geom/index.js';
+import { canStandOn } from '../../src/data/battlefield.js';
 import { startGame } from '../../src/engine/test-helpers.js';
 
 const SEEDS = Number(process.env.SIM_SEEDS ?? 5);
@@ -72,8 +74,13 @@ export class InvariantChecker {
       changed.push(id);
       expect(unitFps.length, `${unit.name} has living models`).toBeGreaterThan(0);
       expect(checkCoherencyFootprints(unitFps).coherent, `${unit.name} coherency`).toBe(true);
+      const { battlefield } = scenario;
       for (const fp of unitFps) {
         expect(footprintInsidePolygon(fp, this.board), `${unit.name} on board`).toBe(true);
+        for (const t of battlefield.terrain) {
+          if (canStandOn(battlefield, t)) continue;
+          expect(footprintOverlapsPolygon(fp, t.polygon), `${unit.name} on ${t.id}`).toBe(false);
+        }
       }
     }
     for (const id of state.unitOrder) {
@@ -98,6 +105,16 @@ export class InvariantChecker {
       expect(p.vp).toBeGreaterThanOrEqual(0);
     }
     if (full) expect(JSON.parse(JSON.stringify(state))).toEqual(state);
+    // Every reaction can be answered: faction terrain is never offered one, and the default
+    // action (what the UI falls back to) is legal.
+    const d = this.engine.decision(state);
+    if (d?.kind === 'reaction') {
+      for (const o of d.options) {
+        const u = state.units[o.unit]!;
+        expect(profileOf(scenario, u).isFactionTerrain, `reaction for ${u.name}`).toBe(false);
+      }
+      expect(() => this.engine.apply(state, this.engine.defaultAction(state))).not.toThrow();
+    }
   }
 }
 
