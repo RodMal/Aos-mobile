@@ -537,6 +537,15 @@ button {
 .hatch-bg {
   fill: var(--enemy);
 }
+/* The Awakened Wyldwood's tree trunk, which models cannot stand on: a dark bark mark. */
+.trunk {
+  fill: #3b2a1a;
+  fill-opacity: 0.85;
+  stroke: #1c120a;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
 .hatch-line {
   stroke: #b05a12;
   stroke-width: 0.14;

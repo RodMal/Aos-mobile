@@ -21,6 +21,7 @@ import { illegal, type Ctx } from './ctx.js';
 import { inflictMortalDamage } from './damage.js';
 import {
   aliveIndices,
+  blockingFootprints,
   COMBAT_RANGE,
   DIST_EPS,
   modelFootprint,
@@ -145,7 +146,8 @@ export function pathBlockedModels(
     if (other.id === unit.id || other.status !== 'battlefield') continue;
     const b = unitBounds(scenario, other);
     if (Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r > maxMove + 2) continue;
-    otherFootprints.push(...unitFootprints(scenario, other));
+    // Models walk over an Awakened Wyldwood, but not through its trunk.
+    otherFootprints.push(...blockingFootprints(scenario, other));
   }
 
   if (otherFootprints.length === 0) return [];

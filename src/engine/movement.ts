@@ -16,6 +16,8 @@ import {
   DIST_EPS,
   footprintWhollyWithin,
   gapToEnemies,
+  hasTrunk,
+  unitTrunks,
   unitBounds,
   modelFootprint,
   opponent,
@@ -143,7 +145,9 @@ export function checkMovePlacement(
   }
 
   // Overlaps: with the unit's own models, and with every other model on the battlefield.
+  // Models may stand on an Awakened Wyldwood except at its trunk.
   const others: Footprint[] = [];
+  const trunks: Footprint[] = [];
   const own = unitBounds(scenario, unit);
   for (const id of state.unitOrder) {
     const other = state.units[id]!;
@@ -152,7 +156,8 @@ export function checkMovePlacement(
       const b = unitBounds(scenario, other);
       if (Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r > rules.allowance + 1) continue;
     }
-    others.push(...unitFootprints(scenario, other));
+    if (hasTrunk(scenario, other)) trunks.push(...unitTrunks(scenario, other));
+    else others.push(...unitFootprints(scenario, other));
   }
   const overlapping = new Set<number>();
   const list = placement.models.map((m) => ({ i: m.i, fp: ends.get(m.i)! }));
@@ -170,6 +175,14 @@ export function checkMovePlacement(
       code: 'OVERLAP',
       message: 'Bases cannot overlap.',
       models: [...overlapping].sort((a, b) => a - b),
+    });
+  }
+  const onTrunk = trunkViolations(list, trunks);
+  if (onTrunk.length > 0) {
+    violations.push({
+      code: 'BLOCKED',
+      message: "Models cannot stand on the Awakened Wyldwood's tree trunk.",
+      models: onTrunk,
     });
   }
 
@@ -307,6 +320,18 @@ export function checkMovePlacement(
   }
 
   return violations;
+}
+
+/** Model indices whose footprint overlaps a trunk zone. */
+export function trunkViolations(
+  list: readonly { i: number; fp: Footprint }[],
+  trunks: readonly Footprint[],
+): number[] {
+  if (trunks.length === 0) return [];
+  return list
+    .filter(({ fp }) => trunks.some((t) => footprintsOverlap(fp, t)))
+    .map(({ i }) => i)
+    .sort((a, b) => a - b);
 }
 
 /** Pile-in moves are up to 3". */

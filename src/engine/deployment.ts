@@ -17,7 +17,7 @@ import {
   type Footprint,
   type Polygon,
 } from '../geom/index.js';
-import { boardPolygon } from './movement.js';
+import { boardPolygon, trunkViolations } from './movement.js';
 import { canStandOn } from '../data/battlefield.js';
 import {
   aliveIndices,
@@ -30,6 +30,8 @@ import {
   opponent,
   profileOf,
   unitFootprints,
+  hasTrunk,
+  unitTrunks,
   unitsOf,
 } from './query.js';
 import type {
@@ -287,11 +289,15 @@ export function checkDeployPlacement(
     });
   }
 
+  // Models may be set up on an Awakened Wyldwood except at its trunk (faction terrain itself
+  // keeps clear of the whole piece).
   const others: Footprint[] = [];
+  const trunks: Footprint[] = [];
   for (const id of state.unitOrder) {
     const other = state.units[id];
     if (!other || other.id === unit.id || other.status !== 'battlefield') continue;
-    others.push(...unitFootprints(scenario, other));
+    if (!isTerrain && hasTrunk(scenario, other)) trunks.push(...unitTrunks(scenario, other));
+    else others.push(...unitFootprints(scenario, other));
   }
 
   const overlapping = new Set<number>();
@@ -328,6 +334,14 @@ export function checkDeployPlacement(
       code: 'OVERLAP',
       message: 'Bases cannot overlap.',
       models: [...overlapping].sort((a, b) => a - b),
+    });
+  }
+  const onTrunk = trunkViolations(list, trunks);
+  if (onTrunk.length > 0) {
+    violations.push({
+      code: 'BLOCKED',
+      message: "Models cannot be set up on the Awakened Wyldwood's tree trunk.",
+      models: onTrunk,
     });
   }
 

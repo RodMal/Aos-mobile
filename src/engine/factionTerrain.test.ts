@@ -10,7 +10,7 @@ import {
   type GameState,
 } from './index.js';
 import { editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
-import { WYLDWOOD_OUTLINES } from '../data/wyldwood.js';
+import { WYLDWOOD_OUTLINES, WYLDWOOD_PIECES } from '../data/wyldwood.js';
 import {
   baseFootprint,
   convexPolygonsOverlap,
@@ -50,7 +50,7 @@ describe('faction terrain (owner ruling, 2026-11-11)', () => {
   it('uses the owner\'s footprints: the traced Wyldwood crescent and a 6" square engine', () => {
     const units = startGame(engine, 1).units;
     expect(profileOf(scenario, units[WYLDWOOD]!).models).toEqual([
-      { base: { kind: 'outline', points: WYLDWOOD_OUTLINES[0] }, champion: false },
+      { base: WYLDWOOD_PIECES[0], champion: false },
     ]);
     expect(profileOf(scenario, units[REALMSHAPER]!).models).toEqual([
       { base: { kind: 'rect', lengthMm: 152.4, widthMm: 152.4 }, champion: false },

@@ -10,6 +10,7 @@ import {
   footprintPolygon,
   layoutFormation,
   type Footprint,
+  trunkFootprint,
 } from '../geom/index.js';
 import type { GameState, Placement, PlayerId, Scenario, UnitId, UnitState } from './types.js';
 
@@ -72,6 +73,34 @@ export function modelFootprint(
   const base = profileOf(scenario, unit).models[i]!.base;
   const pos = at ?? unit.models[i]!;
   return baseFootprint(base, pos.x, pos.y, pos.rot);
+}
+
+/**
+ * True for a unit models may stand on except at its trunk zones (the Awakened Wyldwood,
+ * owner's ruling 2026-11-12).
+ */
+export function hasTrunk(scenario: Scenario, unit: UnitState): boolean {
+  const base = profileOf(scenario, unit).models[0]?.base;
+  return base?.kind === 'outline' && !!base.trunk;
+}
+
+/** Trunk zones of the unit's living models (empty for a unit without them). */
+export function unitTrunks(scenario: Scenario, unit: UnitState): Footprint[] {
+  const out: Footprint[] = [];
+  for (const i of aliveIndices(unit)) {
+    const m = unit.models[i]!;
+    const fp = trunkFootprint(profileOf(scenario, unit).models[i]!.base, m.x, m.y, m.rot);
+    if (fp) out.push(fp);
+  }
+  return out;
+}
+
+/**
+ * What blocks other models standing or moving: a unit's bases, or only the trunk zones of a
+ * piece models may stand on.
+ */
+export function blockingFootprints(scenario: Scenario, unit: UnitState): Footprint[] {
+  return hasTrunk(scenario, unit) ? unitTrunks(scenario, unit) : unitFootprints(scenario, unit);
 }
 
 /** Footprints of the unit's living models, in model-index order. */

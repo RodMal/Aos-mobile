@@ -7,6 +7,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { chooseAction } from '../../src/ai/baseline.js';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../../src/data/lists.js';
 import {
+  blockingFootprints,
   createEngine,
   createScenario,
   profileOf,
@@ -87,9 +88,13 @@ export class InvariantChecker {
       if (!fps.has(id)) this.seen.delete(id);
     }
     // Overlaps: each changed unit's bases against every other base on the battlefield.
-    const all = [...fps.entries()].flatMap(([id, list]) => list.map((fp) => ({ id, fp })));
+    // Models may stand on an Awakened Wyldwood except at its trunk.
+    const blocking = new Map<UnitId, Footprint[]>(
+      [...fps.keys()].map((id) => [id, blockingFootprints(scenario, state.units[id]!)]),
+    );
+    const all = [...blocking.entries()].flatMap(([id, list]) => list.map((fp) => ({ id, fp })));
     for (const id of changed) {
-      const mine = fps.get(id)!;
+      const mine = blocking.get(id)!;
       for (let a = 0; a < mine.length; a++) {
         const fa = mine[a]!;
         const ra = boundingRadius(fa);

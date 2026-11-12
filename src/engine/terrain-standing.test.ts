@@ -16,10 +16,11 @@ import {
   profileOf,
 } from './index.js';
 import { checkMovePlacement, type PlaceRules } from './movement.js';
-import { modelFootprint } from './query.js';
-import { footprintOverlapsPolygon } from '../geom/index.js';
+import { modelFootprint, unitTrunks } from './query.js';
+import { footprintOverlapsPolygon, pointInPolygon, trunkFootprint } from '../geom/index.js';
+import { largestInscribedCircle, WYLDWOOD_PIECES } from '../data/wyldwood.js';
 import { editable, keepOnly, placeUnit, startGame } from './test-helpers.js';
-import type { GameState, Placement, PlaceReason, Scenario } from './types.js';
+import type { GameState, Placement, PlaceReason, Scenario, UnitId } from './types.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
 const engine = createEngine(scenario);
@@ -138,20 +139,99 @@ describe('standing on terrain: the Bastiladon on a Place of Power', () => {
     }
   });
 
-  it('cannot end a move on faction terrain', () => {
+  it('cannot end a move on the Realmshaper Engine', () => {
     const s = editable(startGame(engine, 1));
-    const terrainId = s.unitOrder.find(
-      (id) => s.units[id]!.owner === 0 && profileOf(scenario, s.units[id]!).isFactionTerrain,
-    )!;
-    expect(terrainId).toBeDefined();
-    keepOnly(s, [BASTILADON, terrainId]);
-    const t = s.units[terrainId]!.models[0]!;
-    const p = formPlacement(scenario, s.units[BASTILADON]!, { x: t.x, y: t.y }, 0);
-    const v = checkMovePlacement(scenario, s, s.units[BASTILADON]!, p, {
+    const engineId = terrainId(s, 1);
+    keepOnly(s, ['0:5', engineId]);
+    const t = s.units[engineId]!.models[0]!;
+    const p = formPlacement(scenario, s.units['0:5']!, { x: t.x, y: t.y }, 0);
+    const v = checkMovePlacement(scenario, s, s.units['0:5']!, p, {
       reason: 'normal',
       allowance: 100,
     });
     expect(v.map((x) => x.code)).toContain('OVERLAP');
+  });
+});
+
+function terrainId(s: GameState, owner: 0 | 1): UnitId {
+  return s.unitOrder.find(
+    (id) => s.units[id]!.owner === owner && profileOf(scenario, s.units[id]!).isFactionTerrain,
+  )!;
+}
+
+describe('standing on the Awakened Wyldwood (owner, 2026-11-12): anywhere but the trunk', () => {
+  const BEARER = '1:4'; // Saurus Astrolith Bearer, one 40 mm base
+
+  /** The Wyldwood, the trunk zone, and a spot on the thin part where the bearer fits. */
+  function setUp() {
+    const s = editable(startGame(engine, 1));
+    const wood = terrainId(s, 0);
+    keepOnly(s, [BEARER, wood]);
+    const piece = s.units[wood]!;
+    const outline = modelFootprint(scenario, piece, 0);
+    const trunk = unitTrunks(scenario, piece)[0]!;
+    if (outline.kind !== 'polygon' || trunk.kind !== 'circle') throw new Error('no trunk');
+    const bearer = s.units[BEARER]!;
+    const r = 40 / 25.4 / 2;
+    let thin: { x: number; y: number } | null = null;
+    for (const [px, py] of outline.outline) {
+      // Step from each outline point towards the piece's centre until the base is inside.
+      for (let f = 0.1; f <= 0.6 && !thin; f += 0.05) {
+        const x = px + (piece.models[0]!.x - px) * f;
+        const y = py + (piece.models[0]!.y - py) * f;
+        if (Math.hypot(x - trunk.cx, y - trunk.cy) < trunk.r + r + 0.3) continue;
+        const fp = modelFootprint(scenario, bearer, 0, { x, y, rot: 0 });
+        if (!pointInPolygon([x, y], outline.outline)) continue;
+        if (footprintOverlapsPolygon(fp, outline.outline)) thin = { x, y };
+      }
+      if (thin) break;
+    }
+    if (!thin) throw new Error('no thin spot found');
+    return { s, bearer, trunk, thin };
+  }
+
+  it('a base on the thin part of the piece may end a move and be set up there', () => {
+    const { s, bearer, thin } = setUp();
+    const p: Placement = { unit: BEARER, models: [{ i: 0, x: thin.x, y: thin.y, rot: 0 }] };
+    const rules: PlaceRules = { reason: 'normal', allowance: 100 };
+    const codes = checkMovePlacement(scenario, s, bearer, p, rules).map((v) => v.code);
+    expect(codes).not.toContain('OVERLAP');
+    expect(codes).not.toContain('BLOCKED');
+  });
+
+  it('a base on the trunk is refused with a readable reason, for moves and set-up', () => {
+    const { s, bearer, trunk } = setUp();
+    const p: Placement = { unit: BEARER, models: [{ i: 0, x: trunk.cx, y: trunk.cy, rot: 0 }] };
+    const v = checkMovePlacement(scenario, s, bearer, p, { reason: 'charge', allowance: 100 });
+    const blocked = v.find((x) => x.code === 'BLOCKED');
+    expect(blocked?.message).toBe("Models cannot stand on the Awakened Wyldwood's tree trunk.");
+    const reserve = { ...bearer, status: 'reserve' as const };
+    const d = checkDeployPlacement(
+      scenario,
+      { ...s, units: { ...s.units, [BEARER]: reserve } },
+      reserve,
+      p,
+    );
+    expect(d.map((x) => x.message)).toContain(
+      "Models cannot be set up on the Awakened Wyldwood's tree trunk.",
+    );
+  });
+
+  it('the trunk sits at the widest part of each piece and turns with it', () => {
+    for (const piece of WYLDWOOD_PIECES) {
+      const c = largestInscribedCircle(piece.points);
+      expect(piece.trunk!.r).toBeCloseTo(c.r * 0.9, 2);
+      expect(piece.trunk!.r).toBeGreaterThan(0.85);
+      expect(pointInPolygon([piece.trunk!.x, piece.trunk!.y], piece.points)).toBe(true);
+    }
+    const base = WYLDWOOD_PIECES[0]!;
+    const at0 = trunkFootprint(base, 10, 10, 0)!;
+    const at90 = trunkFootprint(base, 10, 10, 90)!;
+    expect(at0.kind === 'circle' && at90.kind === 'circle').toBe(true);
+    if (at0.kind === 'circle' && at90.kind === 'circle') {
+      expect(at90.cx).toBeCloseTo(10 - (at0.cy - 10), 6);
+      expect(at90.cy).toBeCloseTo(10 + (at0.cx - 10), 6);
+    }
   });
 });
 
