@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createEngine, createScenario, profileOf, type GameState } from '../../engine/index.js';
 import type { Ctx } from '../../engine/ctx.js';
-import { editable, keepOnly, placeUnit, ScriptedDice } from '../../engine/test-helpers.js';
+import {
+  editable,
+  keepOnly,
+  placeUnit,
+  ScriptedDice,
+  startGame,
+} from '../../engine/test-helpers.js';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../../data/lists.js';
 import { creepingOvergrowthRange, resolveEndlessGrowth } from './sylvaneth.js';
 
@@ -37,7 +43,7 @@ describe('The Creeping Overgrowth', () => {
 
 describe('Endless Growth', () => {
   it('Nature’s Titans heals 3 on a Sylvaneth Monster without rolling', () => {
-    const s = editable(engine.newGame(1));
+    const s = editable(startGame(engine, 1));
     const durthu = named(s, 'Spirit of Durthu');
     grownAround(s, durthu.id);
     durthu.damage = 5;
@@ -47,7 +53,7 @@ describe('Endless Growth', () => {
   });
 
   it('rolls a D3 for a non-Monster: returns slain models that fit in the roll, else heals', () => {
-    const s = editable(engine.newGame(1));
+    const s = editable(startGame(engine, 1));
     const dryads = named(s, 'Dryads');
     grownAround(s, dryads.id);
     expect(profileOf(scenario, dryads).health).toBe(1);
@@ -56,7 +62,7 @@ describe('Endless Growth', () => {
     resolveEndlessGrowth(ctxWith(s, [2]), 0);
     expect(dryads.models.filter((m) => !m.alive)).toHaveLength(0);
 
-    const s2 = editable(engine.newGame(1));
+    const s2 = editable(startGame(engine, 1));
     const belthanos = named(s2, 'Belthanos, First Thorn of Kurnoth');
     grownAround(s2, belthanos.id);
     const isMonster = profileOf(scenario, belthanos).keywords.includes('MONSTER');
@@ -66,7 +72,7 @@ describe('Endless Growth', () => {
   });
 
   it('does nothing for an army without the trait, or for units outside the overgrowth', () => {
-    const s = editable(engine.newGame(1));
+    const s = editable(startGame(engine, 1));
     const krox = named(s, 'Kroxigor');
     grownAround(s, krox.id);
     krox.damage = 1;
@@ -75,7 +81,7 @@ describe('Endless Growth', () => {
     expect(krox.damage).toBe(1);
     expect(ctx.events).toEqual([]);
 
-    const s2 = editable(engine.newGame(1));
+    const s2 = editable(startGame(engine, 1));
     s2.overgrown = [[], []];
     const durthu = named(s2, 'Spirit of Durthu');
     keepOnly(s2, [durthu.id]);
@@ -86,7 +92,7 @@ describe('Endless Growth', () => {
   });
 
   it('runs at the end of the opponent’s turn as well as its own', () => {
-    let s = editable(engine.newGame(1));
+    let s = editable(startGame(engine, 1));
     const durthu = named(s, 'Spirit of Durthu');
     keepOnly(s, [durthu.id]);
     grownAround(s, durthu.id);

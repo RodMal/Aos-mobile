@@ -17,6 +17,7 @@ import {
   type Action,
   type GameState,
 } from './index.js';
+import { startGame } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
@@ -28,7 +29,7 @@ function passTo(state: GameState, phase: GameState['phase']): GameState {
 }
 
 describe('set-up', () => {
-  const state = engine.newGame(1);
+  const state = startGame(engine, 1);
 
   it('puts every unit of both armies on the battlefield', () => {
     // Each army's units plus its faction terrain.
@@ -65,13 +66,13 @@ describe('set-up', () => {
   });
 
   it('is deterministic for a seed', () => {
-    expect(engine.newGame(1)).toEqual(state);
+    expect(startGame(engine, 1)).toEqual(state);
   });
 });
 
 describe('turn sequence', () => {
   it('runs five rounds of two turns and then ends', () => {
-    let s = engine.newGame(7);
+    let s = startGame(engine, 7);
     let steps = 0;
     while (engine.decision(s)) {
       s = engine.apply(s, engine.defaultAction(s)).state;
@@ -84,20 +85,20 @@ describe('turn sequence', () => {
   });
 
   it('does not mutate the state it is given', () => {
-    const s = engine.newGame(3);
+    const s = startGame(engine, 3);
     const copy = JSON.parse(JSON.stringify(s)) as GameState;
     engine.apply(s, { t: 'pass' });
     expect(s).toEqual(copy);
   });
 
   it('survives a JSON round trip', () => {
-    const s = passTo(engine.newGame(3), 'movement');
+    const s = passTo(startGame(engine, 3), 'movement');
     expect(JSON.parse(JSON.stringify(s))).toEqual(s);
   });
 });
 
 describe('movement', () => {
-  const start = passTo(engine.newGame(11), 'movement');
+  const start = passTo(startGame(engine, 11), 'movement');
   const dryads = unitsOf(start, 0).find((u) => u.name === 'Dryads')!;
 
   it('offers a normal move and a run in the movement phase only', () => {
@@ -106,7 +107,7 @@ describe('movement', () => {
       { t: 'move', kind: 'run', allowance: 6 },
       { t: 'command', command: 'atTheDouble', cost: 1 },
     ]);
-    expect(engine.unitOptions(engine.newGame(11), dryads.id)).toEqual([]);
+    expect(engine.unitOptions(startGame(engine, 11), dryads.id)).toEqual([]);
     const enemy = unitsOf(start, 1)[0]!;
     expect(engine.unitOptions(start, enemy.id)).toEqual([]);
   });

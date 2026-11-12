@@ -15,13 +15,14 @@ import {
   DEFENDER_STARTING_FURY,
 } from './fury.js';
 import { profileOf } from '../../engine/query.js';
+import { startGame } from '../../engine/test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
 
 describe('Fury season rules (GHB 2026-27)', () => {
   it('initialises Fury levels (Raising the Heat) and Simmering Rage gives rage dice equal to fury', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     initFury(state, 0);
 
     expect(state.players[0].furyLevel).toBe(ATTACKER_STARTING_FURY); // 1
@@ -43,7 +44,7 @@ describe('Fury season rules (GHB 2026-27)', () => {
   });
 
   it('Fight Through the Pain spends rage dice, lowers Fury level by 1 each, and negates damage on 3+', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     initFury(state, 0);
     state.players[0].furyLevel = 4;
     state.players[0].rageDice = 3;
@@ -67,7 +68,7 @@ describe('Fury season rules (GHB 2026-27)', () => {
   });
 
   it('Eruption of Fury makes combat attacks from rage dice, inflicts mortal damage on 6s, hurts user on 1s, and raises opponent fury', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     initFury(state, 0);
     state.players[0].furyLevel = 3;
     state.players[0].rageDice = 3;

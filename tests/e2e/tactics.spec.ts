@@ -22,3 +22,20 @@ test('the top bar opens the battle tactics tracker with both armies’ cards and
   await page.getByRole('button', { name: 'Close' }).click();
   await expect(panel).toBeHidden();
 });
+
+test('Burning for Vengeance asks the player to pick the fugitive, and the tracker shows it', async ({
+  page,
+}, info) => {
+  await page.goto('./?seed=5&side=0&fast=1&new=1');
+  const prompt = page.getByTestId('fugitive');
+  await expect(prompt).toBeVisible();
+  const choices = prompt.locator('[data-fugitive]');
+  expect(await choices.count()).toBeGreaterThan(1);
+  await page.screenshot({ path: info.outputPath(`fugitive-${info.project.name}.png`) });
+  const last = choices.last();
+  const name = ((await last.textContent()) ?? '').replace(/ · in reserve$/, '').trim();
+  await last.click();
+  await expect(prompt).toBeHidden();
+  await page.getByTestId('tactics-button').click();
+  await expect(page.getByTestId('tactics-panel')).toContainText(`Fugitive: ${name}`);
+});

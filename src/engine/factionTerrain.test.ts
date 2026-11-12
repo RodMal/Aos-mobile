@@ -9,7 +9,7 @@ import {
   unitDistance,
   type GameState,
 } from './index.js';
-import { editable, keepOnly, passTo, placeUnit } from './test-helpers.js';
+import { editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
 import { WYLDWOOD_OUTLINES } from '../data/wyldwood.js';
 import {
   baseFootprint,
@@ -34,7 +34,7 @@ function named(s: GameState, name: string) {
 
 /** Dryads 1.5" from the enemy Realmshaper Engine, the Sylvaneth Wyldwood far away. */
 function nearEngine(): GameState {
-  const s = editable(engine.newGame(1));
+  const s = editable(startGame(engine, 1));
   const dryads = named(s, 'Dryads');
   keepOnly(s, [dryads.id, WYLDWOOD, REALMSHAPER, '1:1']);
   placeUnit(scenario, s, dryads.id, 24, 22);
@@ -48,7 +48,7 @@ function nearEngine(): GameState {
 
 describe('faction terrain (owner ruling, 2026-11-11)', () => {
   it('uses the owner\'s footprints: the traced Wyldwood crescent and a 6" square engine', () => {
-    const units = engine.newGame(1).units;
+    const units = startGame(engine, 1).units;
     expect(profileOf(scenario, units[WYLDWOOD]!).models).toEqual([
       { base: { kind: 'outline', points: WYLDWOOD_OUTLINES[0] }, champion: false },
     ]);

@@ -19,7 +19,15 @@ import {
   type GameState,
   type UnitId,
 } from '../index.js';
-import { applyUntil, editable, keepOnly, passTo, placeUnit, weapon } from '../test-helpers.js';
+import {
+  applyUntil,
+  editable,
+  keepOnly,
+  passTo,
+  placeUnit,
+  weapon,
+  startGame,
+} from '../test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
 const engine = createEngine(scenario);
@@ -69,7 +77,7 @@ const WS_GRAVETIDE = '1885-a1aa-bf5d-6d0d';
 function baseArena(
   units: UnitId[] = [ALARIELLE, DRYCHA, WARSONG, DRYADS, KROAK, SAURUS_GUARD],
 ): GameState {
-  const s = editable(engine.newGame(1));
+  const s = editable(startGame(engine, 1));
   keepOnly(s, units);
   // Put enemy wizards far away (> 30") by default so Unbind reactions don't trigger unless wanted
   if (units.includes(ALARIELLE)) placeUnit(scenario, s, ALARIELLE, 12, 22);

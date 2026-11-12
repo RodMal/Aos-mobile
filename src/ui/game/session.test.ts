@@ -22,8 +22,19 @@ import {
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
 
+/** A new session with the pre-battle choices (the fugitive) answered by default. */
+function started(human: 0 | 1) {
+  let s = newSession(engine, 5, human);
+  while (engine.decision(s.state)?.kind !== 'main') {
+    s = applyToSession(engine, s, engine.defaultAction(s.state)).session;
+  }
+  return s;
+}
+
+const PRE_BATTLE = started(0).history.length;
+
 function toMovement() {
-  let s = newSession(engine, 5, 0);
+  let s = started(0);
   s = applyToSession(engine, s, { t: 'pass' }).session;
   return s;
 }
@@ -32,13 +43,13 @@ describe('session', () => {
   it('applies actions, records the actor and the events', () => {
     const s = toMovement();
     expect(s.state.phase).toBe('movement');
-    expect(s.history).toHaveLength(1);
-    expect(s.history[0]!.actor).toBe(0);
-    expect(s.history[0]!.events.some((e) => e.t === 'phaseStart')).toBe(true);
+    expect(s.history).toHaveLength(PRE_BATTLE + 1);
+    expect(s.history[PRE_BATTLE]!.actor).toBe(0);
+    expect(s.history[PRE_BATTLE]!.events.some((e) => e.t === 'phaseStart')).toBe(true);
   });
 
   it('throws IllegalActionError for illegal actions', () => {
-    const s = newSession(engine, 5, 0);
+    const s = started(0);
     expect(() => applyToSession(engine, s, { t: 'move', unit: '0:6', kind: 'normal' })).toThrow(
       IllegalActionError,
     );
@@ -61,7 +72,7 @@ describe('session', () => {
   });
 
   it('does not undo the opponent’s actions', () => {
-    let s = newSession(engine, 5, 1);
+    let s = started(1);
     s = applyToSession(engine, s, { t: 'pass' }).session;
     expect(canUndo(s)).toBe(false);
   });
@@ -73,7 +84,7 @@ describe('session', () => {
     s = applyToSession(engine, s, { t: 'place', placement }).session;
     const json = JSON.stringify(toRecord(s));
     const record = parseRecord(json)!;
-    expect(record.actions).toHaveLength(3);
+    expect(record.actions).toHaveLength(PRE_BATTLE + 3);
     expect(replay(engine, record).state).toEqual(s.state);
   });
 

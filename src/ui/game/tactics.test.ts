@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from '../../data/lists.js';
 import { createEngine, createScenario } from '../../engine/index.js';
 import { tacticCardsView } from './tactics.js';
+import { startGame } from '../../engine/test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
 
 describe('tacticCardsView', () => {
   it('shows each card with its three tiers, the next tier and its printed condition', () => {
-    const state = structuredClone(engine.newGame(1));
+    const state = structuredClone(startGame(engine, 1));
     const cards = scenario.armies[0].tacticCards;
     expect(cards.length).toBe(2);
     const first = cards[0]!;
@@ -23,7 +24,7 @@ describe('tacticCardsView', () => {
   });
 
   it('marks every tier done for a completed card', () => {
-    const state = structuredClone(engine.newGame(1));
+    const state = structuredClone(startGame(engine, 1));
     const card = scenario.armies[1].tacticCards[0]!;
     state.players[1].tacticProgress = { [card.id]: 'completed' };
     const view = tacticCardsView([card], state, 1);

@@ -42,6 +42,9 @@ import {
 import {
   evaluateEndOfTurnTactics,
   initBattleTactics,
+  needsFugitive,
+  fugitiveCandidates,
+  suggestFugitive,
   recordTurnStartForTactics,
 } from '../rules/core/battleTactics.js';
 import {
@@ -210,15 +213,46 @@ function startRound(ctx: Ctx): void {
   applySimmeringRage(s);
   for (const text of applyEverGrowing(scenario, s)) ctx.events.push({ t: 'note', text });
   if (s.round === 1) {
-    // Round 1: the attacker (player 0) takes the first turn.
-    s.firstPlayer = 0;
-    beginRound(ctx);
+    roundOneFirstTurn(ctx);
     return;
   }
   const rolls: [number, number] = [d6(ctx), d6(ctx)];
   const winner = priorityWinner(rolls, s.firstPlayer);
   ctx.events.push({ t: 'priority', rolls, winner });
   s.stack.push({ t: 'priority', winner, rolls });
+}
+
+/**
+ * Round 1, after every deployment ability and before the first turn is decided: pre-battle
+ * picks (the Burning for Vengeance fugitive, attacker first), then the first turn.
+ */
+function roundOneFirstTurn(ctx: Ctx): void {
+  const { s, scenario } = ctx;
+  for (const p of [0, 1] as PlayerId[]) {
+    if (needsFugitive(scenario, s, p)) {
+      s.stack.push({ t: 'fugitive', player: p, units: fugitiveCandidates(scenario, s, p) });
+      return;
+    }
+  }
+  // Round 1: the attacker (player 0) takes the first turn.
+  s.firstPlayer = 0;
+  beginRound(ctx);
+}
+
+function chooseFugitive(ctx: Ctx, value: string): void {
+  const { s } = ctx;
+  const frame = s.stack[s.stack.length - 1];
+  if (frame?.t !== 'fugitive') illegal('There is no fugitive to pick.');
+  if (!frame.units.includes(value)) {
+    illegal('Pick an enemy Hero on the battlefield or in reserve to be the fugitive.');
+  }
+  s.stack.pop();
+  s.players[frame.player].fugitiveUnit = value;
+  ctx.events.push({
+    t: 'note',
+    text: `Player ${frame.player + 1} picks ${s.units[value]!.name} as the fugitive.`,
+  });
+  roundOneFirstTurn(ctx);
 }
 
 function choosePriority(ctx: Ctx, value: string): void {
@@ -520,6 +554,8 @@ export function createEngine(scenario: Scenario): Engine {
             unit: top.unit,
             seasons: ['burgeoning', 'reaping', 'dwindling', 'everdusk'],
           };
+        case 'fugitive':
+          return { kind: 'fugitive', player: top.player, units: top.units };
         case 'resolve':
         case 'spell':
         case 'endPhase':
@@ -1270,6 +1306,10 @@ export function createEngine(scenario: Scenario): Engine {
         if (action.t !== 'choose') illegal('Choose to take the first or second turn.');
         choosePriority(ctx, action.value);
         break;
+      case 'fugitive':
+        if (action.t !== 'choose') illegal('Pick the enemy Hero to be the fugitive.');
+        chooseFugitive(ctx, action.value);
+        break;
       case 'main': {
         const top = s.stack[s.stack.length - 1];
         if (top?.t === 'magicalIntervention') {
@@ -1484,6 +1524,8 @@ export function createEngine(scenario: Scenario): Engine {
         return { t: 'choose', value: 'ignite_fury' };
       case 'alarielleSeason':
         return { t: 'choose', value: d.seasons[0]! };
+      case 'fugitive':
+        return { t: 'choose', value: suggestFugitive(scenario, state, d.player) ?? d.units[0]! };
       case 'fightPick':
         if (d.canPass) return { t: 'pass' };
         return { t: 'fight', unit: eligibleFighters(scenario, state, d.player)[0]!.id };

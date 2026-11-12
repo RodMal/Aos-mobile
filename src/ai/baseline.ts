@@ -87,6 +87,9 @@ export function chooseAction(engine: Engine, state: GameState): Action {
     }
     case 'alarielleSeason':
       return { t: 'choose', value: d.seasons[0]! };
+    case 'fugitive':
+      // The engine's default is the sensible pick: the enemy Hero easiest to slay.
+      return engine.defaultAction(state);
     case 'main':
       return mainAction(engine, state, d.player, d.phase) ?? { t: 'pass' };
   }

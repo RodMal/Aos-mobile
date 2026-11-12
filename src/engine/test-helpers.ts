@@ -96,3 +96,18 @@ export function passTo(engine: Engine, state: GameState, phase: Phase): GameStat
   if (s.phase !== phase) throw new Error(`did not reach ${phase}`);
   return s;
 }
+
+/**
+ * A quick-start game advanced past the pre-battle choices (the Burning for Vengeance fugitive,
+ * the first-turn choice and optional start-of-turn prompts) to the first `main` decision, each
+ * answered with `engine.defaultAction`. No dice are rolled on the way.
+ */
+export function startGame(engine: Engine, seed: number): GameState {
+  let s = engine.newGame(seed);
+  for (let i = 0; i < 10; i++) {
+    const d = engine.decision(s);
+    if (!d || d.kind === 'main') break;
+    s = engine.apply(s, engine.defaultAction(s)).state;
+  }
+  return s;
+}

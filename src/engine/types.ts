@@ -210,6 +210,15 @@ export type Frame =
       t: 'alarielleSeason';
       player: PlayerId;
       unit: UnitId;
+    }
+  /**
+   * Start of the battle, before the first turn is decided: a player with Burning for Vengeance
+   * picks an enemy Hero (on the battlefield or in reserve) to be the fugitive.
+   */
+  | {
+      t: 'fugitive';
+      player: PlayerId;
+      units: UnitId[];
     };
 
 export type PlaceReason = MoveKind | 'charge' | 'pileIn' | 'summon' | 'powerThrough' | 'deploy';
@@ -317,7 +326,9 @@ export type Decision =
       player: PlayerId;
       unit: UnitId;
       seasons: ('burgeoning' | 'reaping' | 'dwindling' | 'everdusk')[];
-    };
+    }
+  /** Burning for Vengeance: pick the enemy fugitive (answer with `choose` and a unit ID). */
+  | { kind: 'fugitive'; player: PlayerId; units: UnitId[] };
 
 export type DecisionKind = Decision['kind'];
 
@@ -357,7 +368,7 @@ export interface Allocation {
 export type Action =
   /** End the phase, decline a reaction, skip a pile-in, or leave a unit in place. */
   | { t: 'pass' }
-  /** Answer a choice: priority takes 'first' or 'second'. */
+  /** Answer a choice: priority takes 'first' or 'second'; a fugitive pick takes a unit ID. */
   | { t: 'choose'; value: string }
   /** Declare a move. Run rolls a D6 and retreat rolls its damage; then a `place` follows. */
   | {

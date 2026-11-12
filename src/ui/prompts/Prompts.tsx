@@ -69,6 +69,32 @@ export function DecisionPrompts() {
       </Modal>
     );
   }
+  if (d.kind === 'fugitive') {
+    return (
+      <Modal title="Burning for Vengeance" testId="fugitive">
+        <p>
+          Pick an enemy Hero to be the <strong>fugitive</strong> for the rest of the battle. Quick
+          Pursuit and Bring Them In are scored against it (or completed once it is gone).
+        </p>
+        <div className="stack">
+          {d.units.map((id) => {
+            const u = state.units[id];
+            return (
+              <button
+                key={id}
+                className="btn wide"
+                data-fugitive={id}
+                onClick={() => dispatch({ t: 'choose', value: id })}
+              >
+                {u?.name ?? id}
+                {u?.status === 'reserve' && <span className="muted small"> · in reserve</span>}
+              </button>
+            );
+          })}
+        </div>
+      </Modal>
+    );
+  }
   if (d.kind === 'reaction') {
     const cp = state.players[human].cp;
     return (

@@ -103,6 +103,7 @@ button {
 }
 
 .round-label {
+  white-space: nowrap;
   font-family: var(--serif);
   font-size: 18px;
   font-weight: 600;
@@ -139,7 +140,7 @@ button {
   gap: 3px;
   align-items: center;
   min-height: 40px;
-  padding: 4px 8px;
+  padding: 4px 6px;
   border-radius: 8px;
   border: 1px solid #2b323a;
   background: #181d23;
@@ -153,15 +154,15 @@ button {
 }
 .tactics-pips {
   display: flex;
-  gap: 5px;
+  gap: 4px;
 }
 .pip-group {
   display: flex;
-  gap: 2px;
+  gap: 1px;
 }
 .pip {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   border: 1px solid #56606b;
 }

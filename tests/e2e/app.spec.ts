@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
+  answerPreBattle,
   ahead,
   boardPoint,
   boardScale,
@@ -141,6 +142,7 @@ test('passing every phase reaches battle round 2', async ({ page }) => {
 
 test('reloading the page resumes the same game', async ({ page }) => {
   await page.goto('./?seed=11&side=0&fast=1');
+  await answerPreBattle(page);
   await endPhaseUntil(page, /Movement/);
   await selectFromRoster(page, '0:7');
   await page.locator('[data-action="normal"]').click();

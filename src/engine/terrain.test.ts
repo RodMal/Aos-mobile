@@ -25,6 +25,7 @@ import {
   unitWithinTerrain,
   unstableTerrainViolations,
 } from './terrain.js';
+import { startGame } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
@@ -48,7 +49,7 @@ describe('terrain distance & overlap helpers', () => {
       true,
     );
 
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const warsong = unitsOf(state, 0).find((u) => u.name === 'Warsong Revenant')!;
     warsong.models[0]!.x = 15;
     warsong.models[0]!.y = 4.5;
@@ -59,7 +60,7 @@ describe('terrain distance & overlap helpers', () => {
 
 describe('unstable terrain', () => {
   it('flags models ending a placement on unstable terrain (ruin-nw)', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const dryads = unitsOf(state, 0).find((u) => u.name === 'Dryads')!;
     const ruinNw = findTerrain('ruin-nw'); // (15, 4.5)
 
@@ -76,7 +77,7 @@ describe('unstable terrain', () => {
 
 describe('fly and path-blocking', () => {
   it('blocks non-FLY models moving across another unit, while FLY models ignore it, and allows crossing unstable terrain', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const spites = unitsOf(state, 0).find((u) => u.name === 'Spite-Revenants')!;
     spites.models.forEach((m, idx) => {
       m.alive = idx === 0;
@@ -138,7 +139,7 @@ describe('fly and path-blocking', () => {
 
 describe('line of sight and obscuring terrain', () => {
   it('hides non-Monster/non-Fly units behind or within 1" of spire-w and halves their weapon range, while MONSTER and FLY remain visible', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const spireW = findTerrain('spire-w'); // centre (7, 28), 5x5 -> x: 4.5..9.5, y: 25.5..30.5
     expect(segmentCrossesPolygon([2, 28], [13, 28], spireW.polygon)).toBe(true);
     expect(segmentCrossesPolygon([2, 20], [13, 20], spireW.polygon)).toBe(false);
@@ -194,7 +195,7 @@ describe('line of sight and obscuring terrain', () => {
 
 describe('cover', () => {
   it('grants cover to units wholly within 1" or behind cover terrain unless they charged or have FLY', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const outcropW = findTerrain('outcrop-w'); // centre (22, 17)
     const attacker = unitsOf(state, 1).find((u) => u.name === 'Spawn of Chotec')!;
     const spites = unitsOf(state, 0).find((u) => u.name === 'Spite-Revenants')!;
@@ -234,7 +235,7 @@ describe('cover', () => {
 
 describe('guarded hero', () => {
   it('identifies a Hero (Health <= 10, non-Monster) within 3" of a 3+ model non-Hero friendly unit and sets infantry flag', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const warsong = unitsOf(state, 0).find((u) => u.name === 'Warsong Revenant')!; // INFANTRY HERO, health 7
     const dryads = unitsOf(state, 0).find((u) => u.name === 'Dryads')!; // 10 models
     const durthu = unitsOf(state, 0).find((u) => u.name === 'Spirit of Durthu')!; // MONSTER HERO, health 14
@@ -288,7 +289,7 @@ describe('guarded hero', () => {
 
 describe('terrain control', () => {
   it('computes the controlling player from models within 3" of a terrain feature', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const outcropW = findTerrain('outcrop-w'); // (22, 17)
     for (const id of state.unitOrder) {
       const u = state.units[id]!;
@@ -317,7 +318,7 @@ describe('Place of Power', () => {
     while (new RngCursor(seedBackfire).int(1, 6) !== 1) seedBackfire++;
 
     // Case 1: Roll >= 2 (no mortal damage, effect added)
-    const stateOk = cloneState(engine.newGame(1));
+    const stateOk = cloneState(startGame(engine, 1));
     for (const id of stateOk.unitOrder) {
       const u = stateOk.units[id]!;
       for (const m of u.models) {
@@ -353,7 +354,7 @@ describe('Place of Power', () => {
     });
 
     // Case 2: Roll === 1 (inflicts D3 mortal damage)
-    const stateFail = cloneState(engine.newGame(1));
+    const stateFail = cloneState(startGame(engine, 1));
     for (const id of stateFail.unitOrder) {
       const u = stateFail.units[id]!;
       for (const m of u.models) {

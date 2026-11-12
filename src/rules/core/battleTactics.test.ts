@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from '../../data/lists.js';
 import { cloneState } from '../../engine/engine.js';
-import { createEngine, createScenario, unitsOf } from '../../engine/index.js';
+import { IllegalActionError, createEngine, createScenario, unitsOf } from '../../engine/index.js';
 import {
   evaluateBattleTactic,
   evaluateEndOfTurnTactics,
@@ -14,6 +14,7 @@ import {
   SIEGE_OF_ASHES_ID,
 } from './battleTactics.js';
 import type { GameState, PlayerId } from '../../engine/index.js';
+import { editable, keepOnly, placeUnit, startGame } from '../../engine/test-helpers.js';
 
 /** The player's army units, leaving out faction terrain. */
 const armyUnits = (state: GameState, p: PlayerId) =>
@@ -24,7 +25,7 @@ const engine = createEngine(scenario);
 
 describe('Battle Tactics (GHB 2026-27)', () => {
   it('initialises tactic cards to affray and nominates fugitive and hideout', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     initBattleTactics(scenario, state);
 
     // Player 0 (Sylvaneth) has Burning for Vengeance and Flanking Firestorm
@@ -39,7 +40,7 @@ describe('Battle Tactics (GHB 2026-27)', () => {
   });
 
   it('records turn-start objective snapshot and turnStartInCombat', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     state.objectives[0]!.controller = 0;
     recordTurnStartForTactics(scenario, state);
 
@@ -50,7 +51,7 @@ describe('Battle Tactics (GHB 2026-27)', () => {
   });
 
   it('evaluates Flanking Firestorm (Strike: Surround the Enemy, Domination: Claim Whats Yours)', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     initBattleTactics(scenario, state);
 
     // Move all units to neutral territory (50, 5) which is outside both territories
@@ -89,7 +90,7 @@ describe('Battle Tactics (GHB 2026-27)', () => {
   });
 
   it('evaluates Burning for Vengeance (Strike: Quick Pursuit, Domination: Bring Them In)', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     initBattleTactics(scenario, state);
 
     // Fugitive killed / off the board
@@ -119,7 +120,7 @@ describe('Battle Tactics (GHB 2026-27)', () => {
   });
 
   it('evaluates Siege of Ashes (Affray: Form a Wall)', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     initBattleTactics(scenario, state);
 
     // Player 1 has Siege of Ashes. Friendly territory is Territory A (x >= 30, y >= 11)
@@ -150,7 +151,7 @@ describe('Battle Tactics (GHB 2026-27)', () => {
   });
 
   it('evaluates Legend of the Parch (Affray: Daring Rescue)', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     initBattleTactics(scenario, state);
 
     const enemyUnitId = armyUnits(state, 0)[0]!.id;
@@ -161,7 +162,7 @@ describe('Battle Tactics (GHB 2026-27)', () => {
   });
 
   it('seizing initiative prevents scoring battle tactics on that first turn', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     initBattleTactics(scenario, state);
     recordTurnStartForTactics(scenario, state);
 
@@ -171,5 +172,59 @@ describe('Battle Tactics (GHB 2026-27)', () => {
 
     const scored = evaluateEndOfTurnTactics(scenario, state, 0);
     expect(scored).toEqual([]);
+  });
+
+  describe('Burning for Vengeance fugitive (picked by the player)', () => {
+    it('asks the player with the card to pick an enemy Hero before the first turn', () => {
+      const s0 = engine.newGame(1);
+      const d = engine.decision(s0)!;
+      expect(d.kind).toBe('fugitive');
+      if (d.kind !== 'fugitive') return;
+      expect(d.player).toBe(0);
+      expect(s0.players[0].fugitiveUnit ?? null).toBeNull();
+      expect(d.units.length).toBeGreaterThan(0);
+      for (const id of d.units) expect(s0.units[id]!.owner).toBe(1);
+      // A friendly unit or a non-Hero is refused.
+      const friendly = armyUnits(s0, 0)[0]!.id;
+      expect(() => engine.apply(s0, { t: 'choose', value: friendly })).toThrow(IllegalActionError);
+      const nonHero = armyUnits(s0, 1).find((u) => !d.units.includes(u.id))!.id;
+      expect(() => engine.apply(s0, { t: 'choose', value: nonHero })).toThrow(IllegalActionError);
+      const pick = d.units[d.units.length - 1]!;
+      const s1 = engine.apply(s0, { t: 'choose', value: pick }).state;
+      expect(s1.players[0].fugitiveUnit).toBe(pick);
+      expect(engine.decision(s1)).toMatchObject({ kind: 'main', phase: 'hero', player: 0 });
+      // The default (and the NPC) picks one of the legal Heroes.
+      expect(d.units).toContain((engine.defaultAction(s0) as { value: string }).value);
+    });
+
+    it('lets Quick Pursuit and then Bring Them In complete against the picked fugitive', () => {
+      const s0 = engine.newGame(1);
+      const d = engine.decision(s0)!;
+      if (d.kind !== 'fugitive') throw new Error('expected a fugitive pick');
+      const fugitive = d.units[0]!;
+      const state = editable(engine.apply(s0, { t: 'choose', value: fugitive }).state);
+      const hunters = armyUnits(state, 0)
+        .filter((u) => u.models.length === 1)
+        .slice(0, 3)
+        .map((u) => u.id);
+      expect(hunters).toHaveLength(3);
+      keepOnly(state, [fugitive, ...hunters]);
+      state.players[0].tacticProgress![BURNING_FOR_VENGEANCE_ID] = 'strike';
+      placeUnit(scenario, state, fugitive, 30, 22);
+      // Strike: three friendly units within 12" of the fugitive and not in combat.
+      placeUnit(scenario, state, hunters[0]!, 20, 22);
+      placeUnit(scenario, state, hunters[1]!, 40, 22);
+      placeUnit(scenario, state, hunters[2]!, 30, 13);
+      let scored = evaluateEndOfTurnTactics(scenario, state, 0);
+      expect(scored.map((t) => t.tier)).toContain('strike');
+      expect(state.players[0].tacticProgress![BURNING_FOR_VENGEANCE_ID]).toBe('domination');
+      // Domination: three friendly units in combat with the fugitive.
+      placeUnit(scenario, state, hunters[0]!, 25, 22);
+      placeUnit(scenario, state, hunters[1]!, 35, 22);
+      placeUnit(scenario, state, hunters[2]!, 30, 17);
+      scored = evaluateEndOfTurnTactics(scenario, state, 0);
+      expect(scored.map((t) => t.tier)).toContain('domination');
+      expect(state.players[0].tacticProgress![BURNING_FOR_VENGEANCE_ID]).toBe('completed');
+    });
   });
 });

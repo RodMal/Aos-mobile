@@ -6,13 +6,14 @@ import { attackModifiers } from '../core/modifiers.js';
 import { controlScores } from '../core/objectives.js';
 import { battleplanRules } from './index.js';
 import { profileOf } from '../../engine/query.js';
+import { startGame } from '../../engine/test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
 
 describe('Into the Fire battleplan (GHB 2026-27 1-1)', () => {
   it('scores 3VP for 1 objective, 3VP for 2+ objectives, and 4VP for more than opponent', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const bp = battleplanRules('into-the-fire');
 
     // 0 objectives
@@ -43,7 +44,7 @@ describe('Into the Fire battleplan (GHB 2026-27 1-1)', () => {
   });
 
   it('Secure the Gateway grants Anti-charge (+1 Rend) when controlling own Place of Power and contesting a controlled objective', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
     const bp = battleplanRules('into-the-fire');
 
     const durthu = unitsOf(state, 0).find((u) => u.name === 'Spirit of Durthu')!;
@@ -85,7 +86,7 @@ describe('Into the Fire battleplan (GHB 2026-27 1-1)', () => {
   });
 
   it('Determined Defenders adds 3 to control score when the player is the underdog and unit is wholly outside enemy territory', () => {
-    const state = cloneState(engine.newGame(1));
+    const state = cloneState(startGame(engine, 1));
 
     // Player 0 is underdog: player 1 has 5 VP, player 0 has 0 VP
     state.players[0].vp = 0;

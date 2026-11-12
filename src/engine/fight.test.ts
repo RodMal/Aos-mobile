@@ -10,7 +10,7 @@ import {
   shiftPlacement,
   type GameState,
 } from './index.js';
-import { applyUntil, editable, keepOnly, passTo, placeUnit } from './test-helpers.js';
+import { applyUntil, editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
@@ -21,7 +21,7 @@ const SKINKS = '1:7';
 
 /** Dryads at (20, 22) and Saurus Guard centred at x = saurusX (23.5 is about 1" apart, 30 about 7.4"). */
 function arena(phase: GameState['phase'], saurusX: number): GameState {
-  const s = editable(engine.newGame(1));
+  const s = editable(startGame(engine, 1));
   keepOnly(s, [DRYADS, BELTHANOS, SAURUS, SKINKS]);
   placeUnit(scenario, s, DRYADS, 20, 22, 90);
   placeUnit(scenario, s, SAURUS, saurusX, 22, 270);
