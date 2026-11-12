@@ -281,7 +281,7 @@ export function magicOptionsForUnit(
   const usedByUnit = unit.abilitiesUsed ?? [];
   const usedByArmy = state.players[unit.owner].spellsAttempted ?? [];
 
-  if (canCastSpells(scenario, unit)) {
+  if (canCastSpells(scenario, unit) && !unit.miscast) {
     for (const id of knownSpellAndSummonIds(scenario, unit)) {
       const def = getAbility(id);
       if (!def) continue;
@@ -381,6 +381,11 @@ export function hasMagicOption(scenario: Scenario, state: GameState, unit: UnitS
   );
 }
 
+/**
+ * Enemy units that may try to unbind `caster`'s spell: Wizards within 30" with power level
+ * left this turn (each attempt uses one, shared with casting and banishing, so a Wizard (N)
+ * gets N attempts per turn), or a hero with the Dizzying Rage boon.
+ */
 export function eligibleUnbinders(
   scenario: Scenario,
   state: GameState,
@@ -389,7 +394,6 @@ export function eligibleUnbinders(
   return unitsOf(state, opponent(caster.owner)).filter(
     (u) =>
       (canCastSpells(scenario, u) || hasDizzyingRage(state, u)) &&
-      !(u.abilitiesUsed ?? []).includes('unbind') &&
       unitsWithin(scenario, caster, u, UNBIND_RANGE),
   );
 }
@@ -496,9 +500,9 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
       miscast,
     });
     if (miscast) {
-      // Miscast: spell fails, D3 mortal damage to caster, cannot cast more spells this phase
-      const p = profileOf(ctx.scenario, unit);
-      unit.castsUsed = Math.max(p.wizard ?? 0, p.priest ?? 0);
+      // Miscast: the spell fails, D3 mortal damage to the caster, and it cannot use more
+      // spells this phase. Its power level is not used up: it may still unbind and banish.
+      unit.miscast = true;
       const dmg = rollD3(ctx, unit.owner, 'Miscast damage');
       applyMortalDamage(ctx, unit, dmg, 'Miscast');
       return;

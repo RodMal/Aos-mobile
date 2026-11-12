@@ -205,8 +205,9 @@ describe('Magic & Prayers Core Mechanics', () => {
     expect(
       r.events.some((e) => e.t === 'damage' && e.unit === ALARIELLE && e.source === 'Miscast'),
     ).toBe(true);
-    // Alarielle is Wizard (3), miscast sets castsUsed to full power level (3)
-    expect(r.state.units[ALARIELLE]!.castsUsed).toBe(3);
+    // The miscast uses one of Alarielle's three; it blocks further spells this phase only.
+    expect(r.state.units[ALARIELLE]!.castsUsed).toBe(1);
+    expect(r.state.units[ALARIELLE]!.miscast).toBe(true);
     expect(
       engine
         .unitOptions(r.state, ALARIELLE)

@@ -82,8 +82,14 @@ export interface UnitState {
    * The +1 to hit applies only to the attacks it was used for (the `resolve` frame's flag).
    */
   allOutAttack?: boolean;
-  /** Spell, prayer, unbind and banish abilities used by this unit in the current phase. */
+  /**
+   * Spell, prayer, unbind and banish abilities used by this unit in the current turn; they
+   * share the power level (Wizard (N) / Priest (N)), so a Wizard (3) can attempt three unbinds
+   * in each enemy turn. Reset at the start of every turn.
+   */
   castsUsed?: number;
+  /** The unit miscast this phase: no more spell or summon abilities this phase. */
+  miscast?: boolean;
   /** Ritual points accumulated by a Priest across turns until a prayer is answered. */
   ritualPoints?: number;
   /** Ability IDs used by this unit in the current turn (Rule of One per unit). */

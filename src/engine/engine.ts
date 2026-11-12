@@ -237,6 +237,7 @@ function startTurn(ctx: Ctx): void {
     u.chargeDeclared = false;
     u.allOutAttack = false;
     u.castsUsed = 0;
+    u.miscast = false;
     u.abilitiesUsed = [];
     u.setUpThisTurn = false;
     u.magicalIntervention = false;
@@ -458,7 +459,7 @@ function advancePhase(ctx: Ctx): void {
   s.reactionsOffered = [];
   for (const id of s.unitOrder) {
     const u = s.units[id]!;
-    u.castsUsed = 0;
+    u.miscast = false;
     u.magicalIntervention = false;
   }
   const next = PHASES[PHASES.indexOf(s.phase) + 1];

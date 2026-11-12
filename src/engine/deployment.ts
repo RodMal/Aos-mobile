@@ -311,7 +311,8 @@ export function checkDeployPlacement(
     // faction terrain is never set up on a terrain feature.
     if (
       battlefield.terrain.some(
-        (t) => (isTerrain || !canStandOn(battlefield, t)) && footprintOverlapsPolygon(fp, t.polygon),
+        (t) =>
+          (isTerrain || !canStandOn(battlefield, t)) && footprintOverlapsPolygon(fp, t.polygon),
       )
     ) {
       overlapping.add(i);
