@@ -16,8 +16,8 @@ import {
 
 test('loads with both armies on the table', async ({ page }) => {
   await startGame(page);
-  await expect(page.locator('[data-unit-id^="0:"] [data-model]')).toHaveCount(30);
-  await expect(page.locator('[data-unit-id^="1:"] [data-model]')).toHaveCount(43);
+  await expect(page.locator('[data-unit-id^="0:"] [data-model]')).toHaveCount(31);
+  await expect(page.locator('[data-unit-id^="1:"] [data-model]')).toHaveCount(44);
   await expect(page.getByTestId('round')).toContainText('Round 1');
   await expect(page.getByTestId('decision')).toContainText('Your hero phase');
 });

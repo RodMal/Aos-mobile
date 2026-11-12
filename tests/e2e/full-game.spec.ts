@@ -12,7 +12,7 @@ test('a full five-round game can be played to the result screen', async ({ page 
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
 
-  await startGame(page, 'seed=3&side=0&fast=1&new=1');
+  await startGame(page, 'seed=4&side=0&fast=1&new=1');
   const result = page.getByRole('heading', { name: /^(Victory|Defeat|A draw)$/ });
   const used = new Set<string>();
   let idle = 0;
