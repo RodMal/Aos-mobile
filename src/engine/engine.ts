@@ -503,14 +503,23 @@ function moveOptions(scenario: Scenario, state: GameState, unit: UnitState): Uni
 function rawEligibleFighters(scenario: Scenario, state: GameState, player: PlayerId): UnitState[] {
   return unitsOf(state, player).filter((u) => {
     if (u.fought || isFactionTerrainUnit(scenario, u)) return false;
+    // In combat is computed at most once per unit (it is the expensive part).
+    let engaged: boolean | undefined;
+    const isEngaged = (): boolean => (engaged ??= inCombat(scenario, state, u));
     // A unit that declined to attack faction terrain can still fight if an enemy unit comes
     // within combat range (it is not marked as having fought).
-    if (u.declinedTerrainFight && !u.charged && !inCombat(scenario, state, u)) return false;
-    if (u.isManifestation && !profileOf(scenario, u).weapons.some((w) => w.kind === 'melee')) {
-      return false;
-    }
-    return u.charged || inCombat(scenario, state, u) || optionalFighter(scenario, state, u);
+    if (u.declinedTerrainFight && !u.charged && !isEngaged()) return false;
+    const melee = profileOf(scenario, u).weapons.some((w) => w.kind === 'melee');
+    if (u.isManifestation && !melee) return false;
+    if (u.charged || isEngaged()) return true;
+    // optionalFighter, given that the unit neither charged nor is in combat.
+    return melee && nearEnemyFactionTerrain(scenario, state, u);
   });
+}
+
+/** `rawEligibleFighters` for both players, computed once per question. */
+function bothRawFighters(scenario: Scenario, state: GameState): [UnitState[], UnitState[]] {
+  return [rawEligibleFighters(scenario, state, 0), rawEligibleFighters(scenario, state, 1)];
 }
 
 /**
@@ -526,10 +535,15 @@ function optionalFighter(scenario: Scenario, state: GameState, unit: UnitState):
 }
 
 export function currentFightTier(scenario: Scenario, state: GameState): FightTier | null {
-  const all = [
-    ...rawEligibleFighters(scenario, state, 0),
-    ...rawEligibleFighters(scenario, state, 1),
-  ];
+  return fightTierOf(scenario, state, bothRawFighters(scenario, state));
+}
+
+function fightTierOf(
+  scenario: Scenario,
+  state: GameState,
+  fighters: readonly [UnitState[], UnitState[]],
+): FightTier | null {
+  const all = [...fighters[0], ...fighters[1]];
   if (all.length === 0) return null;
   const tiers = new Set(all.map((u) => strikeOrder(scenario, state, u)));
   if (tiers.has('strikeFirst')) return 'strikeFirst';
@@ -547,11 +561,18 @@ export function eligibleFighters(
   state: GameState,
   player: PlayerId,
 ): UnitState[] {
-  const tier = currentFightTier(scenario, state);
+  return eligibleFrom(scenario, state, bothRawFighters(scenario, state), player);
+}
+
+function eligibleFrom(
+  scenario: Scenario,
+  state: GameState,
+  fighters: readonly [UnitState[], UnitState[]],
+  player: PlayerId,
+  tier = fightTierOf(scenario, state, fighters),
+): UnitState[] {
   if (!tier) return [];
-  return rawEligibleFighters(scenario, state, player).filter(
-    (u) => strikeOrder(scenario, state, u) === tier,
-  );
+  return fighters[player].filter((u) => strikeOrder(scenario, state, u) === tier);
 }
 
 function canCharge(scenario: Scenario, state: GameState, unit: UnitState): boolean {
@@ -647,13 +668,17 @@ export function powerThroughTargets(
 // ─── Engine ─────────────────────────────────────────────────────────────────────
 
 export function createEngine(scenario: Scenario): Engine {
-  function fightPickerFor(state: GameState): PlayerId | null {
-    const tier = currentFightTier(scenario, state);
+  /** The player who picks the next fighter, and the units they may pick from. */
+  function fightPickerFor(state: GameState): { player: PlayerId; units: UnitState[] } | null {
+    const fighters = bothRawFighters(scenario, state);
+    const tier = fightTierOf(scenario, state, fighters);
     if (!tier) return null;
     const first = state.fightTier === tier ? (state.fightPicker ?? state.active) : state.active;
-    if (eligibleFighters(scenario, state, first).length > 0) return first;
+    const mine = eligibleFrom(scenario, state, fighters, first, tier);
+    if (mine.length > 0) return { player: first, units: mine };
     const other = opponent(first);
-    return eligibleFighters(scenario, state, other).length > 0 ? other : null;
+    const theirs = eligibleFrom(scenario, state, fighters, other, tier);
+    return theirs.length > 0 ? { player: other, units: theirs } : null;
   }
 
   function decision(state: GameState): Decision | null {
@@ -725,14 +750,12 @@ export function createEngine(scenario: Scenario): Engine {
       }
     }
     if (state.phase === 'combat') {
-      const picker = fightPickerFor(state);
-      if (picker !== null) {
+      const pick = fightPickerFor(state);
+      if (pick !== null) {
         // Passing is allowed only when every unit the picker could fight with is merely
         // near enemy faction terrain.
-        const canPass = eligibleFighters(scenario, state, picker).every((u) =>
-          optionalFighter(scenario, state, u),
-        );
-        return { kind: 'fightPick', player: picker, canPass };
+        const canPass = pick.units.every((u) => optionalFighter(scenario, state, u));
+        return { kind: 'fightPick', player: pick.player, canPass };
       }
     }
     return { kind: 'main', player: state.active, phase: state.phase };
