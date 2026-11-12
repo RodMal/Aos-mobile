@@ -74,12 +74,15 @@ describe('turn sequence', () => {
   it('runs five rounds of two turns and then ends', () => {
     let s = startGame(engine, 7);
     let steps = 0;
+    let placesOfPower = 0;
     while (engine.decision(s)) {
+      if (engine.decision(s)!.kind === 'placeOfPower') placesOfPower++;
       s = engine.apply(s, engine.defaultAction(s)).state;
       steps++;
     }
-    // Six phase passes per turn, plus a priority choice in rounds 2 to 5.
-    expect(steps).toBe(5 * 2 * 6 + 4);
+    // Six phase passes per turn, a priority choice in rounds 2 to 5, and the optional
+    // start-of-turn Place of Power offers (heroes deployed near the spires), declined.
+    expect(steps).toBe(5 * 2 * 6 + 4 + placesOfPower);
     expect(s.status).toBe('ended');
     expect(s.round).toBe(5);
   });

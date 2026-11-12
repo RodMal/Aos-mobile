@@ -86,8 +86,14 @@ export function chooseAction(engine: Engine, state: GameState): Action {
     case 'placeOfPower': {
       const hero = state.units[d.hero]!;
       const profile = profileOf(engine.scenario, hero);
+      // Channelled Wrath only helps a Wizard or Priest in its own turn (casting and chanting
+      // happen in your hero phase); otherwise Ignite Fury, which always helps the army.
       const isCasterOrPriest = (profile.wizard ?? 0) > 0 || (profile.priest ?? 0) > 0;
-      return { t: 'choose', value: isCasterOrPriest ? 'channelled_wrath' : 'ignite_fury' };
+      const ownTurn = state.active === d.player;
+      return {
+        t: 'choose',
+        value: isCasterOrPriest && ownTurn ? 'channelled_wrath' : 'ignite_fury',
+      };
     }
     case 'alarielleSeason':
       return { t: 'choose', value: d.seasons[0]! };

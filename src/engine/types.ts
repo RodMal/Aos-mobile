@@ -285,6 +285,8 @@ export interface GameState {
   overgrown?: [string[], string[]];
   /** Terrain feature IDs whose Place of Power ability has been used in the current turn. */
   usedPlacesOfPower?: string[];
+  /** Players who have activated a Place of Power this turn (once per turn per army). */
+  placeOfPowerUsedBy?: PlayerId[];
   /** Objective controllers recorded at the start of the current turn (for Battle Tactics). */
   turnStartObjectives?: Record<string, PlayerId | null>;
   /** Unit IDs that were in combat at the start of the current turn (for Daring Rescue). */

@@ -211,8 +211,8 @@ export function DecisionPrompts() {
     return (
       <Modal title="Place of Power" testId="place-of-power">
         <p>
-          <strong>{heroName}</strong> is within 3&quot; of an unused Place of Power. Choose a boon
-          for this turn, or pass to save it.
+          <strong>{heroName}</strong> is within 3&quot; of a Place of Power at the start of the
+          turn. Choose a boon for this turn (once per turn for your army), or pass.
         </p>
         <p className="muted small">
           Roll 1D6: on a 1, {heroName} suffers D3 mortal damage backfire. On a 2+, the chosen boon
@@ -231,14 +231,18 @@ export function DecisionPrompts() {
             onClick={() => dispatch({ t: 'choose', value: 'channelled_wrath' })}
           >
             <strong>Channelled Wrath</strong>
-            <span className="muted small block">+1 to Casting &amp; Chanting rolls</span>
+            <span className="muted small block">
+              +1 to this hero&apos;s casting &amp; chanting rolls this turn
+            </span>
           </button>
           <button
             className="btn wide"
             onClick={() => dispatch({ t: 'choose', value: 'dizzying_rage' })}
           >
             <strong>Dizzying Rage</strong>
-            <span className="muted small block">Can Unbind or Banish once this turn</span>
+            <span className="muted small block">
+              This hero can unbind or banish once this turn, even if it is no Wizard
+            </span>
           </button>
           <button className="btn primary wide" onClick={() => dispatch({ t: 'pass' })}>
             Pass

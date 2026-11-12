@@ -135,7 +135,9 @@ test('the opponent casting offers an Unbind reaction that can be answered', asyn
       }
     }
     const skip = reaction.getByRole('button', { name: 'Skip', exact: true });
+    const takeIt = page.getByTestId('pain-skip');
     if (await skip.isVisible()) await skip.click();
+    else if (await takeIt.isVisible()) await takeIt.click();
   }
   const text = (await page.getByTestId('log-list').textContent()) ?? '';
   expect(text).toMatch(/(unbinds|fails to unbind)/);

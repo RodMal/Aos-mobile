@@ -16,13 +16,12 @@ import {
 } from '../geom/index.js';
 import { addEffect, hasEffectiveKeyword } from './abilities/effects.js';
 import { illegal, type Ctx } from './ctx.js';
-import { allocateDamage } from './damage.js';
+import { inflictMortalDamage } from './damage.js';
 import {
   aliveCount,
   aliveIndices,
   COMBAT_RANGE,
   DIST_EPS,
-  inCombat,
   modelFootprint,
   profileOf,
   unitBounds,
@@ -453,8 +452,10 @@ export function terrainController(
 // ─── 8. Place of Power ('placeOfPower' trait, spire-e, spire-w) ────────────────
 
 /**
- * Returns the unused `'placeOfPower'` terrain feature within 3" of `unit` if `unit` can
- * activate a Place of Power now, or `null` otherwise.
+ * Returns the Place of Power within 3" of `unit` if `unit` can activate one now, or `null`.
+ * Owner's ruling, 2026-11-11: at the start of each turn, both players; once per turn per
+ * army; only a friendly HERO within 3" of a Place of Power is needed (no control, combat
+ * does not matter).
  */
 export function canUsePlaceOfPower(
   scenario: Scenario,
@@ -463,16 +464,27 @@ export function canUsePlaceOfPower(
 ): TerrainFeature | null {
   if (unit.status !== 'battlefield') return null;
   if (!hasEffectiveKeyword(scenario, state, unit, 'HERO')) return null;
-  if (inCombat(scenario, state, unit)) return null;
-  if ((unit.abilitiesUsed ?? []).includes(PLACE_OF_POWER_ID)) return null;
-
-  const used = state.usedPlacesOfPower ?? [];
+  if ((state.placeOfPowerUsedBy ?? []).includes(unit.owner)) return null;
   for (const t of scenario.battlefield.terrain) {
     if (!t.traits.includes('placeOfPower')) continue;
-    if (used.includes(t.id)) continue;
     if (unitWithinTerrain(scenario, unit, t, PLACE_OF_POWER_RANGE, false)) {
       return t;
     }
+  }
+  return null;
+}
+
+/** The first of `player`'s heroes that can activate a Place of Power now, with the feature. */
+export function placeOfPowerCandidate(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+): { hero: UnitState; terrain: TerrainFeature } | null {
+  for (const id of state.unitOrder) {
+    const u = state.units[id]!;
+    if (u.owner !== player) continue;
+    const terrain = canUsePlaceOfPower(scenario, state, u);
+    if (terrain) return { hero: u, terrain };
   }
   return null;
 }
@@ -498,7 +510,7 @@ export function resolvePlaceOfPower(
     illegal(`${unit.name} cannot use Place of Power now.`);
   }
 
-  ctx.s.usedPlacesOfPower = [...(ctx.s.usedPlacesOfPower ?? []), terrain.id];
+  ctx.s.placeOfPowerUsedBy = [...(ctx.s.placeOfPowerUsedBy ?? []), unit.owner];
   unit.abilitiesUsed = [...(unit.abilitiesUsed ?? []), PLACE_OF_POWER_ID];
 
   const roll = ctx.rng.int(1, 6);
@@ -517,7 +529,7 @@ export function resolvePlaceOfPower(
       label: 'Place of Power backfire (D3 mortal damage)',
       dice: [dmg],
     });
-    allocateDamage(ctx, unit, dmg, 'Place of Power');
+    inflictMortalDamage(ctx, unit, dmg, 'Place of Power');
     return;
   }
 

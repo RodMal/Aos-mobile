@@ -64,7 +64,12 @@ import {
   resolveEruptionOfFury,
   spendRageToNegateDamage,
 } from '../rules/core/fury.js';
-import { canUsePlaceOfPower, resolvePlaceOfPower, type PlaceOfPowerBoon } from './terrain.js';
+import {
+  canUsePlaceOfPower,
+  placeOfPowerCandidate,
+  resolvePlaceOfPower,
+  type PlaceOfPowerBoon,
+} from './terrain.js';
 import { applyEverGrowing, resolveEndlessGrowth } from '../rules/factions/sylvaneth.js';
 import {
   PHASES,
@@ -137,6 +142,7 @@ export function cloneState(state: GameState): GameState {
       ? { overgrown: [[...state.overgrown[0]], [...state.overgrown[1]]] as [string[], string[]] }
       : {}),
     ...(state.usedPlacesOfPower ? { usedPlacesOfPower: [...state.usedPlacesOfPower] } : {}),
+    ...(state.placeOfPowerUsedBy ? { placeOfPowerUsedBy: [...state.placeOfPowerUsedBy] } : {}),
     ...(state.turnStartObjectives ? { turnStartObjectives: { ...state.turnStartObjectives } } : {}),
     ...(state.turnStartInCombat ? { turnStartInCombat: [...state.turnStartInCombat] } : {}),
     ...(state.destroyedByChargeCombat
@@ -178,6 +184,7 @@ function startTurn(ctx: Ctx): void {
     p.furyUsedThisTurn = [];
   }
   s.usedPlacesOfPower = [];
+  s.placeOfPowerUsedBy = [];
   recordTurnStartForTactics(scenario, s);
   s.banishedThisTurn = [];
   s.reactionsOffered = [];
@@ -188,6 +195,19 @@ function startTurn(ctx: Ctx): void {
   s.fightPicker = null;
   ctx.events.push({ t: 'turnStart', player: s.active, round: s.round });
   ctx.events.push({ t: 'phaseStart', phase: s.phase, player: s.active });
+  offerPlacesOfPower(ctx);
+}
+
+/**
+ * Start of turn: each player with a hero within 3" of a Place of Power may activate it, the
+ * active player first (owner's ruling, 2026-11-11).
+ */
+function offerPlacesOfPower(ctx: Ctx): void {
+  const { s, scenario } = ctx;
+  for (const player of [opponent(s.active), s.active]) {
+    const c = placeOfPowerCandidate(scenario, s, player);
+    if (c) s.stack.push({ t: 'placeOfPower', player, hero: c.hero.id, terrain: c.terrain.id });
+  }
 }
 
 /** After priority: command points (with the underdog's extra point), then the first turn. */
@@ -608,15 +628,6 @@ export function createEngine(scenario: Scenario): Engine {
         const opts: UnitOption[] = [...magicOptionsForUnit(scenario, state, unit)];
         if (canRally(scenario, state, unit)) {
           opts.push({ t: 'command', command: 'rally', cost: 1 });
-        }
-        if (canUsePlaceOfPower(scenario, state, unit)) {
-          opts.push({
-            t: 'ability',
-            abilityId: 'place-of-power',
-            name: 'Place of Power (Start of Turn)',
-            kind: 'activated',
-            targets: [],
-          });
         }
         return opts;
       }
@@ -1368,15 +1379,7 @@ export function createEngine(scenario: Scenario): Engine {
         } else if (action.t === 'move') {
           declareMove(ctx, action.unit, action.kind, action.atTheDouble);
         } else if (action.t === 'ability' && action.abilityId === 'place-of-power') {
-          const hero = s.units[action.unit]!;
-          const terrain = canUsePlaceOfPower(scenario, s, hero);
-          if (!terrain) illegal(`${hero.name} cannot use Place of Power.`);
-          s.stack.push({
-            t: 'placeOfPower',
-            player: hero.owner,
-            hero: hero.id,
-            terrain: terrain.id,
-          });
+          illegal('A Place of Power can only be activated at the start of a turn.');
         } else if (action.t === 'ability' && d.phase === 'hero') {
           declareAbility(ctx, action);
         } else if (
@@ -1561,7 +1564,8 @@ export function createEngine(scenario: Scenario): Engine {
       case 'priority':
         return { t: 'choose', value: 'first' };
       case 'placeOfPower':
-        return { t: 'choose', value: 'ignite_fury' };
+        // Optional: the default declines, so engine-driven games keep their dice.
+        return { t: 'pass' };
       case 'alarielleSeason':
         return { t: 'choose', value: d.seasons[0]! };
       case 'fugitive':

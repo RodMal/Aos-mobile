@@ -50,3 +50,19 @@ test('Fight Through the Pain: the prompt shows the incoming damage and spends ra
   await page.getByTestId('pain-spend').click();
   await expect(page.getByTestId('fury-you')).toContainText(`${rageBefore - dice}R`);
 });
+
+test('Place of Power: offered at the start of a turn and answered with a boon', async ({
+  page,
+}, info) => {
+  await openPosition(page, 1, (_engine, _s, d) =>
+    d.kind === 'placeOfPower' && d.player === 0 ? d.hero : null,
+  );
+  const prompt = page.getByTestId('place-of-power');
+  await expect(prompt).toBeVisible();
+  await expect(prompt).toContainText('start of the');
+  await page.screenshot({ path: info.outputPath(`place-of-power-${info.project.name}.png`) });
+  await prompt.getByRole('button', { name: /Ignite Fury/ }).click();
+  await expect(prompt).toBeHidden();
+  await page.getByRole('button', { name: 'Log' }).click();
+  await expect(page.getByTestId('log-list')).toContainText('Place of Power');
+});

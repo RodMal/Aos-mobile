@@ -137,14 +137,17 @@ export async function startGame(page: Page, query = 'seed=5&side=0&fast=1&new=1'
 
 /**
  * Answers the pre-battle prompts a quick-start game opens with (the Burning for Vengeance
- * fugitive, the first-turn choice) with their first option, so a test starts in the hero phase.
+ * fugitive, the first-turn choice) with their first option and declines the optional Place of
+ * Power, so a test starts in the hero phase.
  */
 export async function answerPreBattle(page: Page): Promise<void> {
   for (let i = 0; i < 6; i++) {
     const fugitive = page.locator('[data-fugitive]').first();
     const first = page.getByRole('button', { name: 'Take first turn' });
+    const power = page.getByTestId('place-of-power').getByRole('button', { name: 'Pass' });
     if (await usable(fugitive)) await fugitive.click();
     else if (await usable(first)) await first.click();
+    else if (await usable(power)) await power.click();
     else return;
   }
 }
@@ -209,6 +212,10 @@ export async function minimalPlayerStep(page: Page): Promise<string | null> {
     ['fugitive', page.locator('[data-fugitive]').first()],
     ['skip reaction', page.getByRole('button', { name: 'Skip', exact: true })],
     ['take the damage', page.getByTestId('pain-skip')],
+    [
+      'pass place of power',
+      page.getByTestId('place-of-power').getByRole('button', { name: 'Pass' }),
+    ],
     ['roll', page.getByTestId('roll-attacks')],
     ['confirm placement', page.getByTestId('place-confirm')],
     ['cancel placement', page.getByTestId('place-cancel')],
