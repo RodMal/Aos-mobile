@@ -673,6 +673,7 @@ export function resolveSpellOrSummon(
       fought: false,
       setUpThisTurn: true,
       isManifestation: true,
+      summonedBy: caster.id,
     };
     ctx.s.units[unitId] = unitState;
     if (!ctx.s.unitOrder.includes(unitId)) {

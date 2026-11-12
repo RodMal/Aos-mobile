@@ -98,6 +98,11 @@ export interface UnitState {
   setUpThisTurn?: boolean;
   /** True for summoned manifestation units. */
   isManifestation?: boolean;
+  /**
+   * For a manifestation: the unit that summoned it. When that unit is destroyed, the
+   * manifestation is destroyed at once (owner's ruling, 2026-11-12).
+   */
+  summonedBy?: UnitId;
   /** Set while the unit is casting/chanting via Magical Intervention (-1 to the roll). */
   magicalIntervention?: boolean;
 }

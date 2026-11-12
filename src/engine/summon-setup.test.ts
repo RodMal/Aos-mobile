@@ -6,7 +6,16 @@
 import { describe, expect, it } from 'vitest';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import { setUpReach } from '../ui/game/placementEdit.js';
-import { createEngine, createScenario, unitCentre, type GameState } from './index.js';
+import {
+  createEngine,
+  createScenario,
+  currentPlacement,
+  unitCentre,
+  type GameState,
+} from './index.js';
+import type { Ctx } from './ctx.js';
+import { allocateDamage, inflictMortalDamage } from './damage.js';
+import { RngCursor } from './rng.js';
 import { modelFootprint } from './query.js';
 import { applyUntil, editable, keepOnly, placeUnit, startGame } from './test-helpers.js';
 import type { Placement } from './types.js';
@@ -85,5 +94,49 @@ describe('setting up a summoned manifestation', () => {
       expect(setUpReach(scenario, s, at(deg, 13))!.dist).toBeGreaterThan(12);
     }
     expect(found).toBe(true);
+  });
+});
+
+describe('a manifestation is destroyed with the unit that summoned it (owner, 2026-11-12)', () => {
+  /** Alarielle's Chronomantic Cogs on the battlefield, Dryads alive too. */
+  function withCogs(): { s: GameState; cogs: string } {
+    let s = summoning();
+    const d = engine.decision(s);
+    if (d?.kind !== 'place') throw new Error('no set-up decision');
+    s = engine.apply(s, { t: 'place', placement: currentPlacement(s.units[d.unit]!) }).state;
+    s = editable(s);
+    s.units['0:6']!.status = 'battlefield';
+    s.units['0:6']!.models.forEach((m) => (m.alive = true));
+    placeUnit(scenario, s, '0:6', 8, 8);
+    expect(s.units[d.unit]!.status).toBe('battlefield');
+    expect(s.units[d.unit]!.summonedBy).toBe(ALARIELLE);
+    return { s, cogs: d.unit };
+  }
+  const ctxOf = (s: GameState): Ctx => ({ scenario, s, events: [], rng: new RngCursor(7) });
+
+  it('when the caster is slain by attack damage', () => {
+    const { s, cogs } = withCogs();
+    const ctx = ctxOf(s);
+    allocateDamage(ctx, s.units[ALARIELLE]!, 99, 'Moonstone Hammer');
+    expect(s.units[ALARIELLE]!.status).toBe('destroyed');
+    expect(s.units[cogs]!.status).toBe('destroyed');
+    expect(ctx.events).toContainEqual({
+      t: 'note',
+      text: 'Chronomantic Cogs is destroyed: Alarielle the Everqueen has fallen.',
+    });
+  });
+
+  it('when the caster is slain by mortal damage', () => {
+    const { s, cogs } = withCogs();
+    inflictMortalDamage(ctxOf(s), s.units[ALARIELLE]!, 99, 'Miscast');
+    expect(s.units[ALARIELLE]!.status).toBe('destroyed');
+    expect(s.units[cogs]!.status).toBe('destroyed');
+  });
+
+  it('not when another unit is destroyed', () => {
+    const { s, cogs } = withCogs();
+    allocateDamage(ctxOf(s), s.units['0:6']!, 99, 'Moonstone Hammer');
+    expect(s.units['0:6']!.status).toBe('destroyed');
+    expect(s.units[cogs]!.status).toBe('battlefield');
   });
 });
