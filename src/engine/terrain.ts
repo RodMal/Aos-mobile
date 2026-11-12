@@ -4,7 +4,9 @@
  */
 import type { TerrainFeature } from '../data/battlefield.js';
 import {
+  distancePointToSegment,
   footprintDistanceToPolygon,
+  footprintOuterRadius,
   footprintInsidePolygon,
   footprintOverlapsPolygon,
   footprintsOverlap,
@@ -146,12 +148,25 @@ export function pathBlockedModels(
 
   if (otherFootprints.length === 0) return [];
 
+  const otherRadii = otherFootprints.map(footprintOuterRadius);
   const blocked: number[] = [];
   for (const m of placement.models) {
     const from = unit.models[m.i];
     if (!from) continue;
     const dist = Math.hypot(m.x - from.x, m.y - from.y);
     const steps = Math.ceil(dist / PATH_STEP);
+    if (steps < 2) continue;
+    // Every sampled position lies on the segment from -> m, and `footprintsOverlap` is false
+    // whenever the centres are at least the sum of the outer radii apart: keep only the bases
+    // that come closer than that to the segment (with a margin for rounding).
+    const ra = footprintOuterRadius(modelFootprint(scenario, unit, m.i, m));
+    const near: Footprint[] = [];
+    for (let k = 0; k < otherFootprints.length; k++) {
+      const o = otherFootprints[k]!;
+      const d = distancePointToSegment([o.cx, o.cy], [from.x, from.y], [m.x, m.y]);
+      if (d < ra + otherRadii[k]! + 1e-6) near.push(o);
+    }
+    if (near.length === 0) continue;
     for (let s = 1; s < steps; s++) {
       const f = (s * PATH_STEP) / dist;
       const at = {
@@ -160,7 +175,7 @@ export function pathBlockedModels(
         rot: m.rot,
       };
       const fp = modelFootprint(scenario, unit, m.i, at);
-      if (otherFootprints.some((otherFp) => footprintsOverlap(fp, otherFp))) {
+      if (near.some((otherFp) => footprintsOverlap(fp, otherFp))) {
         blocked.push(m.i);
         break;
       }
