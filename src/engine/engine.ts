@@ -448,7 +448,12 @@ function endTurn(ctx: Ctx): void {
     s.players[player].vp += st.vp;
     s.players[player].vpByRound[s.round - 1] =
       (s.players[player].vpByRound[s.round - 1] ?? 0) + st.vp;
-    ctx.events.push({ t: 'score', player, vp: st.vp, reason: `${st.cardName} (${st.tacticName})` });
+    const tier = st.tier.charAt(0).toUpperCase() + st.tier.slice(1);
+    const reason =
+      st.tacticName.toLowerCase() === st.tier.toLowerCase()
+        ? `${st.cardName} — ${tier}`
+        : `${st.cardName} — ${tier}: ${st.tacticName}`;
+    ctx.events.push({ t: 'score', player, vp: st.vp, reason });
   }
 }
 
