@@ -3,29 +3,29 @@
  * one piece is set up at deployment; in each of the Sylvaneth player's own hero phases they may
  * set up one more piece while they have fewer than three on the battlefield.
  *
- * The warscroll text in data/factions/sylvaneth.json has no set-up rule for further pieces, so
- * the restrictions are an assumption awaiting the owner's ruling (docs/RULES-DECISIONS.md):
- * wholly on the battlefield, overlapping nothing, and more than 3" from every objective, every
- * terrain feature (including faction terrain) and every unit. Each piece is its own faction
+ * Reclaimed By Nature (printed, data/factions/sylvaneth.json; confirmed by the owner,
+ * 2026-11-12): wholly on the battlefield, more than 3" from all objectives (from the marker's
+ * edge) and enemy units, more than 12" from all other friendly Awakened Wyldwoods and more than
+ * 1" from all other terrain features (faction terrain included), every distance edge to edge
+ * from the piece's outline. It may not overlap a friendly unit. Each piece is its own faction
  * terrain unit and carries its owner's overgrown token (Budding Forest).
  */
 import {
   footprintDistanceToPolygon,
   footprintGapAtLeast,
   footprintInsidePolygon,
+  footprintsOverlap,
 } from '../geom/index.js';
 import { footprintToPoint } from '../rules/core/objectives.js';
 import { boardPolygon } from './movement.js';
 import { isAwakenedWyldwood } from './overgrowth.js';
-import { DIST_EPS, profileOf, unitFootprints } from './query.js';
+import { DIST_EPS, isFactionTerrainUnit, profileOf, unitFootprints } from './query.js';
 import type { Footprint } from '../geom/index.js';
 import type { GameState, Placement, PlayerId, Scenario, UnitState, Violation } from './types.js';
 import { baseFootprint } from '../geom/index.js';
 
 export const WYLDWOOD_SETUP_ID = 'awakened-wyldwood-setup';
 export const MAX_WYLDWOODS = 3;
-/** Assumed gap from objectives, terrain features and units (awaiting the owner). */
-export const WYLDWOOD_SETUP_GAP = 3;
 
 /** Profile IDs of the three Wyldwood pieces (piece 1 is the army's own faction terrain). */
 export function wyldwoodPieceProfileIds(scenario: Scenario, player: PlayerId): string[] {
@@ -84,20 +84,53 @@ export function nextWyldwoodPiece(
   };
 }
 
+/** Radius of a 40mm objective marker: distances to objectives are measured from its edge (I1). */
+export const OBJECTIVE_MARKER_RADIUS = 0.787;
+/** Reclaimed By Nature (printed): gaps from objectives and enemy units, other Wyldwoods, terrain. */
+export const WYLDWOOD_GAP_OBJECTIVE = 3;
+export const WYLDWOOD_GAP_ENEMY = 3;
+export const WYLDWOOD_GAP_WYLDWOOD = 12;
+export const WYLDWOOD_GAP_TERRAIN = 1;
+
+interface Obstacle {
+  name: string;
+  fps: Footprint[];
+}
+
 interface Obstacles {
   board: ReturnType<typeof boardPolygon>;
-  units: { name: string; fps: Footprint[] }[];
+  /** Enemy units (not faction terrain): more than 3". */
+  enemies: Obstacle[];
+  /** Other friendly Awakened Wyldwoods: more than 12". */
+  wyldwoods: Obstacle[];
+  /** Other faction terrain (either army): a terrain feature, more than 1". */
+  factionTerrain: Obstacle[];
+  /** Friendly units: the piece may not overlap them. */
+  friends: Obstacle[];
 }
 
 function obstaclesFor(scenario: Scenario, state: GameState, unit: UnitState): Obstacles {
-  const units: Obstacles['units'] = [];
+  const o: Obstacles = {
+    board: boardPolygon(scenario),
+    enemies: [],
+    wyldwoods: [],
+    factionTerrain: [],
+    friends: [],
+  };
   for (const id of state.unitOrder) {
     const other = state.units[id]!;
     if (other.id === unit.id || other.status !== 'battlefield') continue;
-    units.push({ name: other.name, fps: unitFootprints(scenario, other) });
+    const entry = { name: other.name, fps: unitFootprints(scenario, other) };
+    if (other.owner === unit.owner && isAwakenedWyldwood(scenario, other)) o.wyldwoods.push(entry);
+    else if (isFactionTerrainUnit(scenario, other)) o.factionTerrain.push(entry);
+    else if (other.owner !== unit.owner) o.enemies.push(entry);
+    else o.friends.push(entry);
   }
-  return { board: boardPolygon(scenario), units };
+  return o;
 }
+
+const near = (fp: Footprint, list: Obstacle[], gap: number) =>
+  list.find((other) => other.fps.some((o) => !footprintGapAtLeast(fp, o, gap - DIST_EPS)));
 
 function setUpViolations(
   scenario: Scenario,
@@ -113,6 +146,10 @@ function setUpViolations(
   }
   const fp = baseFootprint(profile.models[0]!.base, m.x, m.y, m.rot);
   const out: Violation[] = [];
+  const add = (message: string) => {
+    out.push({ code: 'TOO_CLOSE', message, models: [0] });
+    return firstOnly;
+  };
   if (!footprintInsidePolygon(fp, obstacles.board)) {
     out.push({
       code: 'OFF_BOARD',
@@ -121,37 +158,28 @@ function setUpViolations(
     });
     if (firstOnly) return out;
   }
-  const gap = WYLDWOOD_SETUP_GAP - DIST_EPS;
-  if (scenario.battlefield.objectives.some((o) => footprintToPoint(fp, o.x, o.y) <= gap)) {
-    out.push({
-      code: 'TOO_CLOSE',
-      message: 'Set it up more than 3" from every objective.',
-      models: [0],
-    });
-    if (firstOnly) return out;
-  }
-  for (const other of obstacles.units) {
-    if (other.fps.some((o) => !footprintGapAtLeast(fp, o, gap))) {
-      out.push({
-        code: 'TOO_CLOSE',
-        message: `Set it up more than 3" from every unit and terrain piece (${other.name}).`,
-        models: [0],
-      });
-      if (firstOnly) return out;
-      break;
-    }
-  }
-  if (scenario.battlefield.terrain.some((t) => footprintDistanceToPolygon(fp, t.polygon) <= gap)) {
-    out.push({
-      code: 'TOO_CLOSE',
-      message: 'Set it up more than 3" from every terrain feature.',
-      models: [0],
-    });
-  }
+  const obj = scenario.battlefield.objectives.find(
+    (o) =>
+      footprintToPoint(fp, o.x, o.y) - OBJECTIVE_MARKER_RADIUS <= WYLDWOOD_GAP_OBJECTIVE - DIST_EPS,
+  );
+  if (obj && add('Set it up more than 3" from every objective (measured from the marker’s edge).'))
+    return out;
+  const enemy = near(fp, obstacles.enemies, WYLDWOOD_GAP_ENEMY);
+  if (enemy && add(`Set it up more than 3" from every enemy unit (${enemy.name}).`)) return out;
+  const wood = near(fp, obstacles.wyldwoods, WYLDWOOD_GAP_WYLDWOOD);
+  if (wood && add('Set it up more than 12" from every other friendly Awakened Wyldwood.'))
+    return out;
+  const terrainHit =
+    scenario.battlefield.terrain.some(
+      (t) => footprintDistanceToPolygon(fp, t.polygon) <= WYLDWOOD_GAP_TERRAIN - DIST_EPS,
+    ) || !!near(fp, obstacles.factionTerrain, WYLDWOOD_GAP_TERRAIN);
+  if (terrainHit && add('Set it up more than 1" from every other terrain feature.')) return out;
+  const friend = obstacles.friends.find((f) => f.fps.some((o) => footprintsOverlap(fp, o)));
+  if (friend) add(`The piece cannot overlap ${friend.name}.`);
   return out;
 }
 
-/** Violations of the (assumed) set-up rules for a Wyldwood piece at `placement`. */
+/** Violations of Reclaimed By Nature's set-up rules for a Wyldwood piece at `placement`. */
 export function checkWyldwoodSetUp(
   scenario: Scenario,
   state: GameState,
@@ -174,21 +202,27 @@ export function suggestWyldwoodSetUp(
   const { width, height, objectives, terrain } = scenario.battlefield;
   // Model and feature centres, for a quick rejection (a heuristic: it may skip a few legal
   // spots next to a crescent's hollow, which only matters for the suggestion).
-  const near: { x: number; y: number }[] = [];
+  const centres: { x: number; y: number; r: number }[] = [];
   for (const id of state.unitOrder) {
     const other = state.units[id]!;
     if (other.id === unit.id || other.status !== 'battlefield') continue;
-    for (const m of other.models) if (m.alive) near.push({ x: m.x, y: m.y });
+    const r =
+      other.owner === unit.owner && isAwakenedWyldwood(scenario, other)
+        ? WYLDWOOD_GAP_WYLDWOOD
+        : other.owner !== unit.owner && !isFactionTerrainUnit(scenario, other)
+          ? WYLDWOOD_GAP_ENEMY
+          : 0.5;
+    for (const m of other.models) if (m.alive) centres.push({ x: m.x, y: m.y, r });
   }
-  for (const t of terrain) near.push({ x: t.centre[0], y: t.centre[1] });
+  for (const t of terrain) centres.push({ x: t.centre[0], y: t.centre[1], r: 0.5 });
   const spots: { x: number; y: number; key: number }[] = [];
   for (let x = 2; x <= width - 2; x += 2) {
     for (let y = 2; y <= height - 2; y += 2) {
       const key = Math.min(...objectives.map((o) => Math.hypot(o.x - x, o.y - y)));
-      // The piece's centre cannot be within 3" of an objective or of a model's or feature's
+      // The piece's centre cannot be that close to an objective or to a model's or feature's
       // centre: skip those without the full check.
-      if (key <= WYLDWOOD_SETUP_GAP) continue;
-      if (near.some((p) => Math.hypot(p.x - x, p.y - y) <= WYLDWOOD_SETUP_GAP)) continue;
+      if (key <= WYLDWOOD_GAP_OBJECTIVE + OBJECTIVE_MARKER_RADIUS) continue;
+      if (centres.some((p) => Math.hypot(p.x - x, p.y - y) <= p.r)) continue;
       spots.push({ x, y, key });
     }
   }
