@@ -147,7 +147,7 @@ describe('fly and path-blocking', () => {
 });
 
 describe('line of sight and obscuring terrain', () => {
-  it('hides non-Monster/non-Fly units behind or within 1" of spire-w and halves their weapon range, while MONSTER and FLY remain visible', () => {
+  it('hides non-Monster/non-Fly units within 1" of spire-w (not merely behind it) and halves their weapon range, while MONSTER and FLY remain visible', () => {
     const state = cloneState(startGame(engine, 1));
     const spireW = findTerrain('spire-w'); // centre (7, 28), 5x5 -> x: 4.5..9.5, y: 25.5..30.5
     expect(segmentCrossesPolygon([2, 28], [13, 28], spireW.polygon)).toBe(true);
@@ -167,9 +167,12 @@ describe('line of sight and obscuring terrain', () => {
     spites.models[0]!.x = 2;
     spites.models[0]!.y = 28;
 
-    expect(isModelVisibleToModel(scenario, state, attacker, 0, spites, 0)).toBe(false);
-    expect(isModelVisibleToUnit(scenario, state, attacker, 0, spites)).toBe(false);
-    expect(isUnitVisible(scenario, state, attacker, spites)).toBe(false);
+    // Owner's ruling, 2026-11-11: Obscuring does not block sight lines through the feature;
+    // a unit behind it but more than 1" away is visible.
+    expect(isUnitObscured(scenario, state, spites)).toBe(false);
+    expect(isModelVisibleToModel(scenario, state, attacker, 0, spites, 0)).toBe(true);
+    expect(isModelVisibleToUnit(scenario, state, attacker, 0, spites)).toBe(true);
+    expect(isUnitVisible(scenario, state, attacker, spites)).toBe(true);
 
     // Spites wholly within 1" of spire-w (e.g. at (10, 28), on the same side as attacker at (18, 28))
     attacker.models[0]!.x = 18;
@@ -203,7 +206,33 @@ describe('line of sight and obscuring terrain', () => {
 });
 
 describe('cover', () => {
-  it('grants cover to units wholly within 1" or behind cover terrain unless they charged or have FLY', () => {
+  it('owner ruling 2026-11-11: no cover wholly within 1" in the open; cover behind or wholly on', () => {
+    const state = cloneState(startGame(engine, 1));
+    const attacker = unitsOf(state, 1).find((u) => u.name === 'Spawn of Chotec')!;
+    const spites = unitsOf(state, 0).find((u) => u.name === 'Spite-Revenants')!;
+    spites.models.forEach((m, idx) => {
+      m.alive = idx === 0;
+    });
+    spites.charged = false;
+    attacker.models[0]!.x = 32;
+    attacker.models[0]!.y = 16.5;
+    // Next to outcrop-w's east edge, on the attacker's side: wholly within 1", in the open.
+    spites.models[0]!.x = 25.6;
+    spites.models[0]!.y = 16.5;
+    expect(unitWithinTerrain(scenario, spites, findTerrain('outcrop-w'), 1, true)).toBe(true);
+    expect(unitHasCover(scenario, state, attacker, spites, 'shoot')).toBe(false);
+    // Behind it: cover.
+    spites.models[0]!.x = 17.5;
+    spites.models[0]!.y = 17;
+    expect(unitHasCover(scenario, state, attacker, spites, 'shoot')).toBe(true);
+    // Wholly on it: cover, against shooting and in combat.
+    spites.models[0]!.x = 22;
+    spites.models[0]!.y = 17;
+    expect(unitHasCover(scenario, state, attacker, spites, 'shoot')).toBe(true);
+    expect(unitHasCover(scenario, state, attacker, spites, 'fight')).toBe(true);
+  });
+
+  it('grants cover to units wholly on or behind cover terrain unless they charged or have FLY', () => {
     const state = cloneState(startGame(engine, 1));
     const outcropW = findTerrain('outcrop-w'); // centre (22, 17)
     const attacker = unitsOf(state, 1).find((u) => u.name === 'Spawn of Chotec')!;
@@ -216,7 +245,7 @@ describe('cover', () => {
     attacker.models[0]!.x = 32;
     attacker.models[0]!.y = 17;
 
-    // Spites wholly within 1" of outcrop-w
+    // Spites wholly on outcrop-w
     spites.models[0]!.x = 22;
     spites.models[0]!.y = 17;
     spites.charged = false;

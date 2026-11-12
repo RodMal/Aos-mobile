@@ -156,4 +156,6 @@ Done:
   Follow-up dbdcb6f: e2e helpers answer start-of-turn prompts and opponent-turn reactions (`answerStartPrompt`, `answerOpponentTurnPrompt`).
 - 7 Hero-phase Awakened Wyldwoods (`src/engine/wyldwood.ts`, profiles for pieces 2 and 3 in `src/engine/scenario.ts`, `setUp` place reason, NPC in `src/ai/baseline.ts`); I46, restrictions under Awaiting. Tests: `src/engine/wyldwood.test.ts`, e2e `tests/e2e/wyldwood.spec.ts`.
 
-Remaining: items 8 to 18 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- 18 Cover and Obscuring per the owner's ruling (`src/engine/terrain.ts` `unitHasCover`, `isModelVisibleToModel`); I47. Tests: `terrain.test.ts` "owner ruling 2026-11-11: no cover wholly within 1 inch in the open" and the Obscuring test.
+
+Remaining: items 8 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
