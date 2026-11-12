@@ -205,7 +205,6 @@ function searchSummonPlacement(
   const boardW = scenario.battlefield.width;
   const boardH = scenario.battlefield.height;
 
-  const candidates: { x: number; y: number; rot: number; score: number }[] = [];
   const radii = [2, 3.5, 5, 6.5, 8, 9.5, 11, 13, 15, 17].filter((r) => r <= range);
   // Only bases near enough to the caster can touch a candidate position; drop the rest once
   // instead of testing them against every candidate.
@@ -215,50 +214,54 @@ function searchSummonPlacement(
     (o) =>
       Math.hypot(o.cx - c.x, o.cy - c.y) - footprintOuterRadius(o) <= candidateReach + DIST_EPS,
   );
+  // The answer is the legal position closest to an enemy (the first generated on ties). The
+  // score does not depend on legality, so rank every position first (a stable sort keeps the
+  // generation order on ties) and return the first legal one instead of testing them all.
+  const positions: { x: number; y: number; score: number }[] = [];
   for (const r of radii) {
     for (let deg = 0; deg < 360; deg += 15) {
       const rad = (deg * Math.PI) / 180;
       const x = c.x + Math.cos(rad) * r;
       const y = c.y + Math.sin(rad) * r;
-      for (const rot of [0, 90]) {
-        const fp = baseFootprint(base, x, y, rot);
-        // The board is a rectangle: a base whose outer circle (the one the exact tests use)
-        // is inside it needs no polygon test, and one whose centre is off it is never inside.
-        const br = footprintOuterRadius(fp);
-        const clearOfEdges = x - br >= 0 && y - br >= 0 && x + br <= boardW && y + br <= boardH;
-        if (!clearOfEdges) {
-          if (x < 0 || y < 0 || x > boardW || y > boardH) continue;
-          if (!footprintInsidePolygon(fp, board)) continue;
-        }
-        if (!footprintWhollyWithin(fp, casterFps, range)) continue;
-        if (nearbyFps.some((ofp) => !footprintGapAtLeast(fp, ofp, 0.05))) continue;
-        if (minEnemyGap > 0) {
-          // Circles first; the exact gap only for enemy bases that could be close enough.
-          const limit = minEnemyGap + DIST_EPS;
-          let tooClose = false;
-          for (const efp of enemyFps) {
-            const d = Math.hypot(fp.cx - efp.cx, fp.cy - efp.cy);
-            if (d - br - footprintOuterRadius(efp) > limit) continue;
-            if (footprintGap(fp, efp) <= limit) {
-              tooClose = true;
-              break;
-            }
-          }
-          if (tooClose) continue;
-        }
-        let distToEnemy = Infinity;
-        for (const ec of enemyCentres) {
-          distToEnemy = Math.min(distToEnemy, Math.hypot(x - ec.x, y - ec.y));
-        }
-        candidates.push({ x, y, rot, score: -distToEnemy });
-        break;
+      let distToEnemy = Infinity;
+      for (const ec of enemyCentres) {
+        distToEnemy = Math.min(distToEnemy, Math.hypot(x - ec.x, y - ec.y));
       }
+      positions.push({ x, y, score: -distToEnemy });
     }
   }
-  if (candidates.length === 0) return null;
-  candidates.sort((a, b) => b.score - a.score);
-  const best = candidates[0]!;
-  return { x: best.x, y: best.y, rot: best.rot };
+  positions.sort((a, b) => b.score - a.score);
+  for (const { x, y } of positions) {
+    for (const rot of [0, 90]) {
+      const fp = baseFootprint(base, x, y, rot);
+      // The board is a rectangle: a base whose outer circle (the one the exact tests use)
+      // is inside it needs no polygon test, and one whose centre is off it is never inside.
+      const br = footprintOuterRadius(fp);
+      const clearOfEdges = x - br >= 0 && y - br >= 0 && x + br <= boardW && y + br <= boardH;
+      if (!clearOfEdges) {
+        if (x < 0 || y < 0 || x > boardW || y > boardH) continue;
+        if (!footprintInsidePolygon(fp, board)) continue;
+      }
+      if (minEnemyGap > 0) {
+        // Circles first; the exact gap only for enemy bases that could be close enough.
+        const limit = minEnemyGap + DIST_EPS;
+        let tooClose = false;
+        for (const efp of enemyFps) {
+          const d = Math.hypot(fp.cx - efp.cx, fp.cy - efp.cy);
+          if (d - br - footprintOuterRadius(efp) > limit) continue;
+          if (footprintGap(fp, efp) <= limit) {
+            tooClose = true;
+            break;
+          }
+        }
+        if (tooClose) continue;
+      }
+      if (!footprintWhollyWithin(fp, casterFps, range)) continue;
+      if (nearbyFps.some((ofp) => !footprintGapAtLeast(fp, ofp, 0.05))) continue;
+      return { x, y, rot };
+    }
+  }
+  return null;
 }
 
 export function magicOptionsForUnit(
