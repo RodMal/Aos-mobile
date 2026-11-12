@@ -76,6 +76,22 @@ describe('session', () => {
     expect(canUndo(s)).toBe(false);
   });
 
+  it('undoes a move past the opponent’s declined reaction to it', () => {
+    let s = toMovement();
+    const before = s.state;
+    s = applyToSession(engine, s, { t: 'move', unit: '0:6', kind: 'normal' }).session;
+    const placement = shiftPlacement(currentPlacement(s.state.units['0:6']!), 1, 0);
+    s = applyToSession(engine, s, { t: 'place', placement }).session;
+    const d = engine.decision(s.state);
+    expect(d?.kind).toBe('reaction'); // Redeploy is offered after every move
+    s = applyToSession(engine, s, { t: 'pass' }).session;
+    expect(canUndo(s)).toBe(true);
+    s = undo(s);
+    expect(s.state.stack.at(-1)?.t).toBe('place');
+    s = undo(s);
+    expect(s.state).toEqual(before);
+  });
+
   it('does not undo the opponent’s actions', () => {
     let s = started(1);
     s = applyToSession(engine, s, { t: 'pass' }).session;

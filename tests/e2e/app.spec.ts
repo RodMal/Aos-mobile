@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   answerPreBattle,
-  answerOpponentTurnPrompt,
+  minimalPlayerStep,
   ahead,
   boardPoint,
   boardScale,
@@ -67,7 +67,7 @@ test('a full move: select, Move, drag the ghost, confirm', async ({ page }) => {
   const after = await modelTablePos(page, '[data-unit-id="0:6"] [data-model="0"]');
   expect(after.x - before.x).toBeGreaterThan(2.5);
   expect(after.x - before.x).toBeLessThan(3.5);
-  await expect(page.getByTestId('toast')).toContainText('Dryads moved 3');
+  // (The toast may already show the opponent's answer, such as a declined Redeploy.)
   await page.getByRole('button', { name: 'Log' }).click();
   await expect(page.getByTestId('log-list')).toContainText(/Dryads moved 3(\.\d)?"/);
 });
@@ -131,21 +131,16 @@ test('pinch-zoom and the zoom buttons change the scale', async ({ page }) => {
 
 test('passing every phase reaches battle round 2', async ({ page }) => {
   await startGame(page);
-  for (let i = 0; i < 6; i++) {
-    await page.getByTestId('end-phase').click();
-    const ok = page.getByTestId('confirm-ok');
-    if (await ok.isVisible()) await ok.click();
-  }
-  // The opponent plays its turn on its own; round 2 then starts with a priority roll, so
-  // either player may have the first turn.
-  // The player may be offered a Place of Power or a reaction in the opponent's turn: decline.
+  // The minimal player ends its phases and answers every prompt (start-of-turn offers,
+  // reactions, fights it must make) until the opponent's turn ends and round 2 begins.
   await expect
     .poll(
       async () => {
-        await answerOpponentTurnPrompt(page);
-        return page.getByTestId('round').textContent();
+        const round = (await page.getByTestId('round').textContent()) ?? '';
+        if (!round.includes('Round 2')) await minimalPlayerStep(page);
+        return round;
       },
-      { timeout: 30_000 },
+      { timeout: 60_000 },
     )
     .toContain('Round 2');
 });
@@ -169,7 +164,8 @@ test('reloading the page resumes the same game', async ({ page }) => {
 
 test('playing as Seraphon puts their army at the bottom', async ({ page }) => {
   test.skip(isDesktop(), 'the desktop table is shown flat, not turned bottom-up');
-  await startGame(page, 'seed=3&side=1&fast=1&new=1');
+  await page.goto('./?seed=3&side=1&fast=1&new=1');
+  await expect(page.locator('[data-unit-id] [data-model]').first()).toBeVisible();
   const ours = await modelCentre(page, '1:5', 0);
   const theirs = await modelCentre(page, '0:6', 0);
   expect(ours.y).toBeGreaterThan(theirs.y);
@@ -177,10 +173,11 @@ test('playing as Seraphon puts their army at the bottom', async ({ page }) => {
   await expect
     .poll(
       async () => {
-        await answerOpponentTurnPrompt(page);
-        return page.getByTestId('turn').textContent();
+        const turn = await page.getByTestId('turn').textContent();
+        if (turn !== 'Your turn') await minimalPlayerStep(page);
+        return turn;
       },
-      { timeout: 10_000 },
+      { timeout: 30_000 },
     )
     .toBe('Your turn');
 });

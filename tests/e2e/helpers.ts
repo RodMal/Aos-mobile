@@ -144,7 +144,8 @@ export async function answerPreBattle(page: Page): Promise<void> {
   // Answer prompts until the player's own hero phase shows (the opponent's own start-of-turn
   // choice comes in between, from the worker). In a game where the opponent goes first this
   // gives up after a few seconds and leaves the rest to the test.
-  for (let i = 0; i < 60; i++) {
+  // The opponent's worker can take several seconds to load on a busy machine.
+  for (let i = 0; i < 200; i++) {
     if (await answerStartPrompt(page)) continue;
     if (await usable(page.getByTestId('end-phase'))) break;
     await page.waitForTimeout(100);
@@ -215,6 +216,13 @@ export async function endPhaseUntil(page: Page, phase: RegExp): Promise<void> {
       return;
     const card = page.getByTestId('unit-panel');
     if (await card.isVisible()) await card.getByRole('button', { name: 'Close' }).click();
+    // A start-of-turn or reaction prompt, or the opponent deciding, may stand in the way:
+    // answer it (declined) and look at the phase again.
+    if (!(await usable(page.getByTestId('end-phase')))) {
+      if (!(await answerOpponentTurnPrompt(page))) await page.waitForTimeout(100);
+      i--;
+      continue;
+    }
     await page.getByTestId('end-phase').click();
     const ok = page.getByTestId('confirm-ok');
     if (await ok.isVisible()) await ok.click();
