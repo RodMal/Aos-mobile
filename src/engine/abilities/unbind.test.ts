@@ -177,4 +177,41 @@ describe('unbinds by power level', () => {
     const r = castOnce(s, ALARIELLE, abilityId, target, KROAK);
     expect(r.offered).toContain(KROAK);
   });
+
+  // Owner, 2026-11-12: a Wizard can unbind in its own turn when the enemy casts through
+  // Magical Intervention, with what is left of its count for that turn.
+  for (const ownCasts of [2, 3]) {
+    it(`Alarielle unbinds Kroak's Magical Intervention spell in her own turn after ${ownCasts} casts: ${ownCasts < 3 ? 'offered' : 'none left'}`, () => {
+      let s = arena([ALARIELLE, DRYADS, KROAK, SAURUS_GUARD]);
+      placeUnit(scenario, s, SAURUS_GUARD, 24, 34); // a target for Alarielle's enemy spells
+      for (let k = 0; k < ownCasts; k++) {
+        const { abilityId, target } = nextSpell(s, ALARIELLE);
+        s = castOnce(s, ALARIELLE, abilityId, target, 'nobody').state;
+      }
+      expect(s.units[ALARIELLE]!.castsUsed).toBe(ownCasts);
+      // End the hero phase: Kroak is offered Magical Intervention and takes it.
+      s = engine.apply(s, { t: 'pass' }).state;
+      const d = engine.decision(s);
+      expect(d?.kind).toBe('reaction');
+      s = engine.apply(s, { t: 'command', command: 'magicalIntervention', unit: KROAK }).state;
+      const { abilityId, target } = nextSpell(s, KROAK);
+      const cast = applyUntil(
+        engine,
+        s,
+        { t: 'ability', unit: KROAK, abilityId, ...(target ? { target } : {}) },
+        (r) => r.events.some((e) => e.t === 'cast' && e.success && e.total <= 9),
+      );
+      const reaction = engine.decision(cast.state);
+      const offered =
+        reaction?.kind === 'reaction' && reaction.player === 0
+          ? reaction.options.filter((o) => o.ability === 'unbind').map((o) => o.unit)
+          : [];
+      expect(offered).toEqual(ownCasts < 3 ? [ALARIELLE] : []);
+      if (ownCasts < 3) {
+        const r = engine.apply(cast.state, { t: 'ability', unit: ALARIELLE, abilityId: 'unbind' });
+        expect(r.events.some((e) => e.t === 'unbind' && e.unit === ALARIELLE)).toBe(true);
+        expect(r.state.units[ALARIELLE]!.castsUsed).toBe(ownCasts + 1);
+      }
+    });
+  }
 });
