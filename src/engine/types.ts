@@ -442,7 +442,14 @@ export interface Allocation {
 
 export type Action =
   /** End the phase, decline a reaction, skip a pile-in, or leave a unit in place. */
-  | { t: 'pass' }
+  | {
+      t: 'pass';
+      /**
+       * On a Redeploy reaction: do not offer Redeploy again for the rest of this phase
+       * ("Don't ask again this phase").
+       */
+      dontAskAgain?: boolean;
+    }
   /** Answer a choice: priority takes 'first' or 'second'; a fugitive pick takes a unit ID. */
   | { t: 'choose'; value: string }
   /** Declare a move. Run rolls a D6 and retreat rolls its damage; then a `place` follows. */

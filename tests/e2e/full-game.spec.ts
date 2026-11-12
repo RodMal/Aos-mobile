@@ -60,7 +60,8 @@ test('a charge can be declared, placed in contact and fought', async ({ page }) 
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
 
-  await startGame(page, 'seed=4&side=0&fast=1&new=1');
+  let seed = 4;
+  await startGame(page, `seed=${seed}&side=0&fast=1&new=1`);
   const phase = page.getByTestId('phase').locator('[aria-current="step"]');
   const chips = page.locator('[data-testid="ready-units"] .chip');
   let charged = false;
@@ -117,6 +118,14 @@ test('a charge can be declared, placed in contact and fought', async ({ page }) 
     const did = await step(page);
     if (did) idle = 0;
     else {
+      // A game can end before the player gets a charge in (the course of a seeded game
+      // changes with the rules): start the next seed.
+      if (await page.getByRole('heading', { name: 'The battle is over' }).isVisible()) {
+        await startGame(page, `seed=${++seed}&side=0&fast=1&new=1`);
+        charged = false;
+        idle = 0;
+        continue;
+      }
       await page.waitForTimeout(100);
       if (++idle > 100) throw new Error('the game stopped with nothing for the player to do');
     }

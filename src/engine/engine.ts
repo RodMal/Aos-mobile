@@ -1164,10 +1164,14 @@ export function createEngine(scenario: Scenario): Engine {
       });
     }
 
-    // Offer Redeploy reaction when an active player's unit finishes a movement-phase move within 6" of an enemy unit
+    // Offer Redeploy after each movement-phase move by the active player, to every eligible
+    // unit of the other player (not in combat, CP left, command unused this phase), unless
+    // that player chose "Don't ask again this phase". The NPC's own choice is filtered in
+    // src/ai/baseline.ts, never the offer.
     if (
       s.phase === 'movement' &&
       unit.owner === s.active &&
+      !(s.reactionsOffered ?? []).includes('redeployMuted') &&
       (frame.reason === 'normal' || frame.reason === 'run' || frame.reason === 'retreat')
     ) {
       // Offered after each enemy move while the command is unused this phase (no distance or
@@ -1318,6 +1322,9 @@ export function createEngine(scenario: Scenario): Engine {
     if (action.t === 'pass') {
       if (under?.t === 'endPhase') {
         s.reactionsOffered = [...(s.reactionsOffered ?? []), 'endPhasePassed'];
+      }
+      if (action.dontAskAgain && reaction.options.some((o) => o.command === 'redeploy')) {
+        s.reactionsOffered = [...(s.reactionsOffered ?? []), 'redeployMuted'];
       }
       return;
     }
