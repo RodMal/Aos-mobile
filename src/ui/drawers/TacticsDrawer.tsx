@@ -54,12 +54,12 @@ function Card({ card, note }: { card: CardView; note: string | null }) {
   );
 }
 
-export function TacticsPanel() {
+export function TacticsPanel({ testId = 'tactics-panel' }: { testId?: string }) {
   const state = useGameState();
   const human = useHuman();
   const enemy: PlayerId = human === 0 ? 1 : 0;
   return (
-    <div className="tactics" data-testid="tactics-panel">
+    <div className="tactics" data-testid={testId}>
       {[human, enemy].map((p) => (
         <section key={p} className={`tactics-side ${p === human ? 'friendly' : 'enemy'}`}>
           <h3>
