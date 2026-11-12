@@ -10,7 +10,12 @@ import { rallyPoints, rallySpend, RALLY_ROLLS } from '../rules/core/rally.js';
 import { priorityWinner, roundCommandPoints, seizes } from '../rules/core/round.js';
 import { clearExpiredEffects, fireTriggers, strikeOrder, unitGrants } from './abilities/effects.js';
 import './abilities/lores.js';
-import { declareAbility, magicOptionsForUnit, resolvePendingSpell } from './abilities/magic.js';
+import {
+  declareAbility,
+  hasMagicOption,
+  magicOptionsForUnit,
+  resolvePendingSpell,
+} from './abilities/magic.js';
 import {
   FIGHT_THROUGH_THE_PAIN_ID,
   allocateOne,
@@ -624,7 +629,7 @@ function canMagicalIntervention(scenario: Scenario, state: GameState, unit: Unit
     ...state,
     stack: [...state.stack, { t: 'magicalIntervention', unit: unit.id }],
   };
-  return magicOptionsForUnit(scenario, probe, unit).length > 0;
+  return hasMagicOption(scenario, probe, unit);
 }
 
 export function powerThroughTargets(

@@ -1,13 +1,7 @@
 /** The ability panel: spells, summons, prayers and reactions through the touch UI. */
 import { expect, test, type Page } from '@playwright/test';
 import { openPosition } from './positions.js';
-import {
-  isDesktop,
-  modelCentre,
-  selectFromRoster,
-  startGame,
-  tapAt,
-} from './helpers.js';
+import { isDesktop, modelCentre, selectFromRoster, startGame, tapAt } from './helpers.js';
 
 const JADE_THORNS = '97df-e136-9fb4-5aca';
 const PENDULUM = '678b-96e1-66bb-1de8';

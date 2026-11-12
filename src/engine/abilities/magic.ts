@@ -124,7 +124,59 @@ export function isManifestationInPlayOrBanished(
   return Boolean(existing && existing.status === 'battlefield');
 }
 
+/**
+ * Memo for `findSummonPlacement`, keyed by everything the search reads: the arguments and the
+ * position and status of every model on the battlefield. The search is pure, so a hit returns
+ * exactly what a fresh search would; it only saves time (unit options are asked for the same
+ * position many times). Bounded, and per scenario.
+ */
+const summonMemo = new WeakMap<
+  Scenario,
+  Map<string, { x: number; y: number; rot: number } | null>
+>();
+
+function summonKey(
+  state: GameState,
+  caster: UnitState,
+  warscrollId: string,
+  range: number,
+  minEnemyGap: number,
+): string {
+  const parts = [caster.id, caster.owner, warscrollId, range, minEnemyGap].join('|');
+  let units = '';
+  for (const id of state.unitOrder) {
+    const u = state.units[id]!;
+    if (u.status !== 'battlefield') continue;
+    units += `${id}:${u.owner}`;
+    for (const m of u.models) units += m.alive ? `,${m.x},${m.y},${m.rot}` : ',-';
+    units += ';';
+  }
+  return `${parts}#${units}`;
+}
+
 export function findSummonPlacement(
+  scenario: Scenario,
+  state: GameState,
+  caster: UnitState,
+  warscrollId: string,
+  range: number,
+  minEnemyGap: number,
+): { x: number; y: number; rot: number } | null {
+  let memo = summonMemo.get(scenario);
+  if (!memo) {
+    memo = new Map();
+    summonMemo.set(scenario, memo);
+  }
+  const key = summonKey(state, caster, warscrollId, range, minEnemyGap);
+  const hit = memo.get(key);
+  if (hit !== undefined) return hit ? { ...hit } : null;
+  const found = searchSummonPlacement(scenario, state, caster, warscrollId, range, minEnemyGap);
+  if (memo.size >= 256) memo.clear();
+  memo.set(key, found);
+  return found ? { ...found } : null;
+}
+
+function searchSummonPlacement(
   scenario: Scenario,
   state: GameState,
   caster: UnitState,
@@ -213,6 +265,8 @@ export function magicOptionsForUnit(
   scenario: Scenario,
   state: GameState,
   unit: UnitState,
+  /** Leave out summons (their placement search is the slow part), for a quick "any option?". */
+  skipSummons = false,
 ): UnitOption[] {
   const top = state.stack[state.stack.length - 1];
   const inMagicalIntervention = top?.t === 'magicalIntervention' && top.unit === unit.id;
@@ -233,6 +287,7 @@ export function magicOptionsForUnit(
       if (def.canUse && !def.canUse(scenario, state, unit)) continue;
 
       if (def.kind === 'summon' && def.summonWarscrollId) {
+        if (skipSummons) continue;
         if (isManifestationInPlayOrBanished(state, unit.owner, def.summonWarscrollId)) continue;
         const pos = findSummonPlacement(
           scenario,
@@ -313,6 +368,14 @@ export function magicOptionsForUnit(
   }
 
   return out;
+}
+
+/** True when the unit has any magic option now (summons searched only when nothing else is). */
+export function hasMagicOption(scenario: Scenario, state: GameState, unit: UnitState): boolean {
+  return (
+    magicOptionsForUnit(scenario, state, unit, true).length > 0 ||
+    magicOptionsForUnit(scenario, state, unit).length > 0
+  );
 }
 
 export function eligibleUnbinders(
