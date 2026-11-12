@@ -110,3 +110,35 @@ Things that cost time before:
 - Start-of-round and start-of-turn faction mechanics (Sylvaneth Creeping Overgrowth / Endless Growth, Creeping Dread, Seraphon Asterisms, Alarielle's Seasons) are scheduled for M4.
 - UI: the top bar shows whose turn it is, not whose decision it is, so it can say "Seraphon turn" while the owner is choosing a unit to fight. In Adjust mode a model is tapped and then dragged from anywhere, not dragged directly. While placing a unit, one finger moves the unit and two fingers pan.
 - Not verified on real hardware: iOS Safari install, Android launcher icon, and general feel on a phone.
+
+## State on 2026-11-11 (branch `worktree-agent-a2413e19c5eccdf72`)
+
+This branch is **not merged** into `ccr-badc8dc5-cnbda7` and **not pushed**. Before merging, `pnpm check`, the full simulation (`SIM_SEEDS=60 pnpm test:sim`) and `pnpm test:e2e` must all pass; on the last commit only `pnpm check` was run in full (a 10-seed simulation passed after the faction terrain commit).
+
+Done (review findings and owner rulings):
+
+- 9d9e0cf actions rejected for units the deciding player does not own; dec2bcb unknown units throw `IllegalActionError`.
+- fde50e2 and d3d21c6 All-out Attack: +1 to hit only for the attacks it was bought for; -1 to the unit's save rolls until the end of the turn (owner's correction).
+- b0b912e Endless Growth (both options, Nature's Titans).
+- 7151d56 one creeping overgrowth implementation (`src/engine/overgrowth.ts`): per-player tokens, 6/9/12"/whole battlefield, "wholly within" where printed, only Awakened Wyldwoods spread tokens (Ever Growing: closest feature without a token, unless the opponent controls it).
+- 263b3d6 quick-start games set up both armies' faction terrain.
+- b479957 faction terrain never acts (no options, actions rejected), cannot be charged, is not a shooting target, creates no combat range; units within 3" may attack it in the combat phase and may decline.
+- 63e06d3 footprints: Wyldwood outlines traced from the owner's template (three different pieces in `src/data/wyldwood.ts`; piece 1 used), Realmshaper Engine a 6" square; concave outlines use the general polygon routines (`Footprint` kind `polygon`).
+
+Remaining, with the owner's rulings in full:
+
+- **B Place of Power**: usable at the start of each turn by both players (active player first); once per turn per army; needs only a friendly hero within 3" of a Place of Power (no control, combat does not matter); only the owner activates their hero; not accepted in other phases. Make Channelled Wrath (+1 casting and chanting) and Dizzying Rage (unbind or banish once) work; backfire D3 mortal damage is warded (I36); NPC picks a boon that helps the hero. Work in progress saved outside the repo; it broke ~46 tests that expect no start-of-turn prompt in quick-start games (Spirit of Durthu and Lord Kroak deploy within 3" of a spire), so tests need a helper that passes those prompts.
+- **D** Song Of The Lost on 8+: ignores the attacker's Rend and positive save modifiers such as All-out Defence, in attacks and expected damage.
+- **E** Song Of Dread triggers on charge moves and Power Through moves, not pile-ins (an ability counts if it has the Move keyword).
+- **F** Power Through: after the D3 the unit moves; it may not enter combat with a unit it was not already in combat with; it may stay in or leave combat.
+- **G** Round 1: whoever finished deploying first chooses who takes the first turn (quick start: the attacker), raised as the `priority` decision; stop hard-coding player 0 in `initFury` and the first-turn code.
+- **H** Battle tactics: both cards can advance in the same turn, 5 VP per tier; none after a double turn unless behind by 11 or more VP; tests for the untested tiers.
+- **I** Covering Fire shooting phase only, not in combat, not after running; Magical Intervention also offers Banish; remove invented reaction filters unless the earlier engine cites text.
+- **J** Guarded Hero: the Health 10 and 3-model bodyguard conditions are invented; use the plain wording from the earlier engine and record it as awaiting confirmation.
+- **K** Set-up on terrain allowed where it is no higher than 1" (ruins and outcrops low enough, spires too tall; assumption).
+- **L** Deployment robustness (`allowance: Infinity`, no illegal NPC placement fallback, JSON round-trip invariant in every phase).
+- **M** Eruption of Fury: the player chooses how many rage dice (1 to the maximum) and the target/weapon; Fight Through the Pain as a visible prompt (reaction mechanism) with an NPC policy, answered in `tests/e2e/helpers.ts` `minimalPlayerStep`.
+- **N** Creeping Dread and Seasons Of War are not wired (I37 overstates them).
+- **O** Replace empty tests (`terrain.test.ts` Place of Power, `fury.test.ts`); restore `ReactionOption.command` as required.
+- Hero-phase Wyldwood pieces: one more piece in each Sylvaneth hero phase up to three (pieces 2 and 3 outlines are ready); the data text has no set-up rule for them.
+- Battle-tactics tracker in the UI; Burning for Vengeance asking the player to pick the fugitive.
