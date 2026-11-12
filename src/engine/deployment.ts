@@ -18,7 +18,7 @@ import {
   type Polygon,
 } from '../geom/index.js';
 import { boardPolygon } from './movement.js';
-import { allowsSetUpOn } from '../data/battlefield.js';
+import { canStandOn } from '../data/battlefield.js';
 import {
   aliveIndices,
   attackerOf,
@@ -311,7 +311,7 @@ export function checkDeployPlacement(
     // faction terrain is never set up on a terrain feature.
     if (
       battlefield.terrain.some(
-        (t) => (isTerrain || !allowsSetUpOn(t)) && footprintOverlapsPolygon(fp, t.polygon),
+        (t) => (isTerrain || !canStandOn(battlefield, t)) && footprintOverlapsPolygon(fp, t.polygon),
       )
     ) {
       overlapping.add(i);

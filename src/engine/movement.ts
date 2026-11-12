@@ -23,7 +23,7 @@ import {
   unitFootprints,
   unitsOf,
 } from './query.js';
-import { pathBlockedModels, unstableTerrainViolations } from './terrain.js';
+import { blockedTerrainViolations, pathBlockedModels } from './terrain.js';
 import type {
   GameState,
   Placement,
@@ -281,12 +281,17 @@ export function checkMovePlacement(
     }
   }
 
-  const unstable = unstableTerrainViolations(scenario, unit, placement);
-  if (unstable.length > 0) {
+  // Every move kind, charges, pile-ins and summons: no base may end on a feature models
+  // cannot stand on (the spires; see LOW_TERRAIN_KINDS).
+  const onTerrain = blockedTerrainViolations(scenario, unit, placement);
+  if (onTerrain.length > 0) {
     violations.push({
       code: 'BLOCKED',
-      message: 'Models cannot end a move on unstable terrain.',
-      models: unstable,
+      message:
+        rules.reason === 'summon'
+          ? 'Models cannot be set up on that terrain feature: it is too tall to stand on.'
+          : 'Models cannot end a move on that terrain feature: it is too tall to stand on.',
+      models: onTerrain,
     });
   }
 
