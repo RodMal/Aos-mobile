@@ -36,6 +36,7 @@ import { diceMean } from '../data/profile.js';
 import { npcDeployPlacement } from '../engine/deployment.js';
 import { contestedObjective } from '../rules/core/objectives.js';
 import { chargePlacement, moveTowards, pileInPlacement } from './placement.js';
+import { npcCreepingDreadTargets, npcSeason } from '../rules/factions/seasons.js';
 
 /** CP the NPC keeps in hand before it spends on optional commands. */
 const SPARE_CP = 2;
@@ -60,7 +61,15 @@ export function chooseAction(engine: Engine, state: GameState): Action {
         return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };
       }
       const cp = state.players[d.player].cp;
-      const affordable = d.options.filter((o) => o.command && cp >= Math.max(SPARE_CP, o.cost));
+      // Redeploy is offered after every enemy move: only worth it for a unit the mover has
+      // come within 9" of.
+      const mover = d.trigger.startsWith('move:') ? state.units[d.trigger.slice(5)] : undefined;
+      const worthIt = (o: ReactionOption) =>
+        o.command !== 'redeploy' ||
+        (!!mover && unitDistance(engine.scenario, mover, state.units[o.unit]!) <= 9);
+      const affordable = d.options.filter(
+        (o) => o.command && cp >= Math.max(SPARE_CP, o.cost) && worthIt(o),
+      );
       if (affordable.length === 0) return { t: 'pass' };
       const best = [...affordable].sort(
         (a, b) => points(engine, state, b.unit) - points(engine, state, a.unit),
@@ -95,8 +104,14 @@ export function chooseAction(engine: Engine, state: GameState): Action {
         value: isCasterOrPriest && ownTurn ? 'channelled_wrath' : 'ignite_fury',
       };
     }
-    case 'alarielleSeason':
-      return { t: 'choose', value: d.seasons[0]! };
+    case 'alarielleSeason': {
+      const pick = npcSeason(engine.scenario, state, d.player);
+      return { t: 'choose', value: d.seasons.includes(pick) ? pick : d.seasons[0]! };
+    }
+    case 'creepingDread': {
+      const ids = npcCreepingDreadTargets(engine.scenario, state, d.units, d.max);
+      return ids.length > 0 ? { t: 'choose', value: ids.join(',') } : { t: 'pass' };
+    }
     case 'fugitive':
       // The engine's default is the sensible pick: the enemy Hero easiest to slay.
       return engine.defaultAction(state);
@@ -262,7 +277,12 @@ function placeAction(
 ): Action | null {
   const unit = state.units[d.unit]!;
   if (d.reason === 'deploy') {
-    return { t: 'place', placement: npcDeployPlacement(engine.scenario, state, unit) };
+    const placement = npcDeployPlacement(engine.scenario, state, unit);
+    return placement ? { t: 'place', placement } : null;
+  }
+  if (d.reason === 'setUp') {
+    // A further Awakened Wyldwood starts at a legal spot near an objective: keep it there.
+    return { t: 'place', placement: currentPlacement(unit) };
   }
   if (d.reason === 'summon') {
     const cur = currentPlacement(unit);
@@ -320,6 +340,11 @@ function chooseHeroAbilityAction(
         unit: unit.id,
         abilityId: summon.abilityId,
       };
+    }
+
+    // 3. Further Awakened Wyldwood (set up at the suggested spot)
+    if (abilOpts.some((o) => o.abilityId === 'awakened-wyldwood-setup')) {
+      return { t: 'ability', unit: unit.id, abilityId: 'awakened-wyldwood-setup' };
     }
 
     // 3. Place of Power

@@ -113,6 +113,9 @@ export function moveFootprint(fp: Footprint, x: number, y: number): Footprint {
 }
 
 /** Radius of the smallest circle around the centre that contains the footprint. */
+/** Bounding radii of polygon outlines, computed once per outline array (pure memo). */
+const outlineRadius = new WeakMap<object, number>();
+
 export function boundingRadius(fp: Footprint): number {
   switch (fp.kind) {
     case 'circle':
@@ -121,8 +124,14 @@ export function boundingRadius(fp: Footprint): number {
       return Math.max(fp.rx, fp.ry);
     case 'rect':
       return Math.hypot(fp.hw, fp.hh);
-    case 'polygon':
-      return Math.max(...fp.outline.map(([x, y]) => Math.hypot(x - fp.cx, y - fp.cy)));
+    case 'polygon': {
+      const hit = outlineRadius.get(fp.outline);
+      if (hit !== undefined) return hit;
+      let r = 0;
+      for (const [x, y] of fp.outline) r = Math.max(r, Math.hypot(x - fp.cx, y - fp.cy));
+      outlineRadius.set(fp.outline, r);
+      return r;
+    }
   }
 }
 

@@ -12,7 +12,7 @@ import {
   startDraft,
   translateDraft,
 } from './placementEdit.js';
-import { startGame } from '../../engine/test-helpers.js';
+import { passTo, startGame } from '../../engine/test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
@@ -57,7 +57,7 @@ describe('placement drafts', () => {
     const clamped = reformDraft(scenario, dryads, d, d.facing, 99);
     expect(clamped.frontage).toBe(10);
     // The rebuilt unit passes the engine's checks in place.
-    const s = engine.apply(engine.apply(state, { t: 'pass' }).state, {
+    const s = engine.apply(passTo(engine, state, 'movement'), {
       t: 'move',
       unit: '0:6',
       kind: 'normal',

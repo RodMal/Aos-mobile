@@ -1,6 +1,6 @@
 /** Modal prompts: priority, reactions, confirmations, the unit chooser and the result screen. */
 import { useState, type ReactNode } from 'react';
-import type { ReactionOption } from '../../engine/index.js';
+import type { Decision, ReactionOption } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
 import { COMMAND_NAMES, reactionText } from '../game/eventText.js';
 import { logContext, playerName } from '../game/engine.js';
@@ -102,6 +102,74 @@ function PainPrompt({ option, fury }: { option: ReactionOption; fury: number }) 
   );
 }
 
+const SEASONS = [
+  {
+    id: 'burgeoning',
+    name: 'The Burgeoning',
+    text: 'Ever Growing may target any terrain feature the opponent does not control',
+  },
+  {
+    id: 'reaping',
+    name: 'The Reaping',
+    text: '+1 to cast and chant wholly within 12" of Alarielle',
+  },
+  {
+    id: 'dwindling',
+    name: 'The Dwindling',
+    text: 'Charge after retreating; no retreat mortal damage',
+  },
+  { id: 'everdusk', name: 'Everdusk', text: 'Creeping Dread can pick up to 3 enemy units' },
+] as const;
+
+/** Creeping Dread: tick up to `max` enemy units in the overgrowth, then use it or pass. */
+function CreepingDreadPrompt({ d }: { d: Extract<Decision, { kind: 'creepingDread' }> }) {
+  const state = useGameState();
+  const [picked, setPicked] = useState<string[]>([]);
+  const toggle = (id: string) =>
+    setPicked((p) =>
+      p.includes(id) ? p.filter((x) => x !== id) : p.length < d.max ? [...p, id] : p,
+    );
+  return (
+    <Modal title="Creeping Dread" testId="creeping-dread">
+      <p>
+        Pick {d.max === 1 ? 'an enemy unit' : `up to ${d.max} enemy units`} in the creeping
+        overgrowth. This turn, the first command your opponent uses for it costs 1 more CP unless it
+        is wholly within 12&quot; of a Hero.
+      </p>
+      <div className="ready" role="group" aria-label="Targets">
+        {d.units.map((id) => (
+          <button
+            key={id}
+            className={`chip enemy ${picked.includes(id) ? 'chosen' : ''}`}
+            aria-pressed={picked.includes(id)}
+            data-dread={id}
+            onClick={() => toggle(id)}
+          >
+            {state.units[id]?.name ?? id}
+          </button>
+        ))}
+      </div>
+      <div className="stack">
+        <button
+          className="btn primary wide"
+          data-testid="dread-use"
+          disabled={picked.length === 0}
+          onClick={() => dispatch({ t: 'choose', value: picked.join(',') })}
+        >
+          Use Creeping Dread
+        </button>
+        <button
+          className="btn wide"
+          data-testid="dread-pass"
+          onClick={() => dispatch({ t: 'pass' })}
+        >
+          Pass
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 export function DecisionPrompts() {
   const d = useHumanDecision();
   const state = useGameState();
@@ -109,17 +177,25 @@ export function DecisionPrompts() {
   if (!d) return null;
   if (d.kind === 'priority') {
     return (
-      <Modal title="Priority roll" testId="priority">
-        <div className="dice-pair">
-          <div>
-            <Die value={d.rolls[0]} />
-            <span className="muted small">{playerName(0)}</span>
+      <Modal title={d.reason ? 'First turn' : 'Priority roll'} testId="priority">
+        {d.reason ? (
+          <p data-testid="first-turn-reason">
+            {state.deploymentFinishedFirst === human
+              ? 'You finished deploying first.'
+              : 'You are the attacker.'}
+          </p>
+        ) : (
+          <div className="dice-pair">
+            <div>
+              <Die value={d.rolls[0]} />
+              <span className="muted small">{playerName(0)}</span>
+            </div>
+            <div>
+              <Die value={d.rolls[1]} />
+              <span className="muted small">{playerName(1)}</span>
+            </div>
           </div>
-          <div>
-            <Die value={d.rolls[1]} />
-            <span className="muted small">{playerName(1)}</span>
-          </div>
-        </div>
+        )}
         <p>You choose who takes the first turn of round {state.round}.</p>
         <div className="stack">
           <button
@@ -252,43 +328,31 @@ export function DecisionPrompts() {
     );
   }
   if (d.kind === 'alarielleSeason') {
+    const last = state.alarielleSeason?.[state.round - 1];
     return (
       <Modal title="Alarielle: Season of War" testId="alarielle-season">
-        <p>
-          Pick a Season of War to be in effect for your army until the end of this battle round:
-        </p>
+        <p>Pick a Season of War for the rest of this battle round (not last round&apos;s):</p>
         <div className="stack">
-          <button
-            className="btn wide"
-            onClick={() => dispatch({ t: 'choose', value: 'burgeoning' })}
-          >
-            <strong>The Burgeoning</strong>
-            <span className="muted small block">
-              Ward (5+) for friendly Sylvaneth in overgrowth
-            </span>
-          </button>
-          <button className="btn wide" onClick={() => dispatch({ t: 'choose', value: 'reaping' })}>
-            <strong>The Reaping</strong>
-            <span className="muted small block">
-              +1 to cast &amp; chant wholly within 12&quot; of Alarielle
-            </span>
-          </button>
-          <button
-            className="btn wide"
-            onClick={() => dispatch({ t: 'choose', value: 'dwindling' })}
-          >
-            <strong>The Dwindling</strong>
-            <span className="muted small block">
-              Can charge after retreat; no retreat mortal damage
-            </span>
-          </button>
-          <button className="btn wide" onClick={() => dispatch({ t: 'choose', value: 'everdusk' })}>
-            <strong>The Everdusk</strong>
-            <span className="muted small block">Creeping Dread can pick up to 3 enemy units</span>
-          </button>
+          {SEASONS.map((x) => (
+            <button
+              key={x.id}
+              className="btn wide"
+              data-season={x.id}
+              disabled={!d.seasons.includes(x.id)}
+              onClick={() => dispatch({ t: 'choose', value: x.id })}
+            >
+              <strong>{x.name}</strong>
+              <span className="muted small block">
+                {x.id === last ? 'Picked last battle round' : x.text}
+              </span>
+            </button>
+          ))}
         </div>
       </Modal>
     );
+  }
+  if (d.kind === 'creepingDread') {
+    return <CreepingDreadPrompt key={state.round * 10 + state.turnIndex} d={d} />;
   }
   return null;
 }

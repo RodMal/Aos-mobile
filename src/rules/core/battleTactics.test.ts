@@ -176,7 +176,10 @@ describe('Battle Tactics (GHB 2026-27)', () => {
 
   describe('Burning for Vengeance fugitive (picked by the player)', () => {
     it('asks the player with the card to pick an enemy Hero before the first turn', () => {
-      const s0 = engine.newGame(1);
+      let s0 = engine.newGame(1);
+      // Seasons Of War (start of the battle round) may come first.
+      while (engine.decision(s0)?.kind === 'alarielleSeason')
+        s0 = engine.apply(s0, engine.defaultAction(s0)).state;
       const d = engine.decision(s0)!;
       expect(d.kind).toBe('fugitive');
       if (d.kind !== 'fugitive') return;
@@ -192,16 +195,19 @@ describe('Battle Tactics (GHB 2026-27)', () => {
       const pick = d.units[d.units.length - 1]!;
       let s1 = engine.apply(s0, { t: 'choose', value: pick }).state;
       expect(s1.players[0].fugitiveUnit).toBe(pick);
-      // Optional start-of-turn Place of Power offers come next; decline them.
-      while (engine.decision(s1)?.kind === 'placeOfPower')
-        s1 = engine.apply(s1, { t: 'pass' }).state;
+      // The first-turn choice and the optional Place of Power offers come next.
+      expect(engine.decision(s1)).toMatchObject({ kind: 'priority', reason: 'deployment' });
+      while (engine.decision(s1)?.kind !== 'main')
+        s1 = engine.apply(s1, engine.defaultAction(s1)).state;
       expect(engine.decision(s1)).toMatchObject({ kind: 'main', phase: 'hero', player: 0 });
       // The default (and the NPC) picks one of the legal Heroes.
       expect(d.units).toContain((engine.defaultAction(s0) as { value: string }).value);
     });
 
     it('lets Quick Pursuit and then Bring Them In complete against the picked fugitive', () => {
-      const s0 = engine.newGame(1);
+      let s0 = engine.newGame(1);
+      while (engine.decision(s0)?.kind === 'alarielleSeason')
+        s0 = engine.apply(s0, engine.defaultAction(s0)).state;
       const d = engine.decision(s0)!;
       if (d.kind !== 'fugitive') throw new Error('expected a fugitive pick');
       const fugitive = d.units[0]!;

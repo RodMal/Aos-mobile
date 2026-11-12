@@ -76,12 +76,13 @@ describe('turn sequence', () => {
     let steps = 0;
     let placesOfPower = 0;
     while (engine.decision(s)) {
-      if (engine.decision(s)!.kind === 'placeOfPower') placesOfPower++;
+      const kind = engine.decision(s)!.kind;
+      if (kind !== 'main' && kind !== 'priority') placesOfPower++;
       s = engine.apply(s, engine.defaultAction(s)).state;
       steps++;
     }
     // Six phase passes per turn, a priority choice in rounds 2 to 5, and the optional
-    // start-of-turn Place of Power offers (heroes deployed near the spires), declined.
+    // other prompts: Place of Power offers, reactions, Seasons Of War, Creeping Dread.
     expect(steps).toBe(5 * 2 * 6 + 4 + placesOfPower);
     expect(s.status).toBe('ended');
     expect(s.round).toBe(5);
@@ -129,6 +130,12 @@ describe('movement', () => {
       expect.objectContaining({ t: 'moved', unit: dryads.id, kind: 'normal' }),
     );
     expect(engine.unitOptions(s, dryads.id)).toEqual([]);
+    // The opponent may answer with Redeploy after each move (no distance filter).
+    const d2 = engine.decision(s)!;
+    if (d2.kind === 'reaction') {
+      expect(d2.options.every((o) => o.command === 'redeploy')).toBe(true);
+      s = engine.apply(s, { t: 'pass' }).state;
+    }
     expect(engine.decision(s)).toMatchObject({ kind: 'main', phase: 'movement' });
   });
 

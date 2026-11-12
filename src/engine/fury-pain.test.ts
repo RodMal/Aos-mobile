@@ -93,6 +93,28 @@ describe('Fight Through the Pain (wired into damage allocation)', () => {
     );
   });
 
+  it('is not offered for faction terrain (it never acts; regression, seed 3 deployment game)', () => {
+    const s = editable(startGame(engine, 1));
+    const engineId = '1:terrain';
+    keepOnly(s, [DURTHU, engineId]);
+    placeUnit(scenario, s, DURTHU, 20, 22);
+    placeUnit(scenario, s, engineId, 26.5, 22);
+    s.players[1].rageDice = 3;
+    s.players[0].rageDice = 0;
+    s.phase = 'combat';
+    let st = engine.apply(s, { t: 'fight', unit: DURTHU }).state;
+    st = engine.apply(st, { t: 'pass' }).state; // no pile-in
+    const weaponId = engine.targetOptions(st, DURTHU, 'fight')[0]!.weaponId;
+    const r = applyUntil(
+      engine,
+      st,
+      { t: 'targets', allocations: [{ weaponId, target: engineId }] },
+      (x) => x.events.some((e) => e.t === 'attacks' && e.damage > 0),
+    );
+    expect(r.events.some((e) => e.t === 'damage' && e.unit === engineId)).toBe(true);
+    expect(engine.decision(r.state)?.kind).not.toBe('reaction');
+  });
+
   it('is not asked when the target’s owner holds no rage dice', () => {
     const s = arena();
     s.players[1].rageDice = 0;

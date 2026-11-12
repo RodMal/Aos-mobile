@@ -1,13 +1,7 @@
 /** The ability panel: spells, summons, prayers and reactions through the touch UI. */
 import { expect, test, type Page } from '@playwright/test';
-import {
-  isDesktop,
-  minimalPlayerStep,
-  modelCentre,
-  selectFromRoster,
-  startGame,
-  tapAt,
-} from './helpers.js';
+import { openPosition } from './positions.js';
+import { isDesktop, modelCentre, selectFromRoster, startGame, tapAt } from './helpers.js';
 
 const JADE_THORNS = '97df-e136-9fb4-5aca';
 const PENDULUM = '678b-96e1-66bb-1de8';
@@ -110,13 +104,13 @@ test('a priest chants a prayer through the panel', async ({ page }) => {
 
 test('the opponent casting offers an Unbind reaction that can be answered', async ({ page }) => {
   test.setTimeout(90_000);
-  // With this seed the opponent casts in its hero phase while the player has wizards.
-  await startGame(page, 'seed=3&side=0&fast=1&new=1');
+  // The NPC plays both sides until the opponent casts within 30" of the player's wizards.
+  await openPosition(page, 3, (_engine, _s, d) =>
+    d.kind === 'reaction' && d.player === 0 && d.options.some((o) => o.ability === 'unbind')
+      ? 'unbind'
+      : null,
+  );
   const reaction = page.getByTestId('reaction');
-  const unbind = reaction.getByRole('button', { name: /^Unbind/ }).first();
-  for (let i = 0; i < 600 && !(await unbind.isVisible()); i++) {
-    if (!(await minimalPlayerStep(page))) await page.waitForTimeout(100);
-  }
   await expect(reaction).toBeVisible();
   await expect(reaction).toContainText('Unbind?');
   await reaction

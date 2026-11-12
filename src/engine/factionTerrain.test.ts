@@ -94,7 +94,12 @@ describe('faction terrain (owner ruling, 2026-11-11)', () => {
     let s = nearEngine();
     for (const phase of ['hero', 'movement', 'shooting', 'charge', 'combat', 'end'] as const) {
       s = passTo(engine, s, phase);
-      expect(engine.unitOptions(s, WYLDWOOD)).toEqual([]);
+      // The only option is the player's: setting up a further Wyldwood in the hero phase.
+      expect(
+        engine
+          .unitOptions(s, WYLDWOOD)
+          .filter((o) => !(o.t === 'ability' && o.abilityId === 'awakened-wyldwood-setup')),
+      ).toEqual([]);
     }
     const move = passTo(engine, nearEngine(), 'movement');
     expect(() => engine.apply(move, { t: 'move', unit: WYLDWOOD, kind: 'normal' })).toThrow(
@@ -140,5 +145,18 @@ describe('faction terrain (owner ruling, 2026-11-11)', () => {
     const targets = engine.targetOptions(f, dryads.id, 'fight');
     expect(targets.length).toBeGreaterThan(0);
     expect(targets.every((w) => w.targets.some((t) => t.unit === REALMSHAPER))).toBe(true);
+  });
+
+  it('declining to attack the terrain does not stop the unit fighting later if an enemy comes within 3"', () => {
+    const combat = passTo(engine, nearEngine(), 'combat');
+    const dryads = named(combat, 'Dryads');
+    const passed = editable(engine.apply(combat, { t: 'pass' }).state);
+    expect(passed.units[dryads.id]!.fought).toBe(false);
+    // An enemy unit ends up within 3" (as a pile-in would bring it) in the same tier.
+    const kx = dryads.models[0]!.x;
+    const ky = dryads.models[0]!.y;
+    placeUnit(scenario, passed, '1:1', kx, ky + 4.2);
+    expect(inCombat(scenario, passed, passed.units[dryads.id]!)).toBe(true);
+    expect(engine.unitOptions(passed, dryads.id)).toContainEqual({ t: 'fight' });
   });
 });

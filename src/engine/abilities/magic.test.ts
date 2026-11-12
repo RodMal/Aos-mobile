@@ -498,7 +498,7 @@ describe('M3a Lore Abilities (16 abilities)', () => {
         { allOutDefence: true },
       );
       expect(mods.wound).toBe(-1);
-      expect(mods.rend).toBe(0);
+      expect(rendWeapon.rend + mods.rend).toBe(0); // the weapon's Rend is ignored too
       expect(mods.save).toBe(0);
 
       // High chant (8+) on damaged Monster Durthu -> heals up to 3, cannot ignoreSaveModifiers
@@ -562,6 +562,23 @@ describe('M3a Lore Abilities (16 abilities)', () => {
           (e) => e.t === 'damage' && e.unit === SAURUS_GUARD && e.source === 'Song Of Dread',
         ),
       ).toBe(true);
+
+      // Owner's ruling, 2026-11-11: a pile-in is not a Move ability; a Power Through move is.
+      const dread = (r: { events: { t: string; unit?: string; source?: string }[] }) =>
+        r.events.some(
+          (e) => e.t === 'damage' && e.unit === SAURUS_GUARD && e.source === 'Song Of Dread',
+        );
+      for (const [reason, hurts] of [
+        ['pileIn', false],
+        ['powerThrough', true],
+      ] as const) {
+        const s2 = editable(chanted.state);
+        s2.active = 1;
+        s2.phase = reason === 'pileIn' ? 'combat' : 'end';
+        s2.stack = [{ t: 'place', unit: SAURUS_GUARD, reason, allowance: 3, dice: [] }];
+        const r = engine.apply(s2, { t: 'place', placement: stay });
+        expect(dread(r), reason).toBe(hurts);
+      }
     });
 
     it('Song Of War (1b5b-a2e8-6dd3-17fb): adds 1 to Rend of melee weapons (and 10+ affects second target)', () => {
@@ -1085,11 +1102,12 @@ describe('Six Remaining Commands', () => {
   });
 
   it('powerThrough: in the End of Turn phase, a unit that charged inflicts D3 mortal damage on an engaged enemy with lower Health and moves out of combat for 1 CP', () => {
-    const s = baseArena([DURTHU, SAURUS_GUARD]);
+    const s = baseArena([DURTHU, SAURUS_GUARD, KROXIGOR]);
     s.phase = 'end';
     // Durthu (Health 14) charged and is in combat with Saurus Guard (Health 2)
     placeUnit(scenario, s, DURTHU, 18, 22);
     placeUnit(scenario, s, SAURUS_GUARD, 24, 22);
+    placeUnit(scenario, s, KROXIGOR, 18, 31); // not in combat with Durthu
     s.units[DURTHU]!.charged = true;
     expect(inCombat(scenario, s, s.units[DURTHU]!)).toBe(true);
 
@@ -1116,10 +1134,14 @@ describe('Six Remaining Commands', () => {
       allowance: profileOf(scenario, s.units[DURTHU]!).move,
     });
 
-    // Ending still in combat is illegal (STILL_IN_COMBAT)
+    // Owner's ruling, 2026-11-11: it may stay in combat with the unit it was fighting...
     const stayInCombat = currentPlacement(powered.state.units[DURTHU]!);
-    expect(engine.checkPlacement(powered.state, stayInCombat).map((v) => v.code)).toContain(
-      'STILL_IN_COMBAT',
+    expect(inCombat(scenario, powered.state, powered.state.units[KROXIGOR]!)).toBe(false);
+    expect(engine.checkPlacement(powered.state, stayInCombat)).toEqual([]);
+    // ...but not enter combat with a unit it was not already in combat with.
+    const intoKroxigor = shiftPlacement(stayInCombat, 0, 4);
+    expect(engine.checkPlacement(powered.state, intoKroxigor).map((v) => v.message)).toContain(
+      'Power Through cannot end in combat with a unit it was not already in combat with.',
     );
 
     // Moving 5" away ends out of combat and is legal
@@ -1464,5 +1486,71 @@ describe('Once-Per-Phase Command Restrictions (Per Unit & Per Army)', () => {
     expect(() =>
       engine.apply(afterCast, { t: 'command', command: 'rally', unit: DRYCHA }),
     ).toThrow();
+  });
+});
+
+describe('reaction offers (owner ruling, 2026-11-11)', () => {
+  const offered = (s: GameState, command: string) => {
+    const d = engine.decision(s);
+    return d?.kind === 'reaction' && d.options.some((o) => o.command === command);
+  };
+
+  it('Covering Fire: not for a unit that ran or is in combat', () => {
+    const base = baseArena([DRYADS, DURTHU, HUNTERS]);
+    base.phase = 'shooting';
+    placeUnit(scenario, base, DRYADS, 16, 22);
+    placeUnit(scenario, base, DURTHU, 8, 22);
+    placeUnit(scenario, base, HUNTERS, 26, 22);
+    base.units[DRYADS]!.moved = 'normal';
+    base.players[0].cp = 0;
+    expect(offered(engine.apply(base, { t: 'pass' }).state, 'coveringFire')).toBe(true);
+    const ran = editable(base);
+    ran.units[HUNTERS]!.moved = 'run';
+    expect(offered(engine.apply(ran, { t: 'pass' }).state, 'coveringFire')).toBe(false);
+    const engaged = editable(base);
+    placeUnit(scenario, engaged, DRYADS, 23.5, 22);
+    expect(offered(engine.apply(engaged, { t: 'pass' }).state, 'coveringFire')).toBe(false);
+  });
+
+  it('Magical Intervention: offered with no enemy within 18", and it offers Banish', () => {
+    const s = baseArena([ALARIELLE, KROAK]);
+    placeUnit(scenario, s, ALARIELLE, 6, 22);
+    placeUnit(scenario, s, KROAK, 55, 22); // 49" away
+    const after = engine.apply(s, { t: 'pass' }).state;
+    expect(offered(after, 'magicalIntervention')).toBe(true);
+    // Banish through Magical Intervention: an enemy manifestation within 30".
+    const t = editable(s);
+    t.active = 1;
+    placeUnit(scenario, t, KROAK, 30, 22);
+    placeUnit(scenario, t, ALARIELLE, 58, 22);
+    const summoned = applyUntil(
+      engine,
+      t,
+      { t: 'ability', unit: KROAK, abilityId: SUMMON_SHACKLES },
+      (r) => r.events.some((e) => e.t === 'cast' && e.success),
+    );
+    const placed = editable(engine.apply(summoned.state, { t: 'pass' }).state);
+    placed.active = 1;
+    placed.phase = 'hero';
+    placeUnit(scenario, placed, ALARIELLE, 20, 22);
+    placed.stack = [{ t: 'magicalIntervention', unit: ALARIELLE }];
+    expect(
+      engine.unitOptions(placed, ALARIELLE).some((o) => o.t === 'ability' && o.kind === 'banish'),
+    ).toBe(true);
+  });
+
+  it('Redeploy: offered after each enemy move, at any distance, until used', () => {
+    const s = passTo(engine, baseArena([DRYADS, DURTHU, SAURUS_GUARD, KROXIGOR]), 'movement');
+    placeUnit(scenario, s, DRYADS, 6, 10);
+    placeUnit(scenario, s, DURTHU, 6, 34);
+    placeUnit(scenario, s, SAURUS_GUARD, 54, 10);
+    placeUnit(scenario, s, KROXIGOR, 54, 34);
+    let st = s;
+    for (const unit of [DRYADS, DURTHU]) {
+      st = engine.apply(st, { t: 'move', unit, kind: 'normal' }).state;
+      st = engine.apply(st, { t: 'place', placement: currentPlacement(st.units[unit]!) }).state;
+      expect(offered(st, 'redeploy'), unit).toBe(true);
+      st = engine.apply(st, { t: 'pass' }).state;
+    }
   });
 });

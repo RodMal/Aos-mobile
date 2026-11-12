@@ -81,15 +81,33 @@ export function applyToSession(
  * Undo is allowed for the last action when the human took it and it rolled no dice
  * (the RNG state is unchanged), so undoing can never re-roll anything.
  */
+/**
+ * The history index to undo back to: the human's last action, when no dice were rolled since,
+ * skipping the opponent's declined reactions that came after it (a Redeploy the computer passed
+ * on, say), so they do not block undoing a move. -1 when nothing can be undone.
+ */
+function undoIndex(session: Session): number {
+  const h = session.history;
+  let k = h.length - 1;
+  while (k >= 0) {
+    const e = h[k]!;
+    if (e.actor === session.humanPlayer) break;
+    const declinedReaction = e.action.t === 'pass' && e.before.stack.at(-1)?.t === 'reaction';
+    if (!declinedReaction) return -1;
+    k--;
+  }
+  if (k < 0) return -1;
+  return h[k]!.before.rng === session.state.rng ? k : -1;
+}
+
 export function canUndo(session: Session): boolean {
-  const last = session.history[session.history.length - 1];
-  return !!last && last.actor === session.humanPlayer && last.before.rng === session.state.rng;
+  return undoIndex(session) >= 0;
 }
 
 export function undo(session: Session): Session {
-  if (!canUndo(session)) return session;
-  const last = session.history[session.history.length - 1]!;
-  return { ...session, state: last.before, history: session.history.slice(0, -1) };
+  const k = undoIndex(session);
+  if (k < 0) return session;
+  return { ...session, state: session.history[k]!.before, history: session.history.slice(0, k) };
 }
 
 export function toRecord(session: Session): GameRecord {

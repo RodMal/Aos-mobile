@@ -291,7 +291,9 @@ export function allocatePending(ctx: Ctx, frame: Extract<Frame, { t: 'allocate' 
     const { target: id, amount } = frame.pending[0]!;
     const target = s.units[id]!;
     const rage = s.players[target.owner].rageDice ?? 0;
-    if (amount > 0 && rage > 0 && target.status === 'battlefield') {
+    // Faction terrain never acts or is acted for (owner's ruling): no Fight Through the Pain.
+    const terrain = profileOf(ctx.scenario, target).isFactionTerrain;
+    if (amount > 0 && rage > 0 && target.status === 'battlefield' && !terrain) {
       s.stack.push(frame);
       s.stack.push({
         t: 'reaction',

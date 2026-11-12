@@ -133,6 +133,11 @@ button {
   border-style: dashed;
 }
 
+/* The desktop sheet shows the tactics tracker under the decision; phones open the drawer. */
+.desktop-tactics {
+  display: none;
+}
+
 /* Battle tactics: a pip per tier, grouped by card, one row per side; opens the tracker. */
 .tactics-btn {
   display: grid;
@@ -1594,6 +1599,13 @@ button {
   }
   .phase-long {
     display: inline;
+  }
+
+  .desktop-tactics {
+    display: block;
+    margin-top: 16px;
+    border-top: 1px solid #262d34;
+    padding-top: 8px;
   }
 
   .tactics-btn {

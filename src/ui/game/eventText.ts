@@ -56,6 +56,7 @@ const MOVE_VERB: Record<PlaceReason, string> = {
   pileIn: 'piled in',
   summon: 'is summoned',
   powerThrough: 'powers through',
+  setUp: 'is set up',
 };
 
 function plural(n: number, word: string): string {

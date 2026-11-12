@@ -147,11 +147,39 @@ Remaining, with the owner's rulings in full:
 
 Done:
 
-- 1 Battle tactics tracker: a pip per tier for both sides in the top bar (`tactics-button`, "Tactics" label on desktop); one tap opens the tracker drawer (`src/ui/drawers/TacticsDrawer.tsx`, rows from `src/ui/game/tactics.ts`) with each card, completed/next tiers, the next tier's printed condition and the fugitive. e2e `tests/e2e/tactics.spec.ts` on all projects.
+- 1 Battle tactics tracker: a pip per tier for both sides in the top bar (`tactics-button`, "Tactics" label on desktop), and on desktop the full tracker sits in the sheet under the decision (`tactics-sheet`); one tap opens the tracker drawer (`src/ui/drawers/TacticsDrawer.tsx`, rows from `src/ui/game/tactics.ts`) with each card, completed/next tiers, the next tier's printed condition and the fugitive. e2e `tests/e2e/tactics.spec.ts` on all projects.
 - 2 Burning for Vengeance: a `fugitive` decision before the first turn (prompt `data-testid="fugitive"`, NPC/default picks the Hero with the fewest effective wounds); I41. The other three cards print no pre-battle choice. Quick-start games now open with this prompt: engine tests start with `startGame(engine, seed)` from `src/engine/test-helpers.ts` and e2e tests with `startGame`/`answerPreBattle` in `tests/e2e/helpers.ts`, which answer pre-battle prompts by default. Tests: `battleTactics.test.ts` "Burning for Vengeance fugitive", e2e "Burning for Vengeance asks the player to pick the fugitive".
 - 3 Tactics scoring verified (already correct): both cards in one turn, 5 VP each, none on a chosen double turn unless behind by 11+; I42. Tests: `turn.test.ts` "battle tactics scoring".
 - 4 Eruption of Fury: `rageDice` and `weaponId` on the `ability` action, `maxRageDice`/`weapons` on its option; stepper and weapon chips in the ability panel; NPC `eruptionAction` in `src/ai/baseline.ts`; I43. Tests: `src/engine/eruption.test.ts`, e2e `tests/e2e/fury.spec.ts`. New e2e mechanism: `tests/e2e/positions.ts` `openPosition` lets the NPC play both sides in the page (`?e2e=1` loads `src/ui/testHooks.ts`) until a condition holds and opens that game as a saved game.
 - 5 Fight Through the Pain: attack damage is allocated through an `allocate` frame (`src/engine/combat.ts` `allocatePending`); the target's owner gets a reaction prompt with the incoming damage and a dice stepper (`PainPrompt` in `src/ui/prompts/Prompts.tsx`, "Take the damage" = pass, answered by `minimalPlayerStep`); NPC `painAction`; I44. Not yet offered for mortal damage outside attacks. Tests: `src/engine/fury-pain.test.ts`, e2e `tests/e2e/fury.spec.ts`. Unit tests that are not about rage set `rageDice = 0` in their arenas.
 - 6 Place of Power per the owner's ruling (the saved patch applied, plus the default action passing and an NPC that picks a useful boon); I45. Tests: `terrain.test.ts` "Place of Power (owner ruling, 2026-11-11)", e2e `tests/e2e/fury.spec.ts` "Place of Power". Engine tests start with `startGame` (passes the optional prompt); e2e helpers pass it too. The e2e charge test now starts from an NPC-played position (`openPosition`).
+  Follow-up dbdcb6f: e2e helpers answer start-of-turn prompts and opponent-turn reactions (`answerStartPrompt`, `answerOpponentTurnPrompt`).
+- 7 Hero-phase Awakened Wyldwoods (`src/engine/wyldwood.ts`, profiles for pieces 2 and 3 in `src/engine/scenario.ts`, `setUp` place reason, NPC in `src/ai/baseline.ts`); I46, restrictions under Awaiting. Tests: `src/engine/wyldwood.test.ts`, e2e `tests/e2e/wyldwood.spec.ts`.
 
-Remaining: items 7 to 17 of the owner's list (hero-phase Wyldwoods, Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- 18 Cover and Obscuring per the owner's ruling (`src/engine/terrain.ts` `unitHasCover`, `isModelVisibleToModel`); I47. Tests: `terrain.test.ts` "owner ruling 2026-11-11: no cover wholly within 1 inch in the open" and the Obscuring test.
+
+- 8 Song Of The Lost on 8+ ignores the weapon's Rend too (`src/rules/core/modifiers.ts` `sumModifiers`); I48. Tests: `modifiers.test.ts` "ignoring save modifiers".
+
+- 9 Song Of Dread: pile-ins no longer fire `afterMove` (`src/engine/engine.ts` `place`); I49. Test: `magic.test.ts` "Song Of Dread" (pile-in and Power Through cases).
+
+- 10 Power Through: the place frame carries `engagedWith` (additive on `Frame`), and `checkMovePlacement` only forbids combat with other units; I50. Test: `magic.test.ts` "powerThrough".
+
+- 11 Round 1 first turn chosen by whoever finished deploying first (quick start: the attacker) via `priority` with `reason: 'deployment'`; `attackerOf(scenario)` replaces the hard-coded player 0 in `initFury`, deployment order and new-game state; I51. Tests: `turn.test.ts` "battle round 1", e2e `tests/e2e/first-turn.spec.ts`.
+
+- 12 Reaction offers: Covering Fire not after running or in combat; Magical Intervention offers Banish; invented 18"/6"/once-per-phase/6" filters removed; I52. Tests: `magic.test.ts` "reaction offers".
+
+- 13 Guarded Hero: invented Health 10 and 3-model conditions removed (`src/engine/terrain.ts` `isGuardedHero`); I32 rewritten, confirmed by the owner on 2026-11-12 (any friendly non-Hero unit). Test: `terrain.test.ts` "guarded hero".
+
+- 14 Set-up on terrain: units may be deployed on ruins and outcrops (1" high or less), not on spires (`allowsSetUpOn` in `src/data/battlefield.ts`, used by `checkDeployPlacement`); assumption listed under Awaiting. Test: `deployment.test.ts` "allows setting up on ruins and outcrops".
+
+- 15 Seasons Of War and Creeping Dread wired (`src/rules/factions/seasons.ts`; `alarielleSeason` asked at round start before Ever Growing; new `creepingDread` start-of-turn decision; command cost surcharge through `commandBlocker`/`payCommand` extra cost); I54. Tests: `src/rules/factions/seasons.test.ts`, e2e `first-turn.spec.ts` (season prompt) and `fury.spec.ts` "Creeping Dread". e2e helpers answer the season (first allowed) and pass Creeping Dread.
+
+- 16 Declining to attack faction terrain no longer marks the unit as having fought (`declinedTerrainFight` flag, additive on `UnitState`); it can fight later if an enemy comes within 3". I39 amended. Test: `factionTerrain.test.ts` "declining to attack the terrain does not stop the unit fighting later".
+
+- 17 Deployment robustness: deploy frames store `allowance: 0` instead of `Infinity` (the UI treats deploy and set-up as unlimited); `npcDeployPlacement` returns `null` instead of an illegal fallback (it also tries the other three facings), and a unit with no legal place may then pass and stay in reserve; the simulation plays alternating-deployment games and checks the JSON round trip at every deployment step and every phase. Tests: `deployment.test.ts` "deployment robustness", `tests/sim/full-game.test.ts` "alternating deployment".
+
+- Follow-ups after the integrator's run: no Fight Through the Pain prompt for faction terrain (a seed 3 alternating-deployment game threw; regression test in `fury-pain.test.ts`); the Unbind e2e test starts from an NPC-played position; undo skips the opponent's declined reactions (`session.ts`); the NPC only Redeploys a unit the mover came within 9" of; summon placement searches and polygon bounding radii are memoised (a game took about twice as long as on 2e499b5, now within a few per cent).
+
+Remaining from the owner's list: none. Partly done: Fight Through the Pain is not offered for mortal damage outside attacks; the fugitive pick has no board highlight; The Burgeoning picks its feature automatically. Open questions are under "Awaiting the owner's ruling" in docs/RULES-DECISIONS.md.
+
+Last checks (commit after 9031771): `pnpm check` 444 tests pass; `SIM_SEEDS=40 pnpm test:sim` 44 pass; `CI=1 pnpm test:e2e` 88 pass on pixel-7, iphone-14 and desktop.

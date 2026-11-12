@@ -68,6 +68,11 @@ export interface UnitState {
   charged: boolean;
   shot: boolean;
   fought: boolean;
+  /**
+   * The unit declined to attack enemy faction terrain this turn; it may still fight if an
+   * enemy unit comes within its combat range.
+   */
+  declinedTerrainFight?: boolean;
   /** Set once the unit has declared a charge this turn, whether or not the charge succeeded. */
   chargeDeclared?: boolean;
   /** The command this unit has used in the current phase (a unit may use one per phase). */
@@ -112,6 +117,8 @@ export interface PlayerState {
   tacticProgress?: Record<string, TacticTier>;
   /** Enemy Hero chosen as the fugitive for Burning for Vengeance. */
   fugitiveUnit?: UnitId | null;
+  /** `round:turnIndex` of the turn in which this player last set up a further Awakened Wyldwood. */
+  wyldwoodSetUpTurn?: string;
   /** Terrain feature ID chosen as the enemy hideout for Blazing Onslaught. */
   hideoutTerrain?: string | null;
 }
@@ -140,7 +147,13 @@ export interface ActiveEffect {
  * with an empty stack the decision is the current phase's main decision.
  */
 export type Frame =
-  | { t: 'priority'; winner: PlayerId; rolls: [number, number] }
+  | {
+      t: 'priority';
+      winner: PlayerId;
+      rolls: [number, number];
+      /** Round 1: the choice is made by deployment, not a roll (`rolls` are then 0). */
+      reason?: 'deployment';
+    }
   | {
       t: 'place';
       unit: UnitId;
@@ -153,6 +166,8 @@ export type Frame =
       caster?: UnitId;
       /** For `reason: 'summon'`: minimum edge-to-edge distance from enemy units. */
       minEnemyGap?: number;
+      /** For `reason: 'powerThrough'`: the enemy units it was in combat with at the start. */
+      engagedWith?: UnitId[];
     }
   | { t: 'targets'; unit: UnitId; mode: AttackMode }
   | { t: 'reaction'; player: PlayerId; options: ReactionOption[]; trigger: string }
@@ -222,6 +237,8 @@ export type Frame =
       player: PlayerId;
       unit: UnitId;
     }
+  /** Start of any turn: the Sylvaneth player may use Creeping Dread on up to `max` targets. */
+  | { t: 'creepingDread'; player: PlayerId; units: UnitId[]; max: number }
   /**
    * Start of the battle, before the first turn is decided: a player with Burning for Vengeance
    * picks an enemy Hero (on the battlefield or in reserve) to be the fugitive.
@@ -232,7 +249,15 @@ export type Frame =
       units: UnitId[];
     };
 
-export type PlaceReason = MoveKind | 'charge' | 'pileIn' | 'summon' | 'powerThrough' | 'deploy';
+export type PlaceReason =
+  | MoveKind
+  | 'charge'
+  | 'pileIn'
+  | 'summon'
+  | 'powerThrough'
+  | 'deploy'
+  /** A further Awakened Wyldwood set up in the hero phase; `pass` cancels it. */
+  | 'setUp';
 export type AttackMode = 'shoot' | 'fight';
 export type FightTier = 'strikeFirst' | 'normal' | 'strikeLast';
 
@@ -267,6 +292,8 @@ export interface GameState {
    * that opponent seizes in turn. Absent or null when nobody has.
    */
   seizedBy?: PlayerId | null;
+  /** The player who finished deploying first (chooses who takes the first turn of round 1). */
+  deploymentFinishedFirst?: PlayerId;
   /** The player who seized the initiative in the current round (bars scoring Battle Tactics on their first turn). */
   seizedThisRound?: PlayerId | null;
   /** Timed effects currently in play. */
@@ -299,6 +326,13 @@ export interface GameState {
   damagedInPhases?: Record<UnitId, Phase[]>;
   /** Alarielle's season of war chosen for each battle round: round -> season. */
   alarielleSeason?: Record<number, string>;
+  /** The player whose Alarielle picked the seasons. */
+  alarielleSeasonPlayer?: PlayerId;
+  /**
+   * Creeping Dread this turn: `player`'s targets, and those for which the opponent has
+   * already declared a command (the extra CP applies to the first command only).
+   */
+  creepingDread?: { player: PlayerId; targets: UnitId[]; spent: UnitId[] } | null;
 }
 
 // ─── Decisions ──────────────────────────────────────────────────────────────────
@@ -306,7 +340,16 @@ export interface GameState {
 /** What the engine is waiting for. `player` is who must answer. */
 export type Decision =
   /** The priority roll winner chooses to take the first or second turn. */
-  | { kind: 'priority'; player: PlayerId; rolls: [number, number] }
+  | {
+      kind: 'priority';
+      player: PlayerId;
+      rolls: [number, number];
+      /**
+       * Round 1: `player` finished deploying first (or is the attacker in a quick-start game)
+       * and chooses who takes the first turn; there was no roll.
+       */
+      reason?: 'deployment';
+    }
   /** Pick a unit and an action for the current phase, or `pass` to end the phase. */
   | { kind: 'main'; player: PlayerId; phase: Phase }
   /** Position a unit's models. `pass` (when `canPass`) leaves the unit where it is. */
@@ -340,6 +383,11 @@ export type Decision =
       unit: UnitId;
       seasons: ('burgeoning' | 'reaping' | 'dwindling' | 'everdusk')[];
     }
+  /**
+   * Creeping Dread at the start of a turn: answer with `choose` and up to `max` unit IDs
+   * separated by commas, or `pass`.
+   */
+  | { kind: 'creepingDread'; player: PlayerId; units: UnitId[]; max: number }
   /** Burning for Vengeance: pick the enemy fugitive (answer with `choose` and a unit ID). */
   | { kind: 'fugitive'; player: PlayerId; units: UnitId[] };
 
@@ -484,7 +532,8 @@ export interface Violation {
     | 'PILE_IN_FURTHER'
     | 'BLOCKED'
     | 'OUTSIDE_TERRITORY'
-    | 'TOO_CLOSE_TO_ENEMY_TERRITORY';
+    | 'TOO_CLOSE_TO_ENEMY_TERRITORY'
+    | 'TOO_CLOSE';
   message: string;
   models?: number[];
 }

@@ -144,7 +144,8 @@ export async function answerPreBattle(page: Page): Promise<void> {
   // Answer prompts until the player's own hero phase shows (the opponent's own start-of-turn
   // choice comes in between, from the worker). In a game where the opponent goes first this
   // gives up after a few seconds and leaves the rest to the test.
-  for (let i = 0; i < 60; i++) {
+  // The opponent's worker can take several seconds to load on a busy machine.
+  for (let i = 0; i < 200; i++) {
     if (await answerStartPrompt(page)) continue;
     if (await usable(page.getByTestId('end-phase'))) break;
     await page.waitForTimeout(100);
@@ -172,14 +173,17 @@ export async function answerOpponentTurnPrompt(page: Page): Promise<boolean> {
 }
 
 /**
- * Answers one pre-battle or start-of-turn prompt if one is showing (the fugitive pick, the
- * first-turn choice, the optional Place of Power, declined). True when it answered one.
+ * Answers one pre-battle or start-of-turn prompt if one is showing (Seasons Of War, the
+ * fugitive pick, the first-turn choice; the optional Place of Power and Creeping Dread are
+ * declined). True when it answered one.
  */
 export async function answerStartPrompt(page: Page): Promise<boolean> {
   const fugitive = page.locator('[data-fugitive]').first();
   const first = page.getByRole('button', { name: 'Take first turn' });
   const power = page.getByTestId('place-of-power').getByRole('button', { name: 'Pass' });
-  for (const l of [fugitive, first, power]) {
+  const season = page.locator('[data-season]:not([disabled])').first();
+  const dread = page.getByTestId('dread-pass');
+  for (const l of [season, fugitive, first, power, dread]) {
     if (await usable(l)) {
       await l.click();
       return true;
@@ -212,6 +216,13 @@ export async function endPhaseUntil(page: Page, phase: RegExp): Promise<void> {
       return;
     const card = page.getByTestId('unit-panel');
     if (await card.isVisible()) await card.getByRole('button', { name: 'Close' }).click();
+    // A start-of-turn or reaction prompt, or the opponent deciding, may stand in the way:
+    // answer it (declined) and look at the phase again.
+    if (!(await usable(page.getByTestId('end-phase')))) {
+      if (!(await answerOpponentTurnPrompt(page))) await page.waitForTimeout(100);
+      i--;
+      continue;
+    }
     await page.getByTestId('end-phase').click();
     const ok = page.getByTestId('confirm-ok');
     if (await ok.isVisible()) await ok.click();
@@ -246,6 +257,8 @@ export async function minimalPlayerStep(page: Page): Promise<string | null> {
     ['confirm', page.getByTestId('confirm-ok')],
     ['priority', page.getByRole('button', { name: 'Take first turn' })],
     ['fugitive', page.locator('[data-fugitive]').first()],
+    ['season', page.locator('[data-season]:not([disabled])').first()],
+    ['pass creeping dread', page.getByTestId('dread-pass')],
     ['skip reaction', page.getByRole('button', { name: 'Skip', exact: true })],
     ['take the damage', page.getByTestId('pain-skip')],
     [

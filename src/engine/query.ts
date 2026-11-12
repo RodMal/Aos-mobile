@@ -30,6 +30,11 @@ export function unitById(state: GameState, id: UnitId): UnitState {
   return unit;
 }
 
+/** The attacker: the player whose side is the battlefield's attacker side. */
+export function attackerOf(scenario: Scenario): PlayerId {
+  return scenario.sides[0] === scenario.battlefield.attackerSide ? 0 : 1;
+}
+
 export function profileOf(scenario: Scenario, unit: UnitState): UnitProfile {
   const profile = scenario.profiles[unit.profileId];
   if (!profile) throw new Error(`unknown profile ${unit.profileId}`);

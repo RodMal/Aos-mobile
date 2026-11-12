@@ -1,16 +1,21 @@
 import { battleplanRules } from '../rules/battleplans/index.js';
 import {
   clearPhaseCommands,
-  commandBlocker,
+  commandBlocker as baseCommandBlocker,
   COMMANDS,
-  payCommand,
+  payCommand as basePayCommand,
 } from '../rules/core/commands.js';
 import { resolveControl } from '../rules/core/objectives.js';
 import { rallyPoints, rallySpend, RALLY_ROLLS } from '../rules/core/rally.js';
 import { priorityWinner, roundCommandPoints, seizes } from '../rules/core/round.js';
 import { clearExpiredEffects, fireTriggers, strikeOrder, unitGrants } from './abilities/effects.js';
 import './abilities/lores.js';
-import { declareAbility, magicOptionsForUnit, resolvePendingSpell } from './abilities/magic.js';
+import {
+  declareAbility,
+  hasMagicOption,
+  magicOptionsForUnit,
+  resolvePendingSpell,
+} from './abilities/magic.js';
 import {
   FIGHT_THROUGH_THE_PAIN_ID,
   allocateOne,
@@ -26,6 +31,7 @@ import { checkMovePlacement, PILE_IN_DISTANCE, placementDistance } from './movem
 import {
   CHARGE_END_RANGE,
   DIST_EPS,
+  attackerOf,
   enemiesInCombat,
   enemiesWithin,
   inCombat,
@@ -70,7 +76,29 @@ import {
   resolvePlaceOfPower,
   type PlaceOfPowerBoon,
 } from './terrain.js';
-import { applyEverGrowing, resolveEndlessGrowth } from '../rules/factions/sylvaneth.js';
+import {
+  applyEverGrowing,
+  resolveEndlessGrowth,
+  type AlarielleSeason,
+} from '../rules/factions/sylvaneth.js';
+import {
+  burgeoningPick,
+  creepingDreadCandidates,
+  creepingDreadMax,
+  creepingDreadSurcharge,
+  dwindling,
+  hasCreepingDread,
+  seasonsAllowed,
+  seasonsUnit,
+} from '../rules/factions/seasons.js';
+import { isAwakenedWyldwood } from './overgrowth.js';
+import {
+  WYLDWOOD_SETUP_ID,
+  canSetUpWyldwood,
+  checkWyldwoodSetUp,
+  nextWyldwoodPiece,
+  suggestWyldwoodSetUp,
+} from './wyldwood.js';
 import {
   PHASES,
   type Action,
@@ -102,6 +130,39 @@ export const CP_PER_ROUND = 4;
 export const MAX_CHARGE_REACH = 12 + CHARGE_END_RANGE;
 
 /** A deep copy of the state. `apply` clones once and then edits the copy freely. */
+/** Why `unit` cannot use `command` now (Creeping Dread may add 1 CP), or null. */
+function commandBlocker(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+  command: CommandId,
+  unit: UnitState,
+): string | null {
+  return baseCommandBlocker(
+    state,
+    player,
+    command,
+    unit,
+    creepingDreadSurcharge(scenario, state, unit),
+  );
+}
+
+/** Pays for a command, with Creeping Dread's extra point on the first command for a target. */
+function payCommand(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+  command: CommandId,
+  unit: UnitState,
+): void {
+  const extra = creepingDreadSurcharge(scenario, state, unit);
+  basePayCommand(state, player, command, unit, extra);
+  const dread = state.creepingDread;
+  if (dread && dread.targets.includes(unit.id) && !dread.spent.includes(unit.id)) {
+    state.creepingDread = { ...dread, spent: [...dread.spent, unit.id] };
+  }
+}
+
 export function cloneState(state: GameState): GameState {
   const units: Record<UnitId, UnitState> = {};
   for (const id of state.unitOrder) {
@@ -172,6 +233,7 @@ function startTurn(ctx: Ctx): void {
     u.charged = false;
     u.shot = false;
     u.fought = false;
+    u.declinedTerrainFight = false;
     u.chargeDeclared = false;
     u.allOutAttack = false;
     u.castsUsed = 0;
@@ -193,9 +255,53 @@ function startTurn(ctx: Ctx): void {
   clearPhaseCommands(s);
   s.phase = 'hero';
   s.fightPicker = null;
+  s.creepingDread = null;
   ctx.events.push({ t: 'turnStart', player: s.active, round: s.round });
   ctx.events.push({ t: 'phaseStart', phase: s.phase, player: s.active });
+  offerCreepingDread(ctx);
   offerPlacesOfPower(ctx);
+}
+
+/** Start of any turn: a Sylvaneth player with enemy units in the overgrowth may use Creeping Dread. */
+function offerCreepingDread(ctx: Ctx): void {
+  const { s, scenario } = ctx;
+  for (const player of [0, 1] as PlayerId[]) {
+    if (!hasCreepingDread(scenario, player)) continue;
+    const units = creepingDreadCandidates(scenario, s, player);
+    if (units.length === 0) continue;
+    s.stack.push({
+      t: 'creepingDread',
+      player,
+      units,
+      max: creepingDreadMax(scenario, s, player),
+    });
+  }
+}
+
+function chooseCreepingDread(ctx: Ctx, value: string): void {
+  const { s } = ctx;
+  const frame = s.stack[s.stack.length - 1];
+  if (frame?.t !== 'creepingDread') illegal('There is no Creeping Dread to use.');
+  const picked = [
+    ...new Set(
+      value
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (picked.length === 0 || picked.length > frame.max) {
+    illegal(`Pick 1 to ${frame.max} enemy units within the creeping overgrowth.`);
+  }
+  if (picked.some((id) => !frame.units.includes(id))) {
+    illegal('Creeping Dread targets an enemy unit within the creeping overgrowth.');
+  }
+  s.stack.pop();
+  s.creepingDread = { player: frame.player, targets: picked, spent: [] };
+  ctx.events.push({
+    t: 'note',
+    text: `Creeping Dread: ${picked.map((id) => s.units[id]!.name).join(', ')}; the first command for each this turn costs 1 more CP unless it is wholly within 12" of a Hero.`,
+  });
 }
 
 /**
@@ -219,12 +325,6 @@ function beginRound(ctx: Ctx): void {
   }
   s.turnIndex = 0;
   s.active = s.firstPlayer;
-  const alarielle = Object.values(s.units).find(
-    (u) => u.status === 'battlefield' && u.name.toLowerCase().includes('alarielle'),
-  );
-  if (alarielle && !s.alarielleSeason?.[s.round]) {
-    s.alarielleSeason = { ...(s.alarielleSeason ?? {}), [s.round]: 'burgeoning' };
-  }
   startTurn(ctx);
 }
 
@@ -237,11 +337,26 @@ function startRound(ctx: Ctx): void {
     s.players[p].vpByRound.push(0);
   }
   if (s.round === 1) {
-    initFury(s, 0);
+    initFury(s, attackerOf(scenario));
     initBattleTactics(scenario, s);
   }
   applySimmeringRage(s);
-  for (const text of applyEverGrowing(scenario, s)) ctx.events.push({ t: 'note', text });
+  // Seasons Of War ("You must use this ability", start of the battle round) comes first, so
+  // The Burgeoning can shape this round's Ever Growing.
+  const alarielle = seasonsUnit(scenario, s);
+  if (alarielle && !s.alarielleSeason?.[s.round]) {
+    s.stack.push({ t: 'alarielleSeason', player: alarielle.owner, unit: alarielle.id });
+    return;
+  }
+  continueRound(ctx);
+}
+
+/** The rest of the start of the battle round: Ever Growing, then who takes the first turn. */
+function continueRound(ctx: Ctx): void {
+  const { s, scenario } = ctx;
+  for (const text of applyEverGrowing(scenario, s, (w) => burgeoningPick(scenario, s, w.owner))) {
+    ctx.events.push({ t: 'note', text });
+  }
   if (s.round === 1) {
     roundOneFirstTurn(ctx);
     return;
@@ -264,9 +379,10 @@ function roundOneFirstTurn(ctx: Ctx): void {
       return;
     }
   }
-  // Round 1: the attacker (player 0) takes the first turn.
-  s.firstPlayer = 0;
-  beginRound(ctx);
+  // Round 1 (owner's ruling, 2026-11-11): the player who finished deploying first chooses who
+  // takes the first turn; in a quick-start game (no deployment) the attacker chooses.
+  const chooser = s.deploymentFinishedFirst ?? attackerOf(scenario);
+  s.stack.push({ t: 'priority', winner: chooser, rolls: [0, 0], reason: 'deployment' });
 }
 
 function chooseFugitive(ctx: Ctx, value: string): void {
@@ -291,7 +407,7 @@ function choosePriority(ctx: Ctx, value: string): void {
   if (frame?.t !== 'priority') illegal('There is no priority choice to make.');
   if (value !== 'first' && value !== 'second') illegal('Choose "first" or "second".');
   const first = value === 'first' ? frame.winner : opponent(frame.winner);
-  if (seizes(s, frame.winner, s.firstPlayer, first)) {
+  if (s.round > 1 && seizes(s, frame.winner, s.firstPlayer, first)) {
     s.seizedBy = first;
     s.seizedThisRound = first;
     ctx.events.push({ t: 'note', text: `Player ${first + 1} seizes the initiative.` });
@@ -387,6 +503,9 @@ function moveOptions(scenario: Scenario, state: GameState, unit: UnitState): Uni
 function rawEligibleFighters(scenario: Scenario, state: GameState, player: PlayerId): UnitState[] {
   return unitsOf(state, player).filter((u) => {
     if (u.fought || isFactionTerrainUnit(scenario, u)) return false;
+    // A unit that declined to attack faction terrain can still fight if an enemy unit comes
+    // within combat range (it is not marked as having fought).
+    if (u.declinedTerrainFight && !u.charged && !inCombat(scenario, state, u)) return false;
     if (u.isManifestation && !profileOf(scenario, u).weapons.some((w) => w.kind === 'melee')) {
       return false;
     }
@@ -436,7 +555,8 @@ export function eligibleFighters(
 }
 
 function canCharge(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  if (unit.chargeDeclared || unit.moved === 'retreat') return false;
+  if (unit.chargeDeclared) return false;
+  if (unit.moved === 'retreat' && !dwindling(scenario, state, unit)) return false;
   if (isFactionTerrainUnit(scenario, unit)) return false;
   if (unit.isManifestation && !profileOf(scenario, unit).weapons.some((w) => w.kind === 'melee')) {
     return false;
@@ -448,21 +568,21 @@ function canCharge(scenario: Scenario, state: GameState, unit: UnitState): boole
 }
 
 function canRally(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  if (commandBlocker(state, unit.owner, 'rally', unit)) return false;
+  if (commandBlocker(scenario, state, unit.owner, 'rally', unit)) return false;
   if (isFactionTerrainUnit(scenario, unit)) return false;
   if (inCombat(scenario, state, unit)) return false;
   return unit.damage > 0 || unit.models.some((m) => !m.alive);
 }
 
 function canRedeploy(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  if (commandBlocker(state, unit.owner, 'redeploy', unit)) return false;
+  if (commandBlocker(scenario, state, unit.owner, 'redeploy', unit)) return false;
   if (inCombat(scenario, state, unit) || unit.moved !== null) return false;
   if (isFactionTerrainUnit(scenario, unit)) return false;
   return profileOf(scenario, unit).move > 0;
 }
 
 function canCounterCharge(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  if (commandBlocker(state, unit.owner, 'counterCharge', unit)) return false;
+  if (commandBlocker(scenario, state, unit.owner, 'counterCharge', unit)) return false;
   return canCharge(scenario, state, unit);
 }
 
@@ -471,8 +591,12 @@ function coveringFireAllocations(
   state: GameState,
   unit: UnitState,
 ): Allocation[] {
-  if (commandBlocker(state, unit.owner, 'coveringFire', unit)) return [];
+  if (commandBlocker(scenario, state, unit.owner, 'coveringFire', unit)) return [];
   if (isFactionTerrainUnit(scenario, unit)) return [];
+  // "A friendly unit that has not run and is not in combat" (shooting phase only, owner's
+  // ruling 2026-11-11; the offer is made only at the end of the enemy shooting phase).
+  if (state.phase !== 'shooting') return [];
+  if (unit.moved === 'run' || inCombat(scenario, state, unit)) return [];
   const wts = weaponTargets(scenario, state, unit, 'shoot');
   if (wts.length === 0) return [];
   const allEnemies = unitsOf(state, opponent(unit.owner));
@@ -500,12 +624,12 @@ function coveringFireAllocations(
 }
 
 function canMagicalIntervention(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  if (commandBlocker(state, unit.owner, 'magicalIntervention', unit)) return false;
+  if (commandBlocker(scenario, state, unit.owner, 'magicalIntervention', unit)) return false;
   const probe: GameState = {
     ...state,
     stack: [...state.stack, { t: 'magicalIntervention', unit: unit.id }],
   };
-  return magicOptionsForUnit(scenario, probe, unit).length > 0;
+  return hasMagicOption(scenario, probe, unit);
 }
 
 export function powerThroughTargets(
@@ -513,7 +637,7 @@ export function powerThroughTargets(
   state: GameState,
   unit: UnitState,
 ): UnitId[] {
-  if (!unit.charged || commandBlocker(state, unit.owner, 'powerThrough', unit)) return [];
+  if (!unit.charged || commandBlocker(scenario, state, unit.owner, 'powerThrough', unit)) return [];
   const myHealth = profileOf(scenario, unit).health;
   const engaged = enemiesInCombat(scenario, state, unit);
   if (engaged.length === 0) return [];
@@ -538,7 +662,12 @@ export function createEngine(scenario: Scenario): Engine {
     if (top) {
       switch (top.t) {
         case 'priority':
-          return { kind: 'priority', player: top.winner, rolls: top.rolls };
+          return {
+            kind: 'priority',
+            player: top.winner,
+            rolls: top.rolls,
+            ...(top.reason ? { reason: top.reason } : {}),
+          };
         case 'place':
           return {
             kind: 'place',
@@ -582,8 +711,10 @@ export function createEngine(scenario: Scenario): Engine {
             kind: 'alarielleSeason',
             player: top.player,
             unit: top.unit,
-            seasons: ['burgeoning', 'reaping', 'dwindling', 'everdusk'],
+            seasons: seasonsAllowed(state),
           };
+        case 'creepingDread':
+          return { kind: 'creepingDread', player: top.player, units: top.units, max: top.max };
         case 'fugitive':
           return { kind: 'fugitive', player: top.player, units: top.units };
         case 'resolve':
@@ -611,7 +742,36 @@ export function createEngine(scenario: Scenario): Engine {
     const d = decision(state);
     const unit = state.units[unitId];
     if (!d || !unit || unit.status !== 'battlefield' || unit.owner !== d.player) return [];
+    if (
+      d.kind === 'main' &&
+      wyldwoodHandle(state, unit) &&
+      canSetUpWyldwood(scenario, state, unit.owner)
+    ) {
+      // Not the terrain acting: the player sets up a further piece (owner, 2026-11-11).
+      const setUp: UnitOption = {
+        t: 'ability',
+        abilityId: WYLDWOOD_SETUP_ID,
+        name: 'Set up an Awakened Wyldwood',
+        kind: 'activated',
+        targets: [],
+      };
+      if (isFactionTerrainUnit(scenario, unit)) return [setUp];
+      return [...unitOptionsInner(state, unit, d), setUp];
+    }
     if (isFactionTerrainUnit(scenario, unit)) return [];
+    return unitOptionsInner(state, unit, d);
+  }
+
+  /**
+   * The unit a player taps to set up a further Wyldwood: any of their Awakened Wyldwoods on the
+   * battlefield (with none left, no further piece can be set up; see docs/RULES-DECISIONS.md).
+   */
+  function wyldwoodHandle(_state: GameState, unit: UnitState): boolean {
+    return isAwakenedWyldwood(scenario, unit);
+  }
+
+  function unitOptionsInner(state: GameState, unit: UnitState, d: Decision): UnitOption[] {
+    const unitId = unit.id;
     const top = state.stack[state.stack.length - 1];
     if (top?.t === 'magicalIntervention') {
       if (top.unit !== unitId) return [];
@@ -634,7 +794,7 @@ export function createEngine(scenario: Scenario): Engine {
       case 'movement': {
         const moves = moveOptions(scenario, state, unit);
         const canRun = moves.some((o) => o.t === 'move' && o.kind === 'run');
-        if (canRun && !commandBlocker(state, unit.owner, 'atTheDouble', unit)) {
+        if (canRun && !commandBlocker(scenario, state, unit.owner, 'atTheDouble', unit)) {
           return [...moves, { t: 'command', command: 'atTheDouble', cost: 1 }];
         }
         return moves;
@@ -652,7 +812,7 @@ export function createEngine(scenario: Scenario): Engine {
         if (
           unit.chargeDeclared &&
           !unit.charged &&
-          !commandBlocker(state, unit.owner, 'forwardToVictory', unit)
+          !commandBlocker(scenario, state, unit.owner, 'forwardToVictory', unit)
         ) {
           opts.push({ t: 'command', command: 'forwardToVictory', cost: 1 });
         }
@@ -700,6 +860,9 @@ export function createEngine(scenario: Scenario): Engine {
     if (d.reason === 'deploy') {
       return checkDeployPlacement(scenario, state, unitById(state, d.unit), placement);
     }
+    if (d.reason === 'setUp') {
+      return checkWyldwoodSetUp(scenario, state, unitById(state, d.unit), placement);
+    }
     const top = state.stack[state.stack.length - 1];
     return checkMovePlacement(scenario, state, unitById(state, d.unit), placement, {
       reason: d.reason,
@@ -708,15 +871,16 @@ export function createEngine(scenario: Scenario): Engine {
       ...(top?.t === 'place' && top.minEnemyGap !== undefined
         ? { minEnemyGap: top.minEnemyGap }
         : {}),
+      ...(top?.t === 'place' && top.engagedWith ? { engagedWith: top.engagedWith } : {}),
     });
   }
 
   // ─── Actions ──────────────────────────────────────────────────────────────────
 
   function useCommandOn(ctx: Ctx, command: CommandId, unit: UnitState): void {
-    const blocker = commandBlocker(ctx.s, unit.owner, command, unit);
+    const blocker = commandBlocker(scenario, ctx.s, unit.owner, command, unit);
     if (blocker) illegal(blocker);
-    payCommand(ctx.s, unit.owner, command, unit);
+    payCommand(scenario, ctx.s, unit.owner, command, unit);
     ctx.events.push({ t: 'command', player: unit.owner, command, unit: unit.id });
   }
 
@@ -832,12 +996,16 @@ export function createEngine(scenario: Scenario): Engine {
     const dmg = rollD3(ctx, unit.owner, 'Power Through (D3 mortal damage)');
     inflictMortalDamage(ctx, target, dmg, 'Power Through');
     const allowance = profileOf(scenario, unit).move;
+    // It may stay in combat with the units it is in combat with now, but no others
+    // (owner's ruling, 2026-11-11).
+    const engagedWith = enemiesInCombat(scenario, s, unit).map((e) => e.id);
     s.stack.push({
       t: 'place',
       unit: unit.id,
       reason: 'powerThrough',
       allowance,
       dice: [],
+      engagedWith,
     });
   }
 
@@ -871,6 +1039,35 @@ export function createEngine(scenario: Scenario): Engine {
     }
   }
 
+  /** Hero phase: sets up a further Awakened Wyldwood at a suggested legal spot, then places it. */
+  function setUpWyldwood(ctx: Ctx, handleId: UnitId): void {
+    const { s } = ctx;
+    const handle = s.units[handleId]!;
+    if (
+      !unitOptions(s, handleId).some((o) => o.t === 'ability' && o.abilityId === WYLDWOOD_SETUP_ID)
+    ) {
+      illegal('No further Awakened Wyldwood can be set up now.');
+    }
+    const piece = nextWyldwoodPiece(scenario, s, handle.owner);
+    const spot = suggestWyldwoodSetUp(scenario, s, piece);
+    if (!spot) illegal('There is no room to set up another Awakened Wyldwood.');
+    const m = spot.models[0]!;
+    piece.models[0] = { x: m.x, y: m.y, rot: m.rot, alive: true };
+    s.units[piece.id] = piece;
+    s.unitOrder.push(piece.id);
+    s.players[handle.owner].wyldwoodSetUpTurn = `${s.round}:${s.turnIndex}`;
+    s.stack.push({ t: 'place', unit: piece.id, reason: 'setUp', allowance: 0, dice: [] });
+  }
+
+  /** Cancels a pending Wyldwood set-up: the piece is taken away and may be set up later. */
+  function cancelWyldwood(ctx: Ctx, unitId: UnitId): void {
+    const { s } = ctx;
+    const unit = s.units[unitId]!;
+    s.units = Object.fromEntries(Object.entries(s.units).filter(([id]) => id !== unitId));
+    s.unitOrder = s.unitOrder.filter((id) => id !== unitId);
+    delete s.players[unit.owner].wyldwoodSetUpTurn;
+  }
+
   function place(ctx: Ctx, placement: Placement): void {
     const { s } = ctx;
     const frame = s.stack[s.stack.length - 1];
@@ -879,7 +1076,7 @@ export function createEngine(scenario: Scenario): Engine {
     if (violations.length > 0) illegal(violations[0]!.message, violations);
     const unit = s.units[frame.unit]!;
     const distance =
-      frame.reason === 'summon' || frame.reason === 'deploy'
+      frame.reason === 'summon' || frame.reason === 'deploy' || frame.reason === 'setUp'
         ? 0
         : placementDistance(unit, placement);
     for (const m of placement.models) {
@@ -897,11 +1094,19 @@ export function createEngine(scenario: Scenario): Engine {
     }
     if (frame.reason === 'charge') unit.charged = true;
     s.stack.pop();
+    if (frame.reason === 'deploy' && s.deploymentFinishedFirst == null) {
+      const more = s.stack.some(
+        (f) => f.t === 'place' && f.reason === 'deploy' && s.units[f.unit]?.owner === unit.owner,
+      );
+      if (!more) s.deploymentFinishedFirst = unit.owner;
+    }
     ctx.events.push({ t: 'moved', unit: unit.id, kind: frame.reason, dice: frame.dice, distance });
     if (frame.reason === 'deploy' && s.stack.length === 0) {
       startRound(ctx);
     }
-    if (frame.reason === 'retreat') {
+    if (frame.reason === 'retreat' && dwindling(scenario, s, unit)) {
+      ctx.events.push({ t: 'note', text: `The Dwindling: ${unit.name} retreats unharmed.` });
+    } else if (frame.reason === 'retreat') {
       const roll = ctx.rng.int(1, 3);
       ctx.events.push({
         t: 'roll',
@@ -912,7 +1117,15 @@ export function createEngine(scenario: Scenario): Engine {
       inflictMortalDamage(ctx, unit, roll, 'Retreat');
     }
 
-    if (frame.reason !== 'summon' && frame.reason !== 'deploy' && unit.status === 'battlefield') {
+    // "After a Move ability": normal moves, runs, retreats, charges and Power Through moves.
+    // A pile-in has no Move keyword (owner's ruling, 2026-11-11), nor do set-ups.
+    if (
+      frame.reason !== 'summon' &&
+      frame.reason !== 'deploy' &&
+      frame.reason !== 'setUp' &&
+      frame.reason !== 'pileIn' &&
+      unit.status === 'battlefield'
+    ) {
       fireTriggers(ctx, 'afterMove', {
         unit,
         moveKind:
@@ -926,15 +1139,13 @@ export function createEngine(scenario: Scenario): Engine {
     if (
       s.phase === 'movement' &&
       unit.owner === s.active &&
-      (frame.reason === 'normal' || frame.reason === 'run' || frame.reason === 'retreat') &&
-      !(s.reactionsOffered ?? []).includes('redeploy')
+      (frame.reason === 'normal' || frame.reason === 'run' || frame.reason === 'retreat')
     ) {
+      // Offered after each enemy move while the command is unused this phase (no distance or
+      // once-per-phase offer filter: commands.ts in the earlier engine cites no such text).
       const nonActive = opponent(s.active);
-      const candidates = unitsOf(s, nonActive).filter(
-        (u) => canRedeploy(scenario, s, u) && unitsWithin(scenario, unit, u, 6),
-      );
+      const candidates = unitsOf(s, nonActive).filter((u) => canRedeploy(scenario, s, u));
       if (candidates.length > 0) {
-        s.reactionsOffered = [...(s.reactionsOffered ?? []), 'redeploy'];
         s.stack.push({
           t: 'reaction',
           player: nonActive,
@@ -992,7 +1203,8 @@ export function createEngine(scenario: Scenario): Engine {
     const options: ReactionOption[] = [];
     for (const id of new Set(allocations.map((a) => a.target))) {
       const target = s.units[id]!;
-      if (!commandBlocker(s, defender, 'allOutDefence', target)) {
+      if (isFactionTerrainUnit(scenario, target)) continue; // terrain never acts (owner ruling)
+      if (!commandBlocker(scenario, s, defender, 'allOutDefence', target)) {
         options.push({ command: 'allOutDefence', unit: id, cost: 1 });
       }
     }
@@ -1130,10 +1342,7 @@ export function createEngine(scenario: Scenario): Engine {
     if (s.phase === 'hero') {
       const options: ReactionOption[] = [];
       for (const u of unitsOf(s, nonActive)) {
-        if (
-          canMagicalIntervention(scenario, s, u) &&
-          enemiesWithin(scenario, s, u, 18).length > 0
-        ) {
+        if (canMagicalIntervention(scenario, s, u)) {
           options.push({
             command: 'magicalIntervention',
             unit: u.id,
@@ -1189,9 +1398,7 @@ export function createEngine(scenario: Scenario): Engine {
     }
 
     if (s.phase === 'charge' && !offered.includes('counterCharge')) {
-      const units = unitsOf(s, nonActive).filter(
-        (u) => canCounterCharge(scenario, s, u) && enemiesWithin(scenario, s, u, 6).length > 0,
-      );
+      const units = unitsOf(s, nonActive).filter((u) => canCounterCharge(scenario, s, u));
       if (units.length > 0) {
         s.reactionsOffered = [...offered, 'counterCharge'];
         s.stack.push({ t: 'endPhase' });
@@ -1327,11 +1534,16 @@ export function createEngine(scenario: Scenario): Engine {
    * Every action that names a unit must name a unit that exists and belongs to the player
    * who is deciding (the active player cannot act with enemy units, and vice versa).
    */
-  function requireOwnUnit(state: GameState, unitId: UnitId, player: PlayerId): UnitState {
+  function requireOwnUnit(
+    state: GameState,
+    unitId: UnitId,
+    player: PlayerId,
+    allowTerrain = false,
+  ): UnitState {
     const unit = state.units[unitId];
     if (!unit) illegal(`There is no unit "${unitId}".`);
     if (unit.owner !== player) illegal(`${unit.name} belongs to the other player.`);
-    if (isFactionTerrainUnit(scenario, unit)) {
+    if (isFactionTerrainUnit(scenario, unit) && !allowTerrain) {
       illegal(`${unit.name} is faction terrain: it cannot move, shoot, charge or fight.`);
     }
     return unit;
@@ -1345,7 +1557,12 @@ export function createEngine(scenario: Scenario): Engine {
       typeof action.unit === 'string' &&
       (d.kind === 'main' || d.kind === 'fightPick' || d.kind === 'reaction')
     ) {
-      requireOwnUnit(state, action.unit, d.player);
+      requireOwnUnit(
+        state,
+        action.unit,
+        d.player,
+        action.t === 'ability' && action.abilityId === WYLDWOOD_SETUP_ID,
+      );
     }
     const s = cloneState(state);
     const ctx: Ctx = { scenario, s, events: [], rng: new RngCursor(s.rng) };
@@ -1378,6 +1595,8 @@ export function createEngine(scenario: Scenario): Engine {
           }
         } else if (action.t === 'move') {
           declareMove(ctx, action.unit, action.kind, action.atTheDouble);
+        } else if (action.t === 'ability' && action.abilityId === WYLDWOOD_SETUP_ID) {
+          setUpWyldwood(ctx, action.unit);
         } else if (action.t === 'ability' && action.abilityId === 'place-of-power') {
           illegal('A Place of Power can only be activated at the start of a turn.');
         } else if (action.t === 'ability' && d.phase === 'hero') {
@@ -1442,9 +1661,23 @@ export function createEngine(scenario: Scenario): Engine {
       }
       case 'place':
         if (action.t === 'pass') {
-          if (d.reason === 'deploy')
-            illegal('Deployment placement is mandatory; pass is not allowed.');
-          skipPlace(ctx);
+          if (d.reason === 'deploy') {
+            // Only a unit with no legal place left may be left out (it stays in reserve).
+            if (npcDeployPlacement(scenario, s, s.units[d.unit]!)) {
+              illegal('Deployment placement is mandatory; pass is not allowed.');
+            }
+            s.stack.pop();
+            ctx.events.push({
+              t: 'note',
+              text: `${s.units[d.unit]!.name} has no legal place to deploy and stays in reserve.`,
+            });
+            if (s.stack.length === 0) startRound(ctx);
+            break;
+          }
+          if (d.reason === 'setUp') {
+            s.stack.pop();
+            cancelWyldwood(ctx, d.unit);
+          } else skipPlace(ctx);
         } else if (action.t === 'place') place(ctx, action.placement);
         else if (
           action.t === 'command' &&
@@ -1459,7 +1692,9 @@ export function createEngine(scenario: Scenario): Engine {
         if (action.t === 'fight') declareFight(ctx, d.player, action.unit);
         else if (action.t === 'pass' && d.canPass) {
           // Declines to attack faction terrain with every optional fighter of this tier.
-          for (const u of eligibleFighters(scenario, s, d.player)) s.units[u.id]!.fought = true;
+          for (const u of eligibleFighters(scenario, s, d.player)) {
+            s.units[u.id]!.declinedTerrainFight = true;
+          }
         } else illegal('Pick a unit to fight.');
         break;
       case 'targets':
@@ -1492,13 +1727,23 @@ export function createEngine(scenario: Scenario): Engine {
         if (frame?.t !== 'alarielleSeason') illegal('Not choosing Alarielle season.');
         if (action.t !== 'choose') illegal('Choose a season of war.');
         const season = action.value;
+        if (!seasonsAllowed(state).includes(season as AlarielleSeason)) {
+          illegal('Pick a season of war other than the one picked last battle round.');
+        }
         s.alarielleSeason = { ...(s.alarielleSeason ?? {}), [s.round]: season };
+        s.alarielleSeasonPlayer = frame.player;
         ctx.events.push({
           t: 'note',
           text: `Alarielle proclaims the Season of War: ${season}.`,
         });
+        continueRound(ctx);
         break;
       }
+      case 'creepingDread':
+        if (action.t === 'pass') s.stack.pop();
+        else if (action.t === 'choose') chooseCreepingDread(ctx, action.value);
+        else illegal('Pick Creeping Dread targets, or pass.');
+        break;
     }
     settle(ctx);
     s.rng = ctx.rng.state;
@@ -1546,7 +1791,9 @@ export function createEngine(scenario: Scenario): Engine {
       banishedThisTurn: [],
       reactionsOffered: [],
     };
-    initFury(s, 0);
+    initFury(s, attackerOf(scenario));
+    s.active = attackerOf(scenario);
+    s.firstPlayer = attackerOf(scenario);
     const ctx: Ctx = { scenario, s, events: [], rng: new RngCursor(s.rng) };
     if (isDeployMode) {
       s.stack = buildDeploymentFrames(scenario, s.units);
@@ -1570,15 +1817,15 @@ export function createEngine(scenario: Scenario): Engine {
         return { t: 'choose', value: d.seasons[0]! };
       case 'fugitive':
         return { t: 'choose', value: suggestFugitive(scenario, state, d.player) ?? d.units[0]! };
+      case 'creepingDread':
+        return { t: 'pass' };
       case 'fightPick':
         if (d.canPass) return { t: 'pass' };
         return { t: 'fight', unit: eligibleFighters(scenario, state, d.player)[0]!.id };
       case 'place':
         if (d.reason === 'deploy') {
-          return {
-            t: 'place',
-            placement: npcDeployPlacement(scenario, state, unitById(state, d.unit)),
-          };
+          const placement = npcDeployPlacement(scenario, state, unitById(state, d.unit));
+          return placement ? { t: 'place', placement } : { t: 'pass' };
         }
         return { t: 'pass' };
       case 'targets':

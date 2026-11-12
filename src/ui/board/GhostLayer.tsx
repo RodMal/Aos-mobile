@@ -15,7 +15,9 @@ export function GhostLayer({ rot }: { rot: Rot }) {
   if (!draft || !decision || decision.kind !== 'place') return null;
   const unit = state.units[draft.unit];
   if (!unit) return null;
-  const allowance = decision.allowance;
+  // Deployment and set-up have no distance limit (the engine stores 0 to keep plain JSON).
+  const allowance =
+    decision.reason === 'deploy' || decision.reason === 'setUp' ? Infinity : decision.allowance;
   const bad = new Set(draft.violations.flatMap((v) => v.models ?? []));
   const start = unitCentre(unit);
   const end = placementCentre(draft.placement);

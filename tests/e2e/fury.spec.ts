@@ -66,3 +66,20 @@ test('Place of Power: offered at the start of a turn and answered with a boon', 
   await page.getByRole('button', { name: 'Log' }).click();
   await expect(page.getByTestId('log-list')).toContainText('Place of Power');
 });
+
+test('Creeping Dread: pick an enemy unit in the overgrowth at the start of a turn', async ({
+  page,
+}, info) => {
+  await openPosition(page, 1, (_engine, _s, d) =>
+    d.kind === 'creepingDread' && d.player === 0 ? d.units[0]! : null,
+  );
+  const prompt = page.getByTestId('creeping-dread');
+  await expect(prompt).toBeVisible();
+  await expect(page.getByTestId('dread-use')).toBeDisabled();
+  await prompt.locator('[data-dread]').first().click();
+  await page.screenshot({ path: info.outputPath(`creeping-dread-${info.project.name}.png`) });
+  await page.getByTestId('dread-use').click();
+  await expect(prompt).toBeHidden();
+  await page.getByRole('button', { name: 'Log' }).click();
+  await expect(page.getByTestId('log-list')).toContainText('Creeping Dread');
+});

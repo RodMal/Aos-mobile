@@ -18,14 +18,12 @@ import { addEffect, hasEffectiveKeyword } from './abilities/effects.js';
 import { illegal, type Ctx } from './ctx.js';
 import { inflictMortalDamage } from './damage.js';
 import {
-  aliveCount,
   aliveIndices,
   COMBAT_RANGE,
   DIST_EPS,
   modelFootprint,
   profileOf,
   unitBounds,
-  unitCentre,
   unitFootprints,
   unitsOf,
   unitsWithin,
@@ -35,10 +33,8 @@ import type { AttackMode, GameState, Placement, PlayerId, Scenario, UnitState } 
 /** Step size in inches when sampling straight-line movement paths. */
 const PATH_STEP = 0.5;
 
-/** Distance within which a unit is sheltered by Obscuring terrain or Cover. */
+/** Distance within which a unit is sheltered by Obscuring terrain. */
 export const OBSCURING_RANGE = 1;
-export const COVER_WHOLLY_WITHIN_RANGE = 1;
-export const COVER_BEHIND_RANGE = 3;
 export const GUARDED_HERO_RANGE = 3;
 export const TERRAIN_CONTROL_RANGE = 3;
 export const PLACE_OF_POWER_RANGE = 3;
@@ -224,9 +220,8 @@ export function effectiveWeaponRange(
  * True when `attackerModelIdx` of `attacker` can see `targetModelIdx` of `target`.
  * - `MONSTER`, `WAR MACHINE`, and `FLY` targets are never hidden by Obscuring terrain.
  * - Enemy units within combat range (3") of `target` can always see it.
- * - Otherwise, a target wholly within 1" of an `'obscuring'` feature, or with the sight
- *   line between the models crossing an `'obscuring'` polygon (that neither model overlaps),
- *   is not visible.
+ * - Otherwise a target with every model within 1" of an `'obscuring'` feature is not visible;
+ *   sight lines through an Obscuring feature are not blocked (owner's ruling, 2026-11-11).
  */
 export function isModelVisibleToModel(
   scenario: Scenario,
@@ -252,24 +247,10 @@ export function isModelVisibleToModel(
     return true;
   }
 
-  const aFp = modelFootprint(scenario, attacker, attackerModelIdx);
-  const tFp = modelFootprint(scenario, target, targetModelIdx);
-  const aPt: ReadonlyPoint = [aPos.x, aPos.y];
-  const tPt: ReadonlyPoint = [tPos.x, tPos.y];
-
-  for (const t of scenario.battlefield.terrain) {
-    if (!t.traits.includes('obscuring')) continue;
-    if (unitWithinTerrain(scenario, target, t, OBSCURING_RANGE, true)) {
-      return false;
-    }
-    if (
-      !footprintOverlapsPolygon(aFp, t.polygon) &&
-      !footprintOverlapsPolygon(tFp, t.polygon) &&
-      segmentCrossesPolygon(aPt, tPt, t.polygon)
-    ) {
-      return false;
-    }
-  }
+  // Obscuring (owner's ruling, 2026-11-11, from the printed wording): a unit with every model
+  // within 1" of an Obscuring feature is visible only to enemy units within its combat range.
+  // The feature does not block sight lines drawn through it otherwise.
+  if (isUnitObscured(scenario, state, target)) return false;
   return true;
 }
 
@@ -350,28 +331,13 @@ export function unitHasCover(
   if (target.charged) return false;
   if (hasEffectiveKeyword(scenario, state, target, 'FLY')) return false;
 
-  const ac = unitCentre(attacker);
-  const tc = unitCentre(target);
-  const aPt: ReadonlyPoint = [ac.x, ac.y];
-  const tPt: ReadonlyPoint = [tc.x, tc.y];
-
+  // Owner's ruling, 2026-11-11 (printed Cover: "behind or wholly on this terrain feature"):
+  // being next to the feature, or wholly within 1" of it in the open, gives no cover.
+  void mode;
   for (const t of scenario.battlefield.terrain) {
     if (!t.traits.includes('cover')) continue;
-    if (
-      unitWhollyOnTerrain(scenario, target, t) ||
-      unitWithinTerrain(scenario, target, t, COVER_WHOLLY_WITHIN_RANGE, true)
-    ) {
-      return true;
-    }
-    if (mode === 'shoot') {
-      if (unitBehindTerrain(scenario, attacker, target, t)) return true;
-      if (
-        unitWithinTerrain(scenario, target, t, COVER_BEHIND_RANGE, false) &&
-        segmentCrossesPolygon(aPt, tPt, t.polygon)
-      ) {
-        return true;
-      }
-    }
+    if (unitWhollyOnTerrain(scenario, target, t)) return true;
+    if (unitBehindTerrain(scenario, attacker, target, t)) return true;
   }
   return false;
 }
@@ -380,8 +346,8 @@ export function unitHasCover(
 
 /**
  * Checks whether `target` is a Guarded Hero (Core Rules 25.0):
- * - Has `HERO`, does not have `MONSTER` or `WAR MACHINE`, and has Health <= 10.
- * - Within 3" of a friendly non-`HERO`, non-manifestation unit with at least 3 living models.
+ * - Has `HERO`, does not have `MONSTER` or `WAR MACHINE`.
+ * - Within 3" (combat range) of a friendly unit that is not a `HERO`.
  * Returns `{ guarded, infantry }` (`infantry` is true when the guarded Hero also has `INFANTRY`,
  * limiting ranged attacks to targets within 12").
  */
@@ -400,16 +366,13 @@ export function isGuardedHero(
   ) {
     return { guarded: false, infantry: false };
   }
-  const tp = profileOf(scenario, target);
-  if (tp.health > 10) return { guarded: false, infantry: false };
-
+  // "If this Hero is within the combat range of a friendly unit that is not a Hero" (Core
+  // Rules 25.0 as quoted in the earlier engine; awaiting the owner's confirmation). No Health
+  // or model-count condition. Faction terrain has no combat range (owner's ruling).
   const hasBodyguard = unitsOf(state, target.owner).some((other) => {
     if (other.id === target.id) return false;
-    if (other.isManifestation) return false;
-    const op = profileOf(scenario, other);
-    if (op.isManifestation || op.isFactionTerrain) return false;
+    if (profileOf(scenario, other).isFactionTerrain) return false;
     if (hasEffectiveKeyword(scenario, state, other, 'HERO')) return false;
-    if (aliveCount(other) < 3) return false;
     return unitsWithin(scenario, target, other, GUARDED_HERO_RANGE);
   });
 
