@@ -29,6 +29,9 @@ function arena(phase: GameState['phase'], saurusX: number): GameState {
   placeUnit(scenario, s, SKINKS, 52, 40);
   s.players[0].cp = 0; // no All-out Defence prompts unless a test wants them
   s.players[1].cp = 0;
+  // No Fight Through the Pain prompts (src/engine/fury-pain.test.ts covers them).
+  s.players[0].rageDice = 0;
+  s.players[1].rageDice = 0;
   return passTo(engine, s, phase);
 }
 

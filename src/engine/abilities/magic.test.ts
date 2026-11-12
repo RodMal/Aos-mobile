@@ -88,6 +88,9 @@ function baseArena(
   if (units.includes(SAURUS_GUARD)) placeUnit(scenario, s, SAURUS_GUARD, 26, 22);
   s.players[0].cp = 4;
   s.players[1].cp = 4;
+  // No Fight Through the Pain prompts (src/engine/fury-pain.test.ts covers them).
+  s.players[0].rageDice = 0;
+  s.players[1].rageDice = 0;
   return s;
 }
 

@@ -268,12 +268,65 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
     });
     pending.set(target.id, (pending.get(target.id) ?? 0) + ward.taken);
   }
-  for (const [id, amount] of pending) {
-    const target = s.units[id]!;
-    const res = allocateDamage(ctx, target, amount, `${attacker.name} (${frame.mode})`);
-    if (res.destroyed && frame.mode === 'fight' && attacker.charged) {
-      s.destroyedByChargeCombat = [...(s.destroyedByChargeCombat ?? []), id];
-    }
-  }
   clearExpiredEffects(s, 'attack');
+  allocatePending(ctx, {
+    t: 'allocate',
+    attacker: attacker.id,
+    mode: frame.mode,
+    pending: [...pending].map(([target, amount]) => ({ target, amount })),
+  });
+}
+
+/** Fight Through the Pain's ability ID in `ability` actions. */
+export const FIGHT_THROUGH_THE_PAIN_ID = 'fight-through-the-pain';
+
+/**
+ * Allocates rolled attack damage target by target. Before damage is allocated to a unit whose
+ * owner holds rage dice, the owner is asked whether to use Fight Through the Pain: the frame
+ * goes back on the stack under a `reaction`, and `allocateOne` continues once it is answered.
+ */
+export function allocatePending(ctx: Ctx, frame: Extract<Frame, { t: 'allocate' }>): void {
+  const { s } = ctx;
+  while (frame.pending.length > 0) {
+    const { target: id, amount } = frame.pending[0]!;
+    const target = s.units[id]!;
+    const rage = s.players[target.owner].rageDice ?? 0;
+    if (amount > 0 && rage > 0 && target.status === 'battlefield') {
+      s.stack.push(frame);
+      s.stack.push({
+        t: 'reaction',
+        player: target.owner,
+        options: [
+          {
+            ability: 'fightThroughThePain',
+            unit: id,
+            cost: 0,
+            damage: amount,
+            maxRageDice: rage,
+          },
+        ],
+        trigger: `pain:${id}:${amount}`,
+      });
+      return;
+    }
+    allocateOne(ctx, frame, amount);
+  }
+}
+
+/** Allocates `amount` to the first pending target and removes it from the frame. */
+export function allocateOne(
+  ctx: Ctx,
+  frame: Extract<Frame, { t: 'allocate' }>,
+  amount: number,
+): void {
+  const { s } = ctx;
+  // The frame may share its array with an earlier state (states are copied shallowly), so
+  // replace it instead of shifting it.
+  const { target: id } = frame.pending[0]!;
+  frame.pending = frame.pending.slice(1);
+  const attacker = s.units[frame.attacker]!;
+  const res = allocateDamage(ctx, s.units[id]!, amount, `${attacker.name} (${frame.mode})`);
+  if (res.destroyed && frame.mode === 'fight' && attacker.charged) {
+    s.destroyedByChargeCombat = [...(s.destroyedByChargeCombat ?? []), id];
+  }
 }

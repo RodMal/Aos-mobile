@@ -22,8 +22,8 @@ export interface Position {
 }
 
 /**
- * Plays NPC actions from `seed` until `stop` returns a string (before the next action), then
- * reloads the app on that saved game as player 0. `stop` runs in the page: it may only use its
+ * Plays NPC actions from each seed in turn (`seed` up to `seed + 19`) until `stop` returns a
+ * string (before the next action), then reloads the app on that saved game as player 0. `stop` runs in the page: it may only use its
  * arguments.
  */
 export async function openPosition(
@@ -41,27 +41,29 @@ export async function openPosition(
         s: GameState,
         d: Decision,
       ) => string | null;
-      let state = engine.newGame(seed);
-      const actions: Action[] = [];
-      for (let i = 0; i < 4000; i++) {
-        const d = engine.decision(state);
-        if (!d) break;
-        const note = stopFn(engine, state, d);
-        if (note !== null) {
-          localStorage.setItem(
-            'aos-mobile:game',
-            JSON.stringify({ v: 1, seed, humanPlayer: 0, actions }),
-          );
-          return { seed, actions, state, note };
+      for (let k = seed; k < seed + 20; k++) {
+        let state = engine.newGame(k);
+        const actions: Action[] = [];
+        for (let i = 0; i < 4000; i++) {
+          const d = engine.decision(state);
+          if (!d) break;
+          const note = stopFn(engine, state, d);
+          if (note !== null) {
+            localStorage.setItem(
+              'aos-mobile:game',
+              JSON.stringify({ v: 1, seed: k, humanPlayer: 0, actions }),
+            );
+            return { seed: k, actions, state, note };
+          }
+          const action = chooseAction(engine, state);
+          actions.push(action);
+          state = engine.apply(state, action).state;
         }
-        const action = chooseAction(engine, state);
-        actions.push(action);
-        state = engine.apply(state, action).state;
       }
-      throw new Error(`seed ${seed}: the position was never reached`);
+      throw new Error(`seeds ${seed} to ${seed + 19}: the position was never reached`);
     },
     { seed, stopSource: stop.toString() },
   );
-  await page.goto(`./?seed=${seed}&side=0&fast=1`);
+  await page.goto(`./?seed=${position.seed}&side=0&fast=1`);
   return position;
 }

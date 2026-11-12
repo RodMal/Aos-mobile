@@ -32,3 +32,21 @@ test('Eruption of Fury: choose how many rage dice and the target, then spend the
   await panel.getByTestId('ability-confirm').click();
   await expect(page.getByTestId('fury-you')).toContainText(`${rageBefore - 1}R`);
 });
+
+test('Fight Through the Pain: the prompt shows the incoming damage and spends rage dice', async ({
+  page,
+}, info) => {
+  const position = await openPosition(page, 5, (_engine, _s, d) => {
+    if (d.kind !== 'reaction' || d.player !== 0) return null;
+    const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
+    return pain ? `${pain.damage ?? 0}` : null;
+  });
+  const rageBefore = position.state.players[0].rageDice ?? 0;
+  const prompt = page.getByTestId('reaction');
+  await expect(prompt).toContainText('Fight Through the Pain');
+  await expect(page.getByTestId('pain-damage')).toContainText(`${position.note} damage`);
+  await page.screenshot({ path: info.outputPath(`pain-${info.project.name}.png`) });
+  const dice = Number(await page.getByTestId('pain-dice').textContent());
+  await page.getByTestId('pain-spend').click();
+  await expect(page.getByTestId('fury-you')).toContainText(`${rageBefore - dice}R`);
+});

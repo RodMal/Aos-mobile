@@ -11,7 +11,15 @@ import { priorityWinner, roundCommandPoints, seizes } from '../rules/core/round.
 import { clearExpiredEffects, fireTriggers, strikeOrder, unitGrants } from './abilities/effects.js';
 import './abilities/lores.js';
 import { declareAbility, magicOptionsForUnit, resolvePendingSpell } from './abilities/magic.js';
-import { checkAllocations, mayShoot, resolveAttacks, weaponTargets } from './combat.js';
+import {
+  FIGHT_THROUGH_THE_PAIN_ID,
+  allocateOne,
+  allocatePending,
+  checkAllocations,
+  mayShoot,
+  resolveAttacks,
+  weaponTargets,
+} from './combat.js';
 import { d6, d6s, illegal, rollD3, type Ctx } from './ctx.js';
 import { inflictMortalDamage, returnPosition } from './damage.js';
 import { checkMovePlacement, PILE_IN_DISTANCE, placementDistance } from './movement.js';
@@ -54,6 +62,7 @@ import {
   initFury,
   MAX_ERUPTION_RAGE_DICE,
   resolveEruptionOfFury,
+  spendRageToNegateDamage,
 } from '../rules/core/fury.js';
 import { canUsePlaceOfPower, resolvePlaceOfPower, type PlaceOfPowerBoon } from './terrain.js';
 import { applyEverGrowing, resolveEndlessGrowth } from '../rules/factions/sylvaneth.js';
@@ -558,6 +567,7 @@ export function createEngine(scenario: Scenario): Engine {
         case 'fugitive':
           return { kind: 'fugitive', player: top.player, units: top.units };
         case 'resolve':
+        case 'allocate':
         case 'spell':
         case 'endPhase':
           throw new Error(`internal: unresolved ${top.t} frame on top of the stack`);
@@ -1028,7 +1038,30 @@ export function createEngine(scenario: Scenario): Engine {
       return;
     }
 
-    // 3. Phase / move command reactions (rally, redeploy, coveringFire, counterCharge, magicalIntervention, powerThrough)
+    // 3. Fight Through the Pain before attack damage is allocated
+    if (under?.t === 'allocate') {
+      const option = reaction.options.find((o) => o.ability === 'fightThroughThePain')!;
+      const incoming = option.damage ?? 0;
+      let amount = incoming;
+      if (action.t === 'ability' && action.abilityId === FIGHT_THROUGH_THE_PAIN_ID) {
+        if (action.unit !== option.unit) illegal('Fight Through the Pain protects the unit hit.');
+        const max = option.maxRageDice ?? 0;
+        const dice = action.rageDice ?? max;
+        if (!Number.isInteger(dice) || dice < 1 || dice > max) {
+          illegal(`Spend between 1 and ${max} rage dice on Fight Through the Pain.`);
+        }
+        amount -= spendRageToNegateDamage(ctx, reaction.player, incoming, dice).damageNegated;
+      } else if (action.t !== 'pass') {
+        illegal('Spend rage dice on Fight Through the Pain, or take the damage.');
+      }
+      s.stack.pop(); // reaction
+      const frame = s.stack.pop() as Extract<Frame, { t: 'allocate' }>;
+      allocateOne(ctx, frame, amount);
+      allocatePending(ctx, frame);
+      return;
+    }
+
+    // 4. Phase / move command reactions (rally, redeploy, coveringFire, counterCharge, magicalIntervention, powerThrough)
     s.stack.pop(); // pop reaction frame (leaving `endPhase` on the stack if present)
     if (action.t === 'pass') {
       if (under?.t === 'endPhase') {

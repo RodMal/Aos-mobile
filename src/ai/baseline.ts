@@ -28,6 +28,7 @@ import {
   type Engine,
   type GameState,
   type PlayerId,
+  type ReactionOption,
   type UnitOption,
   type UnitState,
 } from '../engine/index.js';
@@ -52,6 +53,8 @@ export function chooseAction(engine: Engine, state: GameState): Action {
     }
     case 'reaction': {
       if (d.options.length === 0) return { t: 'pass' };
+      const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
+      if (pain) return painAction(engine, state, pain);
       const unbindOpt = d.options.find((o) => o.ability === 'unbind');
       if (unbindOpt) {
         return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };
@@ -127,6 +130,20 @@ export function eruptionAction(
     rageDice,
     ...(best ? { target: best.target, weaponId: best.weaponId } : {}),
   };
+}
+
+/**
+ * Fight Through the Pain: spend rage dice only when the damage would slay a model (each die
+ * lowers fury, so future rage), one die per point of damage up to what is held.
+ */
+export function painAction(engine: Engine, state: GameState, option: ReactionOption): Action {
+  const unit = state.units[option.unit]!;
+  const health = profileOf(engine.scenario, unit).health;
+  const damage = option.damage ?? 0;
+  if (unit.damage + damage < health) return { t: 'pass' };
+  const rageDice = Math.min(option.maxRageDice ?? 0, damage);
+  if (rageDice < 1) return { t: 'pass' };
+  return { t: 'ability', unit: unit.id, abilityId: 'fight-through-the-pain', rageDice };
 }
 
 function points(engine: Engine, state: GameState, unitId: string): number {

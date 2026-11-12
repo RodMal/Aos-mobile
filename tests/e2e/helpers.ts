@@ -199,8 +199,8 @@ export const usable = async (l: Locator): Promise<boolean> =>
   (await l.isVisible().catch(() => false)) && (await l.isEnabled().catch(() => false));
 
 /**
- * One step of a minimal player: ends its own phases, answers the priority roll, skips
- * reactions, and fights back when it must. Returns what it clicked, or null if nothing applied.
+ * One step of a minimal player: ends its own phases, answers the priority roll and the fugitive
+ * pick, skips reactions (taking the damage instead of Fight Through the Pain), and fights back when it must. Returns what it clicked, or null if nothing applied.
  */
 export async function minimalPlayerStep(page: Page): Promise<string | null> {
   const controls: [string, Locator][] = [
@@ -208,6 +208,7 @@ export async function minimalPlayerStep(page: Page): Promise<string | null> {
     ['priority', page.getByRole('button', { name: 'Take first turn' })],
     ['fugitive', page.locator('[data-fugitive]').first()],
     ['skip reaction', page.getByRole('button', { name: 'Skip', exact: true })],
+    ['take the damage', page.getByTestId('pain-skip')],
     ['roll', page.getByTestId('roll-attacks')],
     ['confirm placement', page.getByTestId('place-confirm')],
     ['cancel placement', page.getByTestId('place-cancel')],

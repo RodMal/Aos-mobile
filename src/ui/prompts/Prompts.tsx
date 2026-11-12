@@ -1,5 +1,6 @@
 /** Modal prompts: priority, reactions, confirmations, the unit chooser and the result screen. */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import type { ReactionOption } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
 import { COMMAND_NAMES, reactionText } from '../game/eventText.js';
 import { logContext, playerName } from '../game/engine.js';
@@ -33,6 +34,71 @@ function Die({ value }: { value: number }) {
     <span className="die" aria-label={`rolled ${value}`}>
       {value}
     </span>
+  );
+}
+
+/** Fight Through the Pain: the incoming damage, how many rage dice to spend, or take it all. */
+function PainPrompt({ option, fury }: { option: ReactionOption; fury: number }) {
+  const state = useGameState();
+  const max = option.maxRageDice ?? 0;
+  const damage = option.damage ?? 0;
+  const [dice, setDice] = useState(Math.min(max, damage));
+  const name = state.units[option.unit]?.name ?? option.unit;
+  return (
+    <Modal title="Fight Through the Pain" testId="reaction">
+      <p data-testid="pain-damage">
+        <strong>{name}</strong> is about to take <strong>{damage} damage</strong>.
+      </p>
+      <p className="muted small">
+        Each rage die spent lowers your fury level by 1 (now {fury}) and removes 1 damage on a 3+.
+      </p>
+      <div className="stepper" role="group" aria-label="Rage dice">
+        <span className="stepper-label">Rage dice</span>
+        <button
+          className="btn"
+          aria-label="Fewer rage dice"
+          disabled={dice <= 1}
+          onClick={() => setDice(dice - 1)}
+        >
+          −
+        </button>
+        <span className="stepper-value" data-testid="pain-dice">
+          {dice}
+        </span>
+        <button
+          className="btn"
+          aria-label="More rage dice"
+          disabled={dice >= max}
+          onClick={() => setDice(dice + 1)}
+        >
+          +
+        </button>
+        <span className="muted small">of {max}</span>
+      </div>
+      <div className="stack">
+        <button
+          className="btn wide"
+          data-testid="pain-spend"
+          onClick={() =>
+            dispatch({
+              t: 'ability',
+              unit: option.unit,
+              abilityId: 'fight-through-the-pain',
+              rageDice: dice,
+            })
+          }
+        >
+          Spend {dice} rage {dice === 1 ? 'die' : 'dice'}
+        </button>
+        <button
+          className="btn primary wide"
+          data-testid="pain-skip"
+          onClick={() => dispatch({ t: 'pass' })}
+        >
+          Take the damage
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -96,6 +162,12 @@ export function DecisionPrompts() {
     );
   }
   if (d.kind === 'reaction') {
+    const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
+    if (pain) {
+      return (
+        <PainPrompt key={d.trigger} option={pain} fury={state.players[human].furyLevel ?? 0} />
+      );
+    }
     const cp = state.players[human].cp;
     return (
       <Modal title="Reaction" testId="reaction">

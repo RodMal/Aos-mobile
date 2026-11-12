@@ -172,6 +172,17 @@ export type Frame =
       coveringFire?: boolean;
     }
   /**
+   * Attack damage rolled and waiting to be allocated, one entry per target unit, kept under a
+   * Fight Through the Pain `reaction` frame while the target's owner decides on rage dice.
+   * Never the top frame when a decision is asked for.
+   */
+  | {
+      t: 'allocate';
+      attacker: UnitId;
+      mode: AttackMode;
+      pending: { target: UnitId; amount: number }[];
+    }
+  /**
    * A spell that met its casting value and is waiting under an Unbind `reaction` frame.
    */
   | {
@@ -346,9 +357,17 @@ export type CommandId =
 
 export interface ReactionOption {
   command?: CommandId;
-  ability?: 'unbind';
+  /**
+   * `fightThroughThePain`: answer with `{ t: 'ability', unit, abilityId: 'fight-through-the-pain',
+   * rageDice }`, or pass to take all the damage.
+   */
+  ability?: 'unbind' | 'fightThroughThePain';
   unit: UnitId;
   cost: number;
+  /** Fight Through the Pain: the damage points about to be allocated to `unit`. */
+  damage?: number;
+  /** Fight Through the Pain: the most rage dice that may be spent. */
+  maxRageDice?: number;
 }
 
 // ─── Actions ────────────────────────────────────────────────────────────────────

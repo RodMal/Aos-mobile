@@ -27,6 +27,9 @@ function arena(active: 0 | 1 = 0): GameState {
   placeUnit(scenario, s, DRYADS, 10, 35);
   placeUnit(scenario, s, SKINKS, 34, 22, 270);
   placeUnit(scenario, s, SAURUS, 50, 40);
+  // No Fight Through the Pain prompts (src/engine/fury-pain.test.ts covers them).
+  s.players[0].rageDice = 0;
+  s.players[1].rageDice = 0;
   return passTo(engine, s, 'shooting');
 }
 
