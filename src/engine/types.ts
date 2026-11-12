@@ -142,7 +142,13 @@ export interface ActiveEffect {
  * with an empty stack the decision is the current phase's main decision.
  */
 export type Frame =
-  | { t: 'priority'; winner: PlayerId; rolls: [number, number] }
+  | {
+      t: 'priority';
+      winner: PlayerId;
+      rolls: [number, number];
+      /** Round 1: the choice is made by deployment, not a roll (`rolls` are then 0). */
+      reason?: 'deployment';
+    }
   | {
       t: 'place';
       unit: UnitId;
@@ -279,6 +285,8 @@ export interface GameState {
    * that opponent seizes in turn. Absent or null when nobody has.
    */
   seizedBy?: PlayerId | null;
+  /** The player who finished deploying first (chooses who takes the first turn of round 1). */
+  deploymentFinishedFirst?: PlayerId;
   /** The player who seized the initiative in the current round (bars scoring Battle Tactics on their first turn). */
   seizedThisRound?: PlayerId | null;
   /** Timed effects currently in play. */
@@ -318,7 +326,16 @@ export interface GameState {
 /** What the engine is waiting for. `player` is who must answer. */
 export type Decision =
   /** The priority roll winner chooses to take the first or second turn. */
-  | { kind: 'priority'; player: PlayerId; rolls: [number, number] }
+  | {
+      kind: 'priority';
+      player: PlayerId;
+      rolls: [number, number];
+      /**
+       * Round 1: `player` finished deploying first (or is the attacker in a quick-start game)
+       * and chooses who takes the first turn; there was no roll.
+       */
+      reason?: 'deployment';
+    }
   /** Pick a unit and an action for the current phase, or `pass` to end the phase. */
   | { kind: 'main'; player: PlayerId; phase: Phase }
   /** Position a unit's models. `pass` (when `canPass`) leaves the unit where it is. */

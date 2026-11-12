@@ -36,6 +36,10 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
         ? { title: 'Choose targets', hint: 'Assign each weapon to a target.' }
         : { title: `${who} are attacking`, hint: 'The opponent is choosing targets…' };
     case 'priority':
+      if (d.reason)
+        return mine
+          ? { title: 'Choose the first turn', hint: 'Choose who takes the first turn.' }
+          : { title: `${who} choose the first turn`, hint: 'The opponent is choosing…' };
       return mine
         ? { title: 'You won the priority roll', hint: 'Choose who takes the first turn.' }
         : { title: `${who} won the priority roll`, hint: 'The opponent is choosing…' };

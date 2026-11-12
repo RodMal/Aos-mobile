@@ -26,6 +26,7 @@ import { checkMovePlacement, PILE_IN_DISTANCE, placementDistance } from './movem
 import {
   CHARGE_END_RANGE,
   DIST_EPS,
+  attackerOf,
   enemiesInCombat,
   enemiesWithin,
   inCombat,
@@ -245,7 +246,7 @@ function startRound(ctx: Ctx): void {
     s.players[p].vpByRound.push(0);
   }
   if (s.round === 1) {
-    initFury(s, 0);
+    initFury(s, attackerOf(scenario));
     initBattleTactics(scenario, s);
   }
   applySimmeringRage(s);
@@ -272,9 +273,10 @@ function roundOneFirstTurn(ctx: Ctx): void {
       return;
     }
   }
-  // Round 1: the attacker (player 0) takes the first turn.
-  s.firstPlayer = 0;
-  beginRound(ctx);
+  // Round 1 (owner's ruling, 2026-11-11): the player who finished deploying first chooses who
+  // takes the first turn; in a quick-start game (no deployment) the attacker chooses.
+  const chooser = s.deploymentFinishedFirst ?? attackerOf(scenario);
+  s.stack.push({ t: 'priority', winner: chooser, rolls: [0, 0], reason: 'deployment' });
 }
 
 function chooseFugitive(ctx: Ctx, value: string): void {
@@ -299,7 +301,7 @@ function choosePriority(ctx: Ctx, value: string): void {
   if (frame?.t !== 'priority') illegal('There is no priority choice to make.');
   if (value !== 'first' && value !== 'second') illegal('Choose "first" or "second".');
   const first = value === 'first' ? frame.winner : opponent(frame.winner);
-  if (seizes(s, frame.winner, s.firstPlayer, first)) {
+  if (s.round > 1 && seizes(s, frame.winner, s.firstPlayer, first)) {
     s.seizedBy = first;
     s.seizedThisRound = first;
     ctx.events.push({ t: 'note', text: `Player ${first + 1} seizes the initiative.` });
@@ -546,7 +548,12 @@ export function createEngine(scenario: Scenario): Engine {
     if (top) {
       switch (top.t) {
         case 'priority':
-          return { kind: 'priority', player: top.winner, rolls: top.rolls };
+          return {
+            kind: 'priority',
+            player: top.winner,
+            rolls: top.rolls,
+            ...(top.reason ? { reason: top.reason } : {}),
+          };
         case 'place':
           return {
             kind: 'place',
@@ -971,6 +978,12 @@ export function createEngine(scenario: Scenario): Engine {
     }
     if (frame.reason === 'charge') unit.charged = true;
     s.stack.pop();
+    if (frame.reason === 'deploy' && s.deploymentFinishedFirst == null) {
+      const more = s.stack.some(
+        (f) => f.t === 'place' && f.reason === 'deploy' && s.units[f.unit]?.owner === unit.owner,
+      );
+      if (!more) s.deploymentFinishedFirst = unit.owner;
+    }
     ctx.events.push({ t: 'moved', unit: unit.id, kind: frame.reason, dice: frame.dice, distance });
     if (frame.reason === 'deploy' && s.stack.length === 0) {
       startRound(ctx);
@@ -1644,7 +1657,9 @@ export function createEngine(scenario: Scenario): Engine {
       banishedThisTurn: [],
       reactionsOffered: [],
     };
-    initFury(s, 0);
+    initFury(s, attackerOf(scenario));
+    s.active = attackerOf(scenario);
+    s.firstPlayer = attackerOf(scenario);
     const ctx: Ctx = { scenario, s, events: [], rng: new RngCursor(s.rng) };
     if (isDeployMode) {
       s.stack = buildDeploymentFrames(scenario, s.units);

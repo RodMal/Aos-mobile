@@ -109,17 +109,25 @@ export function DecisionPrompts() {
   if (!d) return null;
   if (d.kind === 'priority') {
     return (
-      <Modal title="Priority roll" testId="priority">
-        <div className="dice-pair">
-          <div>
-            <Die value={d.rolls[0]} />
-            <span className="muted small">{playerName(0)}</span>
+      <Modal title={d.reason ? 'First turn' : 'Priority roll'} testId="priority">
+        {d.reason ? (
+          <p data-testid="first-turn-reason">
+            {state.deploymentFinishedFirst === human
+              ? 'You finished deploying first.'
+              : 'You are the attacker.'}
+          </p>
+        ) : (
+          <div className="dice-pair">
+            <div>
+              <Die value={d.rolls[0]} />
+              <span className="muted small">{playerName(0)}</span>
+            </div>
+            <div>
+              <Die value={d.rolls[1]} />
+              <span className="muted small">{playerName(1)}</span>
+            </div>
           </div>
-          <div>
-            <Die value={d.rolls[1]} />
-            <span className="muted small">{playerName(1)}</span>
-          </div>
-        </div>
+        )}
         <p>You choose who takes the first turn of round {state.round}.</p>
         <div className="stack">
           <button

@@ -20,6 +20,7 @@ import {
 import { boardPolygon } from './movement.js';
 import {
   aliveIndices,
+  attackerOf,
   currentPlacement,
   defaultFrontage,
   DIST_EPS,
@@ -155,8 +156,10 @@ export function buildDeploymentFrames(
   const allReserve = Object.values(units).filter((u) => u.status === 'reserve');
   const deployOrder: UnitState[] = [];
 
-  // 1. Faction terrain: player 0 first, then player 1.
-  for (const player of [0, 1] as PlayerId[]) {
+  const attacker = attackerOf(scenario);
+  const order: PlayerId[] = [attacker, attacker === 0 ? 1 : 0];
+  // 1. Faction terrain: the attacker first, then the defender.
+  for (const player of order) {
     const terrains = allReserve
       .filter((u) => u.owner === player && profileOf(scenario, u).isFactionTerrain)
       .sort((a, b) => a.armyIndex - b.armyIndex);
@@ -184,10 +187,10 @@ export function buildDeploymentFrames(
     );
   }
 
-  // 3. Alternate regiments starting with player 0 (attacker).
+  // 3. Alternate regiments starting with the attacker.
   const maxRegiments = Math.max(regimentsByPlayer[0].length, regimentsByPlayer[1].length);
   for (let r = 0; r < maxRegiments; r++) {
-    for (const player of [0, 1] as PlayerId[]) {
+    for (const player of order) {
       const regUnits = regimentsByPlayer[player][r];
       if (regUnits) {
         deployOrder.push(...regUnits);

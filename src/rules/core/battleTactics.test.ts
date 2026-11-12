@@ -192,9 +192,10 @@ describe('Battle Tactics (GHB 2026-27)', () => {
       const pick = d.units[d.units.length - 1]!;
       let s1 = engine.apply(s0, { t: 'choose', value: pick }).state;
       expect(s1.players[0].fugitiveUnit).toBe(pick);
-      // Optional start-of-turn Place of Power offers come next; decline them.
-      while (engine.decision(s1)?.kind === 'placeOfPower')
-        s1 = engine.apply(s1, { t: 'pass' }).state;
+      // The first-turn choice and the optional Place of Power offers come next.
+      expect(engine.decision(s1)).toMatchObject({ kind: 'priority', reason: 'deployment' });
+      while (engine.decision(s1)?.kind !== 'main')
+        s1 = engine.apply(s1, engine.defaultAction(s1)).state;
       expect(engine.decision(s1)).toMatchObject({ kind: 'main', phase: 'hero', player: 0 });
       // The default (and the NPC) picks one of the legal Heroes.
       expect(d.units).toContain((engine.defaultAction(s0) as { value: string }).value);

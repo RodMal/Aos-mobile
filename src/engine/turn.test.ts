@@ -28,6 +28,46 @@ describe('battle round 1', () => {
     expect(s.players.map((p) => p.cp)).toEqual([4, 4]);
     expect(engine.decision(s)).toEqual({ kind: 'main', player: 0, phase: 'hero' });
   });
+
+  /** Answers the pre-battle picks before the first-turn choice with the default. */
+  function toFirstTurnChoice(s0: GameState, eng = engine): GameState {
+    let s = s0;
+    while (eng.decision(s)?.kind !== 'priority') s = eng.apply(s, eng.defaultAction(s)).state;
+    return s;
+  }
+
+  it('quick start: the attacker chooses who takes the first turn (owner, 2026-11-11)', () => {
+    const s = toFirstTurnChoice(engine.newGame(1));
+    expect(engine.decision(s)).toEqual({
+      kind: 'priority',
+      player: 0,
+      rolls: [0, 0],
+      reason: 'deployment',
+    });
+    const second = engine.apply(s, { t: 'choose', value: 'second' }).state;
+    expect(second.firstPlayer).toBe(1);
+    expect(second.active).toBe(1);
+    expect(second.seizedThisRound ?? null).toBeNull();
+    // Player 1 as the attacker: they choose, and they start on the attacker's fury.
+    const flipped = createEngine(
+      createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER], { attacker: 1 }),
+    );
+    const f = toFirstTurnChoice(flipped.newGame(1), flipped);
+    expect(flipped.decision(f)).toMatchObject({ kind: 'priority', player: 1 });
+    expect(f.players.map((p) => p.furyLevel)).toEqual([2, 1]);
+  });
+
+  it('alternating deployment: the player who finished deploying first chooses', () => {
+    let s = engine.newGame(1, { deploy: true });
+    while (engine.decision(s)?.kind === 'place') s = engine.apply(s, engine.defaultAction(s)).state;
+    s = toFirstTurnChoice(s);
+    expect(s.deploymentFinishedFirst).toBeDefined();
+    expect(engine.decision(s)).toMatchObject({
+      kind: 'priority',
+      player: s.deploymentFinishedFirst,
+      reason: 'deployment',
+    });
+  });
 });
 
 describe('priority', () => {
