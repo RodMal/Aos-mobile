@@ -201,10 +201,24 @@ export function polygonInsidePolygon(inner: Polygon, outer: Polygon, eps = GEOME
  * does not count). Both may be concave.
  */
 export function polygonsOverlap(a: Polygon, b: Polygon, eps = GEOMETRY_EPS): boolean {
+  // Interiors that share area have overlapping bounding boxes.
+  const boxA = polygonBox(a);
+  const boxB = polygonBox(b);
+  if (boxesApart(boxA, boxB, 0)) return false;
+  const tol = 2 * eps + 1e-12;
+  const edgesB = edgeBoxes(b);
   for (let i = 0; i < a.length; i++) {
     const p = a[i] as ReadonlyPoint;
     const q = a[(i + 1) % a.length] as ReadonlyPoint;
+    const x0 = Math.min(p[0], q[0]) - tol;
+    const x1 = Math.max(p[0], q[0]) + tol;
+    const y0 = Math.min(p[1], q[1]) - tol;
+    const y1 = Math.max(p[1], q[1]) + tol;
     for (let j = 0; j < b.length; j++) {
+      // Segments that cross share a point, so their boxes meet.
+      const k = 4 * j;
+      if (edgesB[k]! > x1 || edgesB[k + 1]! < x0 || edgesB[k + 2]! > y1 || edgesB[k + 3]! < y0)
+        continue;
       if (
         segmentsProperlyCross(
           p,
@@ -258,24 +272,108 @@ export function interiorPoint(poly: Polygon): ReadonlyPoint | undefined {
  * concave.
  */
 export function polygonDistance(a: Polygon, b: Polygon, eps = GEOMETRY_EPS): number {
-  for (let i = 0; i < a.length; i++) {
-    const p = a[i] as ReadonlyPoint;
-    const q = a[(i + 1) % a.length] as ReadonlyPoint;
-    for (let j = 0; j < b.length; j++) {
-      if (
-        segmentsIntersect(p, q, b[j] as ReadonlyPoint, b[(j + 1) % b.length] as ReadonlyPoint, eps)
-      )
-        return 0;
+  // Bounding boxes only skip work that cannot change the answer: segments (or points) whose
+  // boxes are more than the tolerance apart can neither intersect nor be within `eps`.
+  const tol = 2 * eps + 1e-12;
+  const edgesA = edgeBoxes(a);
+  const edgesB = edgeBoxes(b);
+  if (!boxesApart(polygonBox(a), polygonBox(b), tol)) {
+    for (let i = 0; i < a.length; i++) {
+      const p = a[i] as ReadonlyPoint;
+      const q = a[(i + 1) % a.length] as ReadonlyPoint;
+      const ki = 4 * i;
+      const x0 = edgesA[ki]! - tol;
+      const x1 = edgesA[ki + 1]! + tol;
+      const y0 = edgesA[ki + 2]! - tol;
+      const y1 = edgesA[ki + 3]! + tol;
+      for (let j = 0; j < b.length; j++) {
+        const k = 4 * j;
+        if (edgesB[k]! > x1 || edgesB[k + 1]! < x0 || edgesB[k + 2]! > y1 || edgesB[k + 3]! < y0)
+          continue;
+        if (
+          segmentsIntersect(
+            p,
+            q,
+            b[j] as ReadonlyPoint,
+            b[(j + 1) % b.length] as ReadonlyPoint,
+            eps,
+          )
+        )
+          return 0;
+      }
     }
+    const first = a[0];
+    const firstB = b[0];
+    if (first !== undefined && pointInPolygon(first, b, eps)) return 0;
+    if (firstB !== undefined && pointInPolygon(firstB, a, eps)) return 0;
   }
-  const first = a[0];
-  const firstB = b[0];
-  if (first !== undefined && pointInPolygon(first, b, eps)) return 0;
-  if (firstB !== undefined && pointInPolygon(firstB, a, eps)) return 0;
   let best = Infinity;
-  for (const v of a) best = Math.min(best, distancePointToBoundary(v, b));
-  for (const v of b) best = Math.min(best, distancePointToBoundary(v, a));
+  for (const v of a) best = nearestEdge(v, b, edgesB, best);
+  for (const v of b) best = nearestEdge(v, a, edgesA, best);
   return best;
+}
+
+/**
+ * `min(best, distancePointToBoundary(p, poly))`, skipping edges whose bounding box is
+ * certainly farther than `best` (so the minimum is the same value).
+ */
+function nearestEdge(p: ReadonlyPoint, poly: Polygon, boxes: Float64Array, best: number): number {
+  for (let i = 0; i < poly.length; i++) {
+    const k = 4 * i;
+    const dx = Math.max(boxes[k]! - p[0], 0, p[0] - boxes[k + 1]!);
+    const dy = Math.max(boxes[k + 2]! - p[1], 0, p[1] - boxes[k + 3]!);
+    if (dx * dx + dy * dy > best * best * (1 + 1e-9) + 1e-18) continue;
+    const d = distancePointToSegment(
+      p,
+      poly[i] as ReadonlyPoint,
+      poly[(i + 1) % poly.length] as ReadonlyPoint,
+    );
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+/** Per-edge bounding boxes `[minX, maxX, minY, maxY]`, memoised per polygon array. */
+const edgeBoxCache = new WeakMap<Polygon, Float64Array>();
+function edgeBoxes(poly: Polygon): Float64Array {
+  let out = edgeBoxCache.get(poly);
+  if (out) return out;
+  out = new Float64Array(4 * poly.length);
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i] as ReadonlyPoint;
+    const q = poly[(i + 1) % poly.length] as ReadonlyPoint;
+    out[4 * i] = Math.min(p[0], q[0]);
+    out[4 * i + 1] = Math.max(p[0], q[0]);
+    out[4 * i + 2] = Math.min(p[1], q[1]);
+    out[4 * i + 3] = Math.max(p[1], q[1]);
+  }
+  edgeBoxCache.set(poly, out);
+  return out;
+}
+
+type Box = readonly [minX: number, maxX: number, minY: number, maxY: number];
+const boxCache = new WeakMap<Polygon, Box>();
+function polygonBox(poly: Polygon): Box {
+  let box = boxCache.get(poly);
+  if (box) return box;
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let y0 = Infinity;
+  let y1 = -Infinity;
+  for (const [x, y] of poly) {
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
+  }
+  box = [x0, x1, y0, y1];
+  boxCache.set(poly, box);
+  return box;
+}
+
+/** True when the boxes are more than `gap` apart along x or y. */
+function boxesApart(a: Box, b: Box, gap: number): boolean {
+  return a[0] > b[1] + gap || b[0] > a[1] + gap || a[2] > b[3] + gap || b[2] > a[3] + gap;
 }
 
 /** Problems that make a polygon unusable, as human-readable strings (empty = valid). */
