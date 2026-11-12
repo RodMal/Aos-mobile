@@ -5,6 +5,7 @@ import { ArmyRules } from './drawers/ArmyRules.js';
 import { LogDrawer } from './drawers/LogDrawer.js';
 import { Menu } from './drawers/Menu.js';
 import { Roster } from './drawers/Roster.js';
+import { TacticsDrawer } from './drawers/TacticsDrawer.js';
 import { startAttack } from './game/actions.js';
 import { beginDraft } from './game/draftActions.js';
 import { engine } from './game/engine.js';
@@ -106,6 +107,7 @@ export function App() {
       {drawer === 'log' && <LogDrawer />}
       {drawer === 'army' && <ArmyRules />}
       {drawer === 'menu' && <Menu />}
+      {drawer === 'tactics' && <TacticsDrawer />}
     </main>
   );
 }

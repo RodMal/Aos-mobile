@@ -1,10 +1,11 @@
 /** Round, turn, phase track and the score. */
-import { PHASES } from '../../engine/index.js';
+import { PHASES, type PlayerId } from '../../engine/index.js';
 import { phaseName } from '../game/actions.js';
 import { playerName, scenario } from '../game/engine.js';
 import { useGameState, useHuman } from '../game/hooks.js';
 import { useUi } from '../game/uiStore.js';
 import { Icon } from '../components/Icon.js';
+import { tacticCardsView } from '../game/tactics.js';
 
 export function TopBar() {
   const state = useGameState();
@@ -31,6 +32,26 @@ export function TopBar() {
             {yourTurn ? 'Your turn' : `${playerName(enemy)} turn`}
           </span>
         </div>
+        <button
+          className="tactics-btn"
+          aria-label="Battle tactics"
+          title="Battle tactics"
+          onClick={() => openDrawer('tactics')}
+          data-testid="tactics-button"
+        >
+          <span className="tactics-btn-label">Tactics</span>
+          {([human, enemy] as PlayerId[]).map((p) => (
+            <span key={p} className={`tactics-pips ${p === human ? 'friendly' : 'enemy'}`}>
+              {tacticCardsView(scenario.armies[p].tacticCards, state, p).map((c) => (
+                <span key={c.id} className="pip-group" title={c.name}>
+                  {c.tiers.map((t) => (
+                    <span key={t.tier} className={`pip ${t.status}`} />
+                  ))}
+                </span>
+              ))}
+            </span>
+          ))}
+        </button>
         <div className="score" aria-label="Score">
           <div className="score-side friendly" title={playerName(human)}>
             <span className="side-mark friendly" aria-hidden="true" />

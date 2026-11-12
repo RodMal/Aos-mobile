@@ -142,3 +142,11 @@ Remaining, with the owner's rulings in full:
 - **O** Replace empty tests (`terrain.test.ts` Place of Power, `fury.test.ts`); restore `ReactionOption.command` as required.
 - Hero-phase Wyldwood pieces: one more piece in each Sylvaneth hero phase up to three (pieces 2 and 3 outlines are ready); the data text has no set-up rule for them.
 - Battle-tactics tracker in the UI; Burning for Vengeance asking the player to pick the fugitive.
+
+### Progress on 2026-11-12 (branch `worktree-agent-adc66541dd62f3aa5`, items numbered as in the owner's list)
+
+Done:
+
+- 1 Battle tactics tracker: a pip per tier for both sides in the top bar (`tactics-button`, "Tactics" label on desktop); one tap opens the tracker drawer (`src/ui/drawers/TacticsDrawer.tsx`, rows from `src/ui/game/tactics.ts`) with each card, completed/next tiers, the next tier's printed condition and the fugitive. e2e `tests/e2e/tactics.spec.ts` on all projects.
+
+Remaining: items 2 to 17 of the owner's list (fugitive pick, tactics scoring, Eruption of Fury choices, Fight Through the Pain, Place of Power, hero-phase Wyldwoods, Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
