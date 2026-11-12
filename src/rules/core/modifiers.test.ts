@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from '../../data/lists.js';
 import { createEngine, createScenario } from '../../engine/index.js';
 import { weapon } from '../../engine/test-helpers.js';
+import { expectedWeaponDamage, weaponMods } from '../../engine/combat.js';
 import {
   antiRend,
   attackModifiers,
@@ -108,5 +109,48 @@ describe('attackModifiers', () => {
       w,
     );
     expect(mods.save).toBe(-1);
+  });
+});
+
+describe('ignoring save modifiers (Song Of The Lost on 8+, owner ruling 2026-11-11)', () => {
+  it("ignores the weapon's Rend, Rend bonuses and positive save modifiers such as All-out Defence", () => {
+    const rend2 = weapon({ rend: 2 });
+    const mods: Modifier[] = [
+      { stat: 'rend', value: 1, source: 'Anti-X' },
+      { stat: 'save', value: 1, source: 'All-out Defence' },
+    ];
+    const plain = sumModifiers(mods, rend2);
+    expect(plain.rend).toBe(1);
+    expect(plain.save).toBe(1);
+    const ignored = sumModifiers(mods, rend2, { ignoreSaveModifiers: true });
+    expect(rend2.rend + ignored.rend).toBe(0);
+    expect(ignored.save).toBe(0);
+  });
+
+  it('applies to attack rolls and expected damage against a unit under the 8+ effect', () => {
+    const s = createEngine(scenario).newGame(1);
+    const rend2 = weapon({ rend: 2, attacks: { n: 0, sides: 0, plus: 10 } });
+    const target = s.units['0:6']!;
+    const shielded = {
+      ...s,
+      effects: [
+        {
+          id: 'a865-102f-ce95-480c',
+          name: 'Song Of The Lost',
+          sourceUnit: target.id,
+          targetUnit: target.id,
+          owner: 0 as const,
+          expires: 'turn' as const,
+          data: { ignoreSaveModifiers: true },
+        },
+      ],
+    };
+    const m = weaponMods(scenario, shielded, kroxigor, target, rend2, 'fight');
+    expect(rend2.rend + m.rend).toBe(0);
+    const noRend = weapon({ rend: 0, attacks: { n: 0, sides: 0, plus: 10 } });
+    const idx = [0];
+    expect(expectedWeaponDamage(scenario, shielded, kroxigor, target, rend2, 'fight', idx)).toBe(
+      expectedWeaponDamage(scenario, shielded, kroxigor, target, noRend, 'fight', idx),
+    );
   });
 });

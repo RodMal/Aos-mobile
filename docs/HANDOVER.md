@@ -158,4 +158,6 @@ Done:
 
 - 18 Cover and Obscuring per the owner's ruling (`src/engine/terrain.ts` `unitHasCover`, `isModelVisibleToModel`); I47. Tests: `terrain.test.ts` "owner ruling 2026-11-11: no cover wholly within 1 inch in the open" and the Obscuring test.
 
-Remaining: items 8 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- 8 Song Of The Lost on 8+ ignores the weapon's Rend too (`src/rules/core/modifiers.ts` `sumModifiers`); I48. Tests: `modifiers.test.ts` "ignoring save modifiers".
+
+Remaining: items 9 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).

@@ -498,7 +498,7 @@ describe('M3a Lore Abilities (16 abilities)', () => {
         { allOutDefence: true },
       );
       expect(mods.wound).toBe(-1);
-      expect(mods.rend).toBe(0);
+      expect(rendWeapon.rend + mods.rend).toBe(0); // the weapon's Rend is ignored too
       expect(mods.save).toBe(0);
 
       // High chant (8+) on damaged Monster Durthu -> heals up to 3, cannot ignoreSaveModifiers

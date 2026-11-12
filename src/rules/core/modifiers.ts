@@ -110,7 +110,9 @@ export function sumModifiers(
     hit: Math.max(-1, Math.min(1, total.hit)),
     wound: Math.max(-1, Math.min(1, total.wound)),
     save: options?.ignoreSaveModifiers ? 0 : Math.min(1, total.save),
-    rend: options?.ignoreSaveModifiers ? Math.min(0, total.rend) : total.rend,
+    // Ignoring save modifiers (Song Of The Lost on 8+, owner's ruling 2026-11-11) also ignores
+    // the weapon's own Rend: cancel it here, since `rend` is added to the weapon's Rend.
+    rend: options?.ignoreSaveModifiers ? -weapon.rend : total.rend,
     damage: total.damage,
   };
 }
