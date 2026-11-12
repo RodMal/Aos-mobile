@@ -290,9 +290,10 @@ export function magicOptionsForUnit(
     }
   }
 
-  // Banish Manifestation: Your Hero Phase only
+  // Banish Manifestation: your hero phase, or the enemy hero phase through Magical
+  // Intervention ("a Spell, Prayer or Banish ability"; owner's ruling, 2026-11-11).
   if (
-    inHeroMain &&
+    (inHeroMain || inMagicalIntervention) &&
     (canUsePowerLevelAbility(scenario, unit) || hasDizzyingRage(state, unit)) &&
     !usedByUnit.includes('banish')
   ) {

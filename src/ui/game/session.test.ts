@@ -35,17 +35,22 @@ const PRE_BATTLE = started(0).history.length;
 
 function toMovement() {
   let s = started(0);
-  s = applyToSession(engine, s, { t: 'pass' }).session;
+  // End the hero phase; the opponent may be offered a reaction first (declined).
+  while (s.state.phase === 'hero' || engine.decision(s.state)?.kind !== 'main') {
+    s = applyToSession(engine, s, { t: 'pass' }).session;
+  }
   return s;
 }
+
+const TO_MOVEMENT = toMovement().history.length - PRE_BATTLE;
 
 describe('session', () => {
   it('applies actions, records the actor and the events', () => {
     const s = toMovement();
     expect(s.state.phase).toBe('movement');
-    expect(s.history).toHaveLength(PRE_BATTLE + 1);
+    expect(s.history).toHaveLength(PRE_BATTLE + TO_MOVEMENT);
     expect(s.history[PRE_BATTLE]!.actor).toBe(0);
-    expect(s.history[PRE_BATTLE]!.events.some((e) => e.t === 'phaseStart')).toBe(true);
+    expect(s.history.at(-1)!.events.some((e) => e.t === 'phaseStart')).toBe(true);
   });
 
   it('throws IllegalActionError for illegal actions', () => {
@@ -84,7 +89,7 @@ describe('session', () => {
     s = applyToSession(engine, s, { t: 'place', placement }).session;
     const json = JSON.stringify(toRecord(s));
     const record = parseRecord(json)!;
-    expect(record.actions).toHaveLength(PRE_BATTLE + 3);
+    expect(record.actions).toHaveLength(PRE_BATTLE + TO_MOVEMENT + 2);
     expect(replay(engine, record).state).toEqual(s.state);
   });
 

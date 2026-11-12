@@ -483,6 +483,10 @@ function coveringFireAllocations(
 ): Allocation[] {
   if (commandBlocker(state, unit.owner, 'coveringFire', unit)) return [];
   if (isFactionTerrainUnit(scenario, unit)) return [];
+  // "A friendly unit that has not run and is not in combat" (shooting phase only, owner's
+  // ruling 2026-11-11; the offer is made only at the end of the enemy shooting phase).
+  if (state.phase !== 'shooting') return [];
+  if (unit.moved === 'run' || inCombat(scenario, state, unit)) return [];
   const wts = weaponTargets(scenario, state, unit, 'shoot');
   if (wts.length === 0) return [];
   const allEnemies = unitsOf(state, opponent(unit.owner));
@@ -1021,15 +1025,13 @@ export function createEngine(scenario: Scenario): Engine {
     if (
       s.phase === 'movement' &&
       unit.owner === s.active &&
-      (frame.reason === 'normal' || frame.reason === 'run' || frame.reason === 'retreat') &&
-      !(s.reactionsOffered ?? []).includes('redeploy')
+      (frame.reason === 'normal' || frame.reason === 'run' || frame.reason === 'retreat')
     ) {
+      // Offered after each enemy move while the command is unused this phase (no distance or
+      // once-per-phase offer filter: commands.ts in the earlier engine cites no such text).
       const nonActive = opponent(s.active);
-      const candidates = unitsOf(s, nonActive).filter(
-        (u) => canRedeploy(scenario, s, u) && unitsWithin(scenario, unit, u, 6),
-      );
+      const candidates = unitsOf(s, nonActive).filter((u) => canRedeploy(scenario, s, u));
       if (candidates.length > 0) {
-        s.reactionsOffered = [...(s.reactionsOffered ?? []), 'redeploy'];
         s.stack.push({
           t: 'reaction',
           player: nonActive,
@@ -1226,10 +1228,7 @@ export function createEngine(scenario: Scenario): Engine {
     if (s.phase === 'hero') {
       const options: ReactionOption[] = [];
       for (const u of unitsOf(s, nonActive)) {
-        if (
-          canMagicalIntervention(scenario, s, u) &&
-          enemiesWithin(scenario, s, u, 18).length > 0
-        ) {
+        if (canMagicalIntervention(scenario, s, u)) {
           options.push({
             command: 'magicalIntervention',
             unit: u.id,
@@ -1285,9 +1284,7 @@ export function createEngine(scenario: Scenario): Engine {
     }
 
     if (s.phase === 'charge' && !offered.includes('counterCharge')) {
-      const units = unitsOf(s, nonActive).filter(
-        (u) => canCounterCharge(scenario, s, u) && enemiesWithin(scenario, s, u, 6).length > 0,
-      );
+      const units = unitsOf(s, nonActive).filter((u) => canCounterCharge(scenario, s, u));
       if (units.length > 0) {
         s.reactionsOffered = [...offered, 'counterCharge'];
         s.stack.push({ t: 'endPhase' });

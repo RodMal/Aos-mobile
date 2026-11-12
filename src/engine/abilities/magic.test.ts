@@ -1488,3 +1488,69 @@ describe('Once-Per-Phase Command Restrictions (Per Unit & Per Army)', () => {
     ).toThrow();
   });
 });
+
+describe('reaction offers (owner ruling, 2026-11-11)', () => {
+  const offered = (s: GameState, command: string) => {
+    const d = engine.decision(s);
+    return d?.kind === 'reaction' && d.options.some((o) => o.command === command);
+  };
+
+  it('Covering Fire: not for a unit that ran or is in combat', () => {
+    const base = baseArena([DRYADS, DURTHU, HUNTERS]);
+    base.phase = 'shooting';
+    placeUnit(scenario, base, DRYADS, 16, 22);
+    placeUnit(scenario, base, DURTHU, 8, 22);
+    placeUnit(scenario, base, HUNTERS, 26, 22);
+    base.units[DRYADS]!.moved = 'normal';
+    base.players[0].cp = 0;
+    expect(offered(engine.apply(base, { t: 'pass' }).state, 'coveringFire')).toBe(true);
+    const ran = editable(base);
+    ran.units[HUNTERS]!.moved = 'run';
+    expect(offered(engine.apply(ran, { t: 'pass' }).state, 'coveringFire')).toBe(false);
+    const engaged = editable(base);
+    placeUnit(scenario, engaged, DRYADS, 23.5, 22);
+    expect(offered(engine.apply(engaged, { t: 'pass' }).state, 'coveringFire')).toBe(false);
+  });
+
+  it('Magical Intervention: offered with no enemy within 18", and it offers Banish', () => {
+    const s = baseArena([ALARIELLE, KROAK]);
+    placeUnit(scenario, s, ALARIELLE, 6, 22);
+    placeUnit(scenario, s, KROAK, 55, 22); // 49" away
+    const after = engine.apply(s, { t: 'pass' }).state;
+    expect(offered(after, 'magicalIntervention')).toBe(true);
+    // Banish through Magical Intervention: an enemy manifestation within 30".
+    const t = editable(s);
+    t.active = 1;
+    placeUnit(scenario, t, KROAK, 30, 22);
+    placeUnit(scenario, t, ALARIELLE, 58, 22);
+    const summoned = applyUntil(
+      engine,
+      t,
+      { t: 'ability', unit: KROAK, abilityId: SUMMON_SHACKLES },
+      (r) => r.events.some((e) => e.t === 'cast' && e.success),
+    );
+    const placed = editable(engine.apply(summoned.state, { t: 'pass' }).state);
+    placed.active = 1;
+    placed.phase = 'hero';
+    placeUnit(scenario, placed, ALARIELLE, 20, 22);
+    placed.stack = [{ t: 'magicalIntervention', unit: ALARIELLE }];
+    expect(
+      engine.unitOptions(placed, ALARIELLE).some((o) => o.t === 'ability' && o.kind === 'banish'),
+    ).toBe(true);
+  });
+
+  it('Redeploy: offered after each enemy move, at any distance, until used', () => {
+    const s = passTo(engine, baseArena([DRYADS, DURTHU, SAURUS_GUARD, KROXIGOR]), 'movement');
+    placeUnit(scenario, s, DRYADS, 6, 10);
+    placeUnit(scenario, s, DURTHU, 6, 34);
+    placeUnit(scenario, s, SAURUS_GUARD, 54, 10);
+    placeUnit(scenario, s, KROXIGOR, 54, 34);
+    let st = s;
+    for (const unit of [DRYADS, DURTHU]) {
+      st = engine.apply(st, { t: 'move', unit, kind: 'normal' }).state;
+      st = engine.apply(st, { t: 'place', placement: currentPlacement(st.units[unit]!) }).state;
+      expect(offered(st, 'redeploy'), unit).toBe(true);
+      st = engine.apply(st, { t: 'pass' }).state;
+    }
+  });
+});

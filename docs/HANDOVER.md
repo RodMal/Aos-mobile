@@ -166,4 +166,6 @@ Done:
 
 - 11 Round 1 first turn chosen by whoever finished deploying first (quick start: the attacker) via `priority` with `reason: 'deployment'`; `attackerOf(scenario)` replaces the hard-coded player 0 in `initFury`, deployment order and new-game state; I51. Tests: `turn.test.ts` "battle round 1", e2e `tests/e2e/first-turn.spec.ts`.
 
-Remaining: items 12 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- 12 Reaction offers: Covering Fire not after running or in combat; Magical Intervention offers Banish; invented 18"/6"/once-per-phase/6" filters removed; I52. Tests: `magic.test.ts` "reaction offers".
+
+Remaining: items 13 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
