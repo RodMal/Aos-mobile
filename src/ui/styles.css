@@ -1755,3 +1755,83 @@ button {
   min-width: 20px;
   text-align: center;
 }
+
+/* End-of-turn scoring summary: a card over the board, no scrim (the opponent keeps playing). */
+.turn-summary {
+  position: fixed;
+  z-index: 30;
+  top: calc(env(safe-area-inset-top, 0px) + 96px);
+  left: 12px;
+  right: 12px;
+  margin: 0 auto;
+  max-width: 420px;
+  box-sizing: border-box;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  padding: 14px 16px 12px;
+  border-radius: 14px;
+  border: 1px solid #3c454e;
+  background: rgba(16, 19, 23, 0.97);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  animation: toast-in 0.18s ease-out;
+}
+.turn-summary h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+.turn-score-lines {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.turn-score-lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid #2a3138;
+  font-size: 14px;
+}
+.turn-score-lines li.friendly .turn-score-vp {
+  color: var(--friendly);
+}
+.turn-score-lines li.enemy .turn-score-vp {
+  color: var(--enemy);
+}
+.turn-score-vp {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.turn-score-total,
+.turn-score-running {
+  margin: 4px 0;
+  font-size: 13.5px;
+}
+.turn-score-running .friendly {
+  color: var(--friendly);
+}
+.turn-score-running .enemy {
+  color: var(--enemy);
+}
+.turn-summary .btn {
+  margin-top: 8px;
+}
+.turn-scores {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border: 1px solid #2a3138;
+  border-radius: 10px;
+}
+.turn-scores summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.turn-scores-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.turn-scores-list h3 {
+  margin: 10px 0 4px;
+  font-size: 14px;
+}

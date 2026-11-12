@@ -254,6 +254,7 @@ export const usable = async (l: Locator): Promise<boolean> =>
  */
 export async function minimalPlayerStep(page: Page): Promise<string | null> {
   const controls: [string, Locator][] = [
+    ['dismiss turn summary', page.getByTestId('turn-summary-close')],
     ['confirm', page.getByTestId('confirm-ok')],
     ['priority', page.getByRole('button', { name: 'Take first turn' })],
     ['fugitive', page.locator('[data-fugitive]').first()],

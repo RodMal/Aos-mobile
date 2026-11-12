@@ -13,6 +13,7 @@ import { useDecision, useGameState, useHuman } from './game/hooks.js';
 import { useGame } from './game/instance.js';
 import { useUi } from './game/uiStore.js';
 import { TopBar } from './hud/TopBar.js';
+import { TurnSummary } from './hud/TurnSummary.js';
 import { useKeyboard } from './hud/useKeyboard.js';
 import { createNpcClient } from './npc/npcClient.js';
 import { Chooser, ConfirmDialog, DecisionPrompts, GameEnd } from './prompts/Prompts.js';
@@ -112,6 +113,7 @@ export function App() {
       </div>
       <Chooser />
       <DecisionPrompts />
+      <TurnSummary />
       <GameEnd />
       <ConfirmDialog />
       {drawer === 'roster' && <Roster />}
