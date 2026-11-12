@@ -168,7 +168,7 @@ Done:
 
 - 12 Reaction offers: Covering Fire not after running or in combat; Magical Intervention offers Banish; invented 18"/6"/once-per-phase/6" filters removed; I52. Tests: `magic.test.ts` "reaction offers".
 
-- 13 Guarded Hero: invented Health 10 and 3-model conditions removed (`src/engine/terrain.ts` `isGuardedHero`); I32 rewritten, listed under Awaiting. Test: `terrain.test.ts` "guarded hero".
+- 13 Guarded Hero: invented Health 10 and 3-model conditions removed (`src/engine/terrain.ts` `isGuardedHero`); I32 rewritten, confirmed by the owner on 2026-11-12 (any friendly non-Hero unit). Test: `terrain.test.ts` "guarded hero".
 
 - 14 Set-up on terrain: units may be deployed on ruins and outcrops (1" high or less), not on spires (`allowsSetUpOn` in `src/data/battlefield.ts`, used by `checkDeployPlacement`); assumption listed under Awaiting. Test: `deployment.test.ts` "allows setting up on ruins and outcrops".
 
