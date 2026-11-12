@@ -981,10 +981,13 @@ export function createEngine(scenario: Scenario): Engine {
       inflictMortalDamage(ctx, unit, roll, 'Retreat');
     }
 
+    // "After a Move ability": normal moves, runs, retreats, charges and Power Through moves.
+    // A pile-in has no Move keyword (owner's ruling, 2026-11-11), nor do set-ups.
     if (
       frame.reason !== 'summon' &&
       frame.reason !== 'deploy' &&
       frame.reason !== 'setUp' &&
+      frame.reason !== 'pileIn' &&
       unit.status === 'battlefield'
     ) {
       fireTriggers(ctx, 'afterMove', {

@@ -160,4 +160,6 @@ Done:
 
 - 8 Song Of The Lost on 8+ ignores the weapon's Rend too (`src/rules/core/modifiers.ts` `sumModifiers`); I48. Tests: `modifiers.test.ts` "ignoring save modifiers".
 
-Remaining: items 9 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- 9 Song Of Dread: pile-ins no longer fire `afterMove` (`src/engine/engine.ts` `place`); I49. Test: `magic.test.ts` "Song Of Dread" (pile-in and Power Through cases).
+
+Remaining: items 10 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).

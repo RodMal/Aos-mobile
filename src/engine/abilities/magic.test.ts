@@ -562,6 +562,23 @@ describe('M3a Lore Abilities (16 abilities)', () => {
           (e) => e.t === 'damage' && e.unit === SAURUS_GUARD && e.source === 'Song Of Dread',
         ),
       ).toBe(true);
+
+      // Owner's ruling, 2026-11-11: a pile-in is not a Move ability; a Power Through move is.
+      const dread = (r: { events: { t: string; unit?: string; source?: string }[] }) =>
+        r.events.some(
+          (e) => e.t === 'damage' && e.unit === SAURUS_GUARD && e.source === 'Song Of Dread',
+        );
+      for (const [reason, hurts] of [
+        ['pileIn', false],
+        ['powerThrough', true],
+      ] as const) {
+        const s2 = editable(chanted.state);
+        s2.active = 1;
+        s2.phase = reason === 'pileIn' ? 'combat' : 'end';
+        s2.stack = [{ t: 'place', unit: SAURUS_GUARD, reason, allowance: 3, dice: [] }];
+        const r = engine.apply(s2, { t: 'place', placement: stay });
+        expect(dread(r), reason).toBe(hurts);
+      }
     });
 
     it('Song Of War (1b5b-a2e8-6dd3-17fb): adds 1 to Rend of melee weapons (and 10+ affects second target)', () => {
