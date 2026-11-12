@@ -172,14 +172,17 @@ export async function answerOpponentTurnPrompt(page: Page): Promise<boolean> {
 }
 
 /**
- * Answers one pre-battle or start-of-turn prompt if one is showing (the fugitive pick, the
- * first-turn choice, the optional Place of Power, declined). True when it answered one.
+ * Answers one pre-battle or start-of-turn prompt if one is showing (Seasons Of War, the
+ * fugitive pick, the first-turn choice; the optional Place of Power and Creeping Dread are
+ * declined). True when it answered one.
  */
 export async function answerStartPrompt(page: Page): Promise<boolean> {
   const fugitive = page.locator('[data-fugitive]').first();
   const first = page.getByRole('button', { name: 'Take first turn' });
   const power = page.getByTestId('place-of-power').getByRole('button', { name: 'Pass' });
-  for (const l of [fugitive, first, power]) {
+  const season = page.locator('[data-season]:not([disabled])').first();
+  const dread = page.getByTestId('dread-pass');
+  for (const l of [season, fugitive, first, power, dread]) {
     if (await usable(l)) {
       await l.click();
       return true;
@@ -246,6 +249,8 @@ export async function minimalPlayerStep(page: Page): Promise<string | null> {
     ['confirm', page.getByTestId('confirm-ok')],
     ['priority', page.getByRole('button', { name: 'Take first turn' })],
     ['fugitive', page.locator('[data-fugitive]').first()],
+    ['season', page.locator('[data-season]:not([disabled])').first()],
+    ['pass creeping dread', page.getByTestId('dread-pass')],
     ['skip reaction', page.getByRole('button', { name: 'Skip', exact: true })],
     ['take the damage', page.getByTestId('pain-skip')],
     [

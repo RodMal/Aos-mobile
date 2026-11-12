@@ -5,6 +5,7 @@ import {
   footprintInsidePolygon,
   footprintOuterRadius,
 } from '../../geom/index.js';
+import { reapingBonus } from '../../rules/factions/seasons.js';
 import { applyMortalDamage, destroyUnit, type StepCtx } from '../damage.js';
 import { roll2D6, rollD3, rollD6 } from '../ctx.js';
 import { boardPolygon } from '../movement.js';
@@ -409,7 +410,14 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
     markAbilityAttempted(ctx.s, unit, def.id, def.unlimited);
     const dice = roll2D6(ctx);
     const miscast = dice[0] === 1 && dice[1] === 1;
-    const total = Math.max(2, dice[0] + dice[1] + penalty + channelledWrathBonus(ctx.s, unit));
+    const total = Math.max(
+      2,
+      dice[0] +
+        dice[1] +
+        penalty +
+        channelledWrathBonus(ctx.s, unit) +
+        reapingBonus(ctx.scenario, ctx.s, unit),
+    );
     const success = !miscast && total >= cv;
     ctx.events.push({
       t: 'cast',
@@ -473,7 +481,10 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
       return;
     }
 
-    const modifiedDie = Math.max(1, die + penalty + channelledWrathBonus(ctx.s, unit));
+    const modifiedDie = Math.max(
+      1,
+      die + penalty + channelledWrathBonus(ctx.s, unit) + reapingBonus(ctx.scenario, ctx.s, unit),
+    );
     const currentPoints = (unit.ritualPoints ?? 0) + modifiedDie;
     const bankOnly = action.choice === 'bank' || currentPoints < cv;
     if (bankOnly) {

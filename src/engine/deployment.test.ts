@@ -12,6 +12,7 @@ import {
   npcDeployPlacement,
 } from './deployment.js';
 import { createEngine } from './engine.js';
+import { startGame } from './test-helpers.js';
 import { currentPlacement, formPlacement, profileOf } from './query.js';
 import { createScenario } from './scenario.js';
 import type { GameState, PlayerId, Scenario, UnitId, UnitState } from './types.js';
@@ -252,7 +253,7 @@ describe('deployment: full alternating deployment via npcDeployPlacement', () =>
 describe('deployment: quick start sets up faction terrain', () => {
   it('places both armies’ faction terrain legally, so overgrowth works in the default game', () => {
     const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
-    const s = createEngine(scenario).newGame(1);
+    const s = startGame(createEngine(scenario), 1);
     for (const id of ['0:terrain', '1:terrain']) {
       const t = s.units[id]!;
       expect(t.status).toBe('battlefield');

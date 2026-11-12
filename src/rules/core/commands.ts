@@ -126,6 +126,7 @@ export function commandBlocker(
   player: PlayerId,
   command: CommandId,
   unit: UnitState,
+  extraCost = 0,
 ): string | null {
   const def = COMMANDS[command];
   if (!def.implemented) return `${def.name} is not available yet.`;
@@ -137,7 +138,9 @@ export function commandBlocker(
   if (unit.owner !== player || unit.status !== 'battlefield' || unit.isManifestation) {
     return `${unit.name} cannot use commands.`;
   }
-  if (state.players[player].cp < def.cost) return `${def.name} costs ${def.cost} CP.`;
+  if (state.players[player].cp < def.cost + extraCost) {
+    return `${def.name} costs ${def.cost + extraCost} CP${extraCost ? ' (Creeping Dread)' : ''}.`;
+  }
   if ((state.players[player].commandsUsed ?? []).includes(command)) {
     return `${def.name} has already been used this phase.`;
   }
@@ -151,9 +154,10 @@ export function payCommand(
   player: PlayerId,
   command: CommandId,
   unit: UnitState,
+  extraCost = 0,
 ) {
   const p = state.players[player];
-  p.cp -= COMMANDS[command].cost;
+  p.cp -= COMMANDS[command].cost + extraCost;
   p.commandsUsed = [...(p.commandsUsed ?? []), command];
   unit.commandUsed = command;
 }

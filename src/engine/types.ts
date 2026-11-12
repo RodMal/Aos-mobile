@@ -232,6 +232,8 @@ export type Frame =
       player: PlayerId;
       unit: UnitId;
     }
+  /** Start of any turn: the Sylvaneth player may use Creeping Dread on up to `max` targets. */
+  | { t: 'creepingDread'; player: PlayerId; units: UnitId[]; max: number }
   /**
    * Start of the battle, before the first turn is decided: a player with Burning for Vengeance
    * picks an enemy Hero (on the battlefield or in reserve) to be the fugitive.
@@ -319,6 +321,13 @@ export interface GameState {
   damagedInPhases?: Record<UnitId, Phase[]>;
   /** Alarielle's season of war chosen for each battle round: round -> season. */
   alarielleSeason?: Record<number, string>;
+  /** The player whose Alarielle picked the seasons. */
+  alarielleSeasonPlayer?: PlayerId;
+  /**
+   * Creeping Dread this turn: `player`'s targets, and those for which the opponent has
+   * already declared a command (the extra CP applies to the first command only).
+   */
+  creepingDread?: { player: PlayerId; targets: UnitId[]; spent: UnitId[] } | null;
 }
 
 // ─── Decisions ──────────────────────────────────────────────────────────────────
@@ -369,6 +378,11 @@ export type Decision =
       unit: UnitId;
       seasons: ('burgeoning' | 'reaping' | 'dwindling' | 'everdusk')[];
     }
+  /**
+   * Creeping Dread at the start of a turn: answer with `choose` and up to `max` unit IDs
+   * separated by commas, or `pass`.
+   */
+  | { kind: 'creepingDread'; player: PlayerId; units: UnitId[]; max: number }
   /** Burning for Vengeance: pick the enemy fugitive (answer with `choose` and a unit ID). */
   | { kind: 'fugitive'; player: PlayerId; units: UnitId[] };
 

@@ -104,7 +104,13 @@ describe('priority', () => {
     while (!(end.round === 1 && end.turnIndex === 1 && end.phase === 'end')) {
       end = engine.apply(end, engine.defaultAction(end)).state;
     }
-    const tied = applyUntil(engine, end, { t: 'pass' }, (r) =>
+    // Seasons Of War is chosen at the start of the round, before the priority roll.
+    const next = engine.apply(end, { t: 'pass' }).state;
+    const [from, action] =
+      engine.decision(next)?.kind === 'alarielleSeason'
+        ? [next, engine.defaultAction(next)]
+        : [end, { t: 'pass' as const }];
+    const tied = applyUntil(engine, from, action, (r) =>
       r.events.some((e) => e.t === 'priority' && e.rolls[0] === e.rolls[1]),
     );
     expect(engine.decision(tied.state)).toMatchObject({ kind: 'priority', player: 0 });

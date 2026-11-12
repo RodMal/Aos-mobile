@@ -176,7 +176,10 @@ describe('Battle Tactics (GHB 2026-27)', () => {
 
   describe('Burning for Vengeance fugitive (picked by the player)', () => {
     it('asks the player with the card to pick an enemy Hero before the first turn', () => {
-      const s0 = engine.newGame(1);
+      let s0 = engine.newGame(1);
+      // Seasons Of War (start of the battle round) may come first.
+      while (engine.decision(s0)?.kind === 'alarielleSeason')
+        s0 = engine.apply(s0, engine.defaultAction(s0)).state;
       const d = engine.decision(s0)!;
       expect(d.kind).toBe('fugitive');
       if (d.kind !== 'fugitive') return;
@@ -202,7 +205,9 @@ describe('Battle Tactics (GHB 2026-27)', () => {
     });
 
     it('lets Quick Pursuit and then Bring Them In complete against the picked fugitive', () => {
-      const s0 = engine.newGame(1);
+      let s0 = engine.newGame(1);
+      while (engine.decision(s0)?.kind === 'alarielleSeason')
+        s0 = engine.apply(s0, engine.defaultAction(s0)).state;
       const d = engine.decision(s0)!;
       if (d.kind !== 'fugitive') throw new Error('expected a fugitive pick');
       const fugitive = d.units[0]!;

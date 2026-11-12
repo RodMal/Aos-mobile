@@ -55,6 +55,10 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
       return mine
         ? { title: 'Season of War', hint: 'Pick a season of war for this battle round.' }
         : { title: `${who} season of war`, hint: 'The opponent is choosing…' };
+    case 'creepingDread':
+      return mine
+        ? { title: 'Creeping Dread', hint: 'Pick enemy units in the overgrowth, or pass.' }
+        : { title: `${who} Creeping Dread`, hint: 'The opponent is choosing…' };
     case 'fugitive':
       return mine
         ? { title: 'Pick the fugitive', hint: 'Burning for Vengeance: pick an enemy Hero.' }

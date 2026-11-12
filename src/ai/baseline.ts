@@ -36,6 +36,7 @@ import { diceMean } from '../data/profile.js';
 import { npcDeployPlacement } from '../engine/deployment.js';
 import { contestedObjective } from '../rules/core/objectives.js';
 import { chargePlacement, moveTowards, pileInPlacement } from './placement.js';
+import { npcCreepingDreadTargets, npcSeason } from '../rules/factions/seasons.js';
 
 /** CP the NPC keeps in hand before it spends on optional commands. */
 const SPARE_CP = 2;
@@ -95,8 +96,14 @@ export function chooseAction(engine: Engine, state: GameState): Action {
         value: isCasterOrPriest && ownTurn ? 'channelled_wrath' : 'ignite_fury',
       };
     }
-    case 'alarielleSeason':
-      return { t: 'choose', value: d.seasons[0]! };
+    case 'alarielleSeason': {
+      const pick = npcSeason(engine.scenario, state, d.player);
+      return { t: 'choose', value: d.seasons.includes(pick) ? pick : d.seasons[0]! };
+    }
+    case 'creepingDread': {
+      const ids = npcCreepingDreadTargets(engine.scenario, state, d.units, d.max);
+      return ids.length > 0 ? { t: 'choose', value: ids.join(',') } : { t: 'pass' };
+    }
     case 'fugitive':
       // The engine's default is the sensible pick: the enemy Hero easiest to slay.
       return engine.defaultAction(state);

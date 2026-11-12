@@ -77,13 +77,12 @@ describe('turn sequence', () => {
     let placesOfPower = 0;
     while (engine.decision(s)) {
       const kind = engine.decision(s)!.kind;
-      if (kind === 'placeOfPower' || kind === 'reaction') placesOfPower++;
+      if (kind !== 'main' && kind !== 'priority') placesOfPower++;
       s = engine.apply(s, engine.defaultAction(s)).state;
       steps++;
     }
     // Six phase passes per turn, a priority choice in rounds 2 to 5, and the optional
-    // start-of-turn Place of Power offers (heroes deployed near the spires) and reactions
-    // (e.g. Magical Intervention at the end of the enemy hero phase), declined.
+    // other prompts: Place of Power offers, reactions, Seasons Of War, Creeping Dread.
     expect(steps).toBe(5 * 2 * 6 + 4 + placesOfPower);
     expect(s.status).toBe('ended');
     expect(s.round).toBe(5);

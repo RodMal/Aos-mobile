@@ -1,9 +1,9 @@
 import { battleplanRules } from '../rules/battleplans/index.js';
 import {
   clearPhaseCommands,
-  commandBlocker,
+  commandBlocker as baseCommandBlocker,
   COMMANDS,
-  payCommand,
+  payCommand as basePayCommand,
 } from '../rules/core/commands.js';
 import { resolveControl } from '../rules/core/objectives.js';
 import { rallyPoints, rallySpend, RALLY_ROLLS } from '../rules/core/rally.js';
@@ -71,7 +71,21 @@ import {
   resolvePlaceOfPower,
   type PlaceOfPowerBoon,
 } from './terrain.js';
-import { applyEverGrowing, resolveEndlessGrowth } from '../rules/factions/sylvaneth.js';
+import {
+  applyEverGrowing,
+  resolveEndlessGrowth,
+  type AlarielleSeason,
+} from '../rules/factions/sylvaneth.js';
+import {
+  burgeoningPick,
+  creepingDreadCandidates,
+  creepingDreadMax,
+  creepingDreadSurcharge,
+  dwindling,
+  hasCreepingDread,
+  seasonsAllowed,
+  seasonsUnit,
+} from '../rules/factions/seasons.js';
 import { isAwakenedWyldwood } from './overgrowth.js';
 import {
   WYLDWOOD_SETUP_ID,
@@ -111,6 +125,39 @@ export const CP_PER_ROUND = 4;
 export const MAX_CHARGE_REACH = 12 + CHARGE_END_RANGE;
 
 /** A deep copy of the state. `apply` clones once and then edits the copy freely. */
+/** Why `unit` cannot use `command` now (Creeping Dread may add 1 CP), or null. */
+function commandBlocker(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+  command: CommandId,
+  unit: UnitState,
+): string | null {
+  return baseCommandBlocker(
+    state,
+    player,
+    command,
+    unit,
+    creepingDreadSurcharge(scenario, state, unit),
+  );
+}
+
+/** Pays for a command, with Creeping Dread's extra point on the first command for a target. */
+function payCommand(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+  command: CommandId,
+  unit: UnitState,
+): void {
+  const extra = creepingDreadSurcharge(scenario, state, unit);
+  basePayCommand(state, player, command, unit, extra);
+  const dread = state.creepingDread;
+  if (dread && dread.targets.includes(unit.id) && !dread.spent.includes(unit.id)) {
+    state.creepingDread = { ...dread, spent: [...dread.spent, unit.id] };
+  }
+}
+
 export function cloneState(state: GameState): GameState {
   const units: Record<UnitId, UnitState> = {};
   for (const id of state.unitOrder) {
@@ -202,9 +249,53 @@ function startTurn(ctx: Ctx): void {
   clearPhaseCommands(s);
   s.phase = 'hero';
   s.fightPicker = null;
+  s.creepingDread = null;
   ctx.events.push({ t: 'turnStart', player: s.active, round: s.round });
   ctx.events.push({ t: 'phaseStart', phase: s.phase, player: s.active });
+  offerCreepingDread(ctx);
   offerPlacesOfPower(ctx);
+}
+
+/** Start of any turn: a Sylvaneth player with enemy units in the overgrowth may use Creeping Dread. */
+function offerCreepingDread(ctx: Ctx): void {
+  const { s, scenario } = ctx;
+  for (const player of [0, 1] as PlayerId[]) {
+    if (!hasCreepingDread(scenario, player)) continue;
+    const units = creepingDreadCandidates(scenario, s, player);
+    if (units.length === 0) continue;
+    s.stack.push({
+      t: 'creepingDread',
+      player,
+      units,
+      max: creepingDreadMax(scenario, s, player),
+    });
+  }
+}
+
+function chooseCreepingDread(ctx: Ctx, value: string): void {
+  const { s } = ctx;
+  const frame = s.stack[s.stack.length - 1];
+  if (frame?.t !== 'creepingDread') illegal('There is no Creeping Dread to use.');
+  const picked = [
+    ...new Set(
+      value
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (picked.length === 0 || picked.length > frame.max) {
+    illegal(`Pick 1 to ${frame.max} enemy units within the creeping overgrowth.`);
+  }
+  if (picked.some((id) => !frame.units.includes(id))) {
+    illegal('Creeping Dread targets an enemy unit within the creeping overgrowth.');
+  }
+  s.stack.pop();
+  s.creepingDread = { player: frame.player, targets: picked, spent: [] };
+  ctx.events.push({
+    t: 'note',
+    text: `Creeping Dread: ${picked.map((id) => s.units[id]!.name).join(', ')}; the first command for each this turn costs 1 more CP unless it is wholly within 12" of a Hero.`,
+  });
 }
 
 /**
@@ -228,12 +319,6 @@ function beginRound(ctx: Ctx): void {
   }
   s.turnIndex = 0;
   s.active = s.firstPlayer;
-  const alarielle = Object.values(s.units).find(
-    (u) => u.status === 'battlefield' && u.name.toLowerCase().includes('alarielle'),
-  );
-  if (alarielle && !s.alarielleSeason?.[s.round]) {
-    s.alarielleSeason = { ...(s.alarielleSeason ?? {}), [s.round]: 'burgeoning' };
-  }
   startTurn(ctx);
 }
 
@@ -250,7 +335,22 @@ function startRound(ctx: Ctx): void {
     initBattleTactics(scenario, s);
   }
   applySimmeringRage(s);
-  for (const text of applyEverGrowing(scenario, s)) ctx.events.push({ t: 'note', text });
+  // Seasons Of War ("You must use this ability", start of the battle round) comes first, so
+  // The Burgeoning can shape this round's Ever Growing.
+  const alarielle = seasonsUnit(scenario, s);
+  if (alarielle && !s.alarielleSeason?.[s.round]) {
+    s.stack.push({ t: 'alarielleSeason', player: alarielle.owner, unit: alarielle.id });
+    return;
+  }
+  continueRound(ctx);
+}
+
+/** The rest of the start of the battle round: Ever Growing, then who takes the first turn. */
+function continueRound(ctx: Ctx): void {
+  const { s, scenario } = ctx;
+  for (const text of applyEverGrowing(scenario, s, (w) => burgeoningPick(scenario, s, w.owner))) {
+    ctx.events.push({ t: 'note', text });
+  }
   if (s.round === 1) {
     roundOneFirstTurn(ctx);
     return;
@@ -446,7 +546,8 @@ export function eligibleFighters(
 }
 
 function canCharge(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  if (unit.chargeDeclared || unit.moved === 'retreat') return false;
+  if (unit.chargeDeclared) return false;
+  if (unit.moved === 'retreat' && !dwindling(scenario, state, unit)) return false;
   if (isFactionTerrainUnit(scenario, unit)) return false;
   if (unit.isManifestation && !profileOf(scenario, unit).weapons.some((w) => w.kind === 'melee')) {
     return false;
@@ -458,21 +559,21 @@ function canCharge(scenario: Scenario, state: GameState, unit: UnitState): boole
 }
 
 function canRally(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  if (commandBlocker(state, unit.owner, 'rally', unit)) return false;
+  if (commandBlocker(scenario, state, unit.owner, 'rally', unit)) return false;
   if (isFactionTerrainUnit(scenario, unit)) return false;
   if (inCombat(scenario, state, unit)) return false;
   return unit.damage > 0 || unit.models.some((m) => !m.alive);
 }
 
 function canRedeploy(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  if (commandBlocker(state, unit.owner, 'redeploy', unit)) return false;
+  if (commandBlocker(scenario, state, unit.owner, 'redeploy', unit)) return false;
   if (inCombat(scenario, state, unit) || unit.moved !== null) return false;
   if (isFactionTerrainUnit(scenario, unit)) return false;
   return profileOf(scenario, unit).move > 0;
 }
 
 function canCounterCharge(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  if (commandBlocker(state, unit.owner, 'counterCharge', unit)) return false;
+  if (commandBlocker(scenario, state, unit.owner, 'counterCharge', unit)) return false;
   return canCharge(scenario, state, unit);
 }
 
@@ -481,7 +582,7 @@ function coveringFireAllocations(
   state: GameState,
   unit: UnitState,
 ): Allocation[] {
-  if (commandBlocker(state, unit.owner, 'coveringFire', unit)) return [];
+  if (commandBlocker(scenario, state, unit.owner, 'coveringFire', unit)) return [];
   if (isFactionTerrainUnit(scenario, unit)) return [];
   // "A friendly unit that has not run and is not in combat" (shooting phase only, owner's
   // ruling 2026-11-11; the offer is made only at the end of the enemy shooting phase).
@@ -514,7 +615,7 @@ function coveringFireAllocations(
 }
 
 function canMagicalIntervention(scenario: Scenario, state: GameState, unit: UnitState): boolean {
-  if (commandBlocker(state, unit.owner, 'magicalIntervention', unit)) return false;
+  if (commandBlocker(scenario, state, unit.owner, 'magicalIntervention', unit)) return false;
   const probe: GameState = {
     ...state,
     stack: [...state.stack, { t: 'magicalIntervention', unit: unit.id }],
@@ -527,7 +628,7 @@ export function powerThroughTargets(
   state: GameState,
   unit: UnitState,
 ): UnitId[] {
-  if (!unit.charged || commandBlocker(state, unit.owner, 'powerThrough', unit)) return [];
+  if (!unit.charged || commandBlocker(scenario, state, unit.owner, 'powerThrough', unit)) return [];
   const myHealth = profileOf(scenario, unit).health;
   const engaged = enemiesInCombat(scenario, state, unit);
   if (engaged.length === 0) return [];
@@ -601,8 +702,10 @@ export function createEngine(scenario: Scenario): Engine {
             kind: 'alarielleSeason',
             player: top.player,
             unit: top.unit,
-            seasons: ['burgeoning', 'reaping', 'dwindling', 'everdusk'],
+            seasons: seasonsAllowed(state),
           };
+        case 'creepingDread':
+          return { kind: 'creepingDread', player: top.player, units: top.units, max: top.max };
         case 'fugitive':
           return { kind: 'fugitive', player: top.player, units: top.units };
         case 'resolve':
@@ -682,7 +785,7 @@ export function createEngine(scenario: Scenario): Engine {
       case 'movement': {
         const moves = moveOptions(scenario, state, unit);
         const canRun = moves.some((o) => o.t === 'move' && o.kind === 'run');
-        if (canRun && !commandBlocker(state, unit.owner, 'atTheDouble', unit)) {
+        if (canRun && !commandBlocker(scenario, state, unit.owner, 'atTheDouble', unit)) {
           return [...moves, { t: 'command', command: 'atTheDouble', cost: 1 }];
         }
         return moves;
@@ -700,7 +803,7 @@ export function createEngine(scenario: Scenario): Engine {
         if (
           unit.chargeDeclared &&
           !unit.charged &&
-          !commandBlocker(state, unit.owner, 'forwardToVictory', unit)
+          !commandBlocker(scenario, state, unit.owner, 'forwardToVictory', unit)
         ) {
           opts.push({ t: 'command', command: 'forwardToVictory', cost: 1 });
         }
@@ -766,9 +869,9 @@ export function createEngine(scenario: Scenario): Engine {
   // ─── Actions ──────────────────────────────────────────────────────────────────
 
   function useCommandOn(ctx: Ctx, command: CommandId, unit: UnitState): void {
-    const blocker = commandBlocker(ctx.s, unit.owner, command, unit);
+    const blocker = commandBlocker(scenario, ctx.s, unit.owner, command, unit);
     if (blocker) illegal(blocker);
-    payCommand(ctx.s, unit.owner, command, unit);
+    payCommand(scenario, ctx.s, unit.owner, command, unit);
     ctx.events.push({ t: 'command', player: unit.owner, command, unit: unit.id });
   }
 
@@ -992,7 +1095,9 @@ export function createEngine(scenario: Scenario): Engine {
     if (frame.reason === 'deploy' && s.stack.length === 0) {
       startRound(ctx);
     }
-    if (frame.reason === 'retreat') {
+    if (frame.reason === 'retreat' && dwindling(scenario, s, unit)) {
+      ctx.events.push({ t: 'note', text: `The Dwindling: ${unit.name} retreats unharmed.` });
+    } else if (frame.reason === 'retreat') {
       const roll = ctx.rng.int(1, 3);
       ctx.events.push({
         t: 'roll',
@@ -1090,7 +1195,7 @@ export function createEngine(scenario: Scenario): Engine {
     for (const id of new Set(allocations.map((a) => a.target))) {
       const target = s.units[id]!;
       if (isFactionTerrainUnit(scenario, target)) continue; // terrain never acts (owner ruling)
-      if (!commandBlocker(s, defender, 'allOutDefence', target)) {
+      if (!commandBlocker(scenario, s, defender, 'allOutDefence', target)) {
         options.push({ command: 'allOutDefence', unit: id, cost: 1 });
       }
     }
@@ -1600,13 +1705,23 @@ export function createEngine(scenario: Scenario): Engine {
         if (frame?.t !== 'alarielleSeason') illegal('Not choosing Alarielle season.');
         if (action.t !== 'choose') illegal('Choose a season of war.');
         const season = action.value;
+        if (!seasonsAllowed(state).includes(season as AlarielleSeason)) {
+          illegal('Pick a season of war other than the one picked last battle round.');
+        }
         s.alarielleSeason = { ...(s.alarielleSeason ?? {}), [s.round]: season };
+        s.alarielleSeasonPlayer = frame.player;
         ctx.events.push({
           t: 'note',
           text: `Alarielle proclaims the Season of War: ${season}.`,
         });
+        continueRound(ctx);
         break;
       }
+      case 'creepingDread':
+        if (action.t === 'pass') s.stack.pop();
+        else if (action.t === 'choose') chooseCreepingDread(ctx, action.value);
+        else illegal('Pick Creeping Dread targets, or pass.');
+        break;
     }
     settle(ctx);
     s.rng = ctx.rng.state;
@@ -1680,6 +1795,8 @@ export function createEngine(scenario: Scenario): Engine {
         return { t: 'choose', value: d.seasons[0]! };
       case 'fugitive':
         return { t: 'choose', value: suggestFugitive(scenario, state, d.player) ?? d.units[0]! };
+      case 'creepingDread':
+        return { t: 'pass' };
       case 'fightPick':
         if (d.canPass) return { t: 'pass' };
         return { t: 'fight', unit: eligibleFighters(scenario, state, d.player)[0]!.id };

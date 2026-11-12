@@ -27,6 +27,7 @@ test('Burning for Vengeance asks the player to pick the fugitive, and the tracke
   page,
 }, info) => {
   await page.goto('./?seed=5&side=0&fast=1&new=1');
+  await page.locator('[data-season]:not([disabled])').first().click();
   const prompt = page.getByTestId('fugitive');
   await expect(prompt).toBeVisible();
   const choices = prompt.locator('[data-fugitive]');

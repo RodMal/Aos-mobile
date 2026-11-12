@@ -172,4 +172,6 @@ Done:
 
 - 14 Set-up on terrain: units may be deployed on ruins and outcrops (1" high or less), not on spires (`allowsSetUpOn` in `src/data/battlefield.ts`, used by `checkDeployPlacement`); assumption listed under Awaiting. Test: `deployment.test.ts` "allows setting up on ruins and outcrops".
 
-Remaining: items 15 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- 15 Seasons Of War and Creeping Dread wired (`src/rules/factions/seasons.ts`; `alarielleSeason` asked at round start before Ever Growing; new `creepingDread` start-of-turn decision; command cost surcharge through `commandBlocker`/`payCommand` extra cost); I54. Tests: `src/rules/factions/seasons.test.ts`, e2e `first-turn.spec.ts` (season prompt) and `fury.spec.ts` "Creeping Dread". e2e helpers answer the season (first allowed) and pass Creeping Dread.
+
+Remaining: items 16 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
