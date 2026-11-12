@@ -43,6 +43,26 @@ export type Footprint =
 export interface OutlineBase {
   kind: 'outline';
   points: readonly (readonly [number, number])[];
+  /**
+   * A part of the piece models cannot stand on (the Awakened Wyldwood's tree trunk), as a
+   * circle in the same local inches as `points`. The rest of the outline may be stood on.
+   */
+  trunk?: { x: number; y: number; r: number };
+}
+
+/** The trunk zone of a base placed at (x, y) with `rotation`, or null when it has none. */
+export function trunkFootprint(
+  base: ModelBase,
+  x: number,
+  y: number,
+  rotation = 0,
+): Footprint | null {
+  if (base.kind !== 'outline' || !base.trunk) return null;
+  const t = (rotation * Math.PI) / 180;
+  const c = Math.cos(t);
+  const s = Math.sin(t);
+  const { x: lx, y: ly, r } = base.trunk;
+  return { kind: 'circle', cx: x + lx * c - ly * s, cy: y + lx * s + ly * c, r };
 }
 
 /** A model's base: a data base shape, or an authored outline for faction terrain. */

@@ -22,24 +22,24 @@ describe('Into the Fire battleplan (GHB 2026-27 1-1)', () => {
     // 1 objective
     state.objectives[0]!.controller = 0;
     expect(bp.endOfTurnScore(state, 0)).toEqual([
-      { vp: 3, reason: 'Controls at least 1 objective' },
-      { vp: 4, reason: 'Controls more objectives than the opponent' },
+      { vp: 3, reason: 'Controlled at least 1 objective (1 held)' },
+      { vp: 4, reason: 'Controlled more objectives than the opponent (1 to 0)' },
     ]);
 
     // 2 objectives, opponent has 1
     state.objectives[1]!.controller = 0;
     state.objectives[2]!.controller = 1;
     expect(bp.endOfTurnScore(state, 0)).toEqual([
-      { vp: 3, reason: 'Controls at least 1 objective' },
-      { vp: 3, reason: 'Controls 2 or more objectives' },
-      { vp: 4, reason: 'Controls more objectives than the opponent' },
+      { vp: 3, reason: 'Controlled at least 1 objective (2 held)' },
+      { vp: 3, reason: 'Controlled 2 or more objectives (2 held)' },
+      { vp: 4, reason: 'Controlled more objectives than the opponent (2 to 1)' },
     ]);
 
     // Tied 2 objectives each
     state.objectives[3]!.controller = 1;
     expect(bp.endOfTurnScore(state, 0)).toEqual([
-      { vp: 3, reason: 'Controls at least 1 objective' },
-      { vp: 3, reason: 'Controls 2 or more objectives' },
+      { vp: 3, reason: 'Controlled at least 1 objective (2 held)' },
+      { vp: 3, reason: 'Controlled 2 or more objectives (2 held)' },
     ]);
   });
 

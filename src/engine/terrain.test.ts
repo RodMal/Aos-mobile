@@ -15,6 +15,7 @@ import {
 } from './index.js';
 import { RngCursor } from './rng.js';
 import {
+  blockedTerrainViolations,
   canUsePlaceOfPower,
   effectiveWeaponRange,
   footprintWithinTerrain,
@@ -32,7 +33,6 @@ import {
   unitHasCover,
   unitWhollyOnTerrain,
   unitWithinTerrain,
-  unstableTerrainViolations,
 } from './terrain.js';
 import { applyUntil, startGame } from './test-helpers.js';
 
@@ -67,20 +67,24 @@ describe('terrain distance & overlap helpers', () => {
   });
 });
 
-describe('unstable terrain', () => {
-  it('flags models ending a placement on unstable terrain (ruin-nw)', () => {
+describe('terrain models cannot stand on', () => {
+  it('flags ruin-nw only when ruins are not low terrain (unstable adds nothing for low terrain)', () => {
     const state = cloneState(startGame(engine, 1));
     const dryads = unitsOf(state, 0).find((u) => u.name === 'Dryads')!;
     const ruinNw = findTerrain('ruin-nw'); // (15, 4.5)
 
     // Place Dryads right onto ruin-nw
     const onRuin = formPlacement(scenario, dryads, { x: ruinNw.centre[0], y: ruinNw.centre[1] }, 0);
-    const violations = unstableTerrainViolations(scenario, dryads, onRuin);
-    expect(violations.length).toBeGreaterThan(0);
+    expect(blockedTerrainViolations(scenario, dryads, onRuin)).toEqual([]);
+    const blocking = {
+      ...scenario,
+      battlefield: { ...scenario.battlefield, lowTerrainKinds: ['outcrop' as const] },
+    };
+    expect(blockedTerrainViolations(blocking, dryads, onRuin).length).toBeGreaterThan(0);
 
     // Place Dryads in open ground away from ruins
     const clear = formPlacement(scenario, dryads, { x: 15, y: 12 }, 0);
-    expect(unstableTerrainViolations(scenario, dryads, clear)).toEqual([]);
+    expect(blockedTerrainViolations(blocking, dryads, clear)).toEqual([]);
   });
 });
 
@@ -133,7 +137,7 @@ describe('fly and path-blocking', () => {
       models: [{ i: 0, x: 15, y: 8.5, rot: 0 }],
     };
     expect(pathBlockedModels(scenario, state, spites, acrossRuinPlacement)).toEqual([]);
-    expect(unstableTerrainViolations(scenario, spites, acrossRuinPlacement)).toEqual([]);
+    expect(blockedTerrainViolations(scenario, spites, acrossRuinPlacement)).toEqual([]);
 
     // FLY Alarielle moving from (15, 20) to (25, 20) right over blocker is NOT blocked
     alarielle.models[0]!.x = 15;

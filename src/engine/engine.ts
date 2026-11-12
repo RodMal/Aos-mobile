@@ -237,6 +237,7 @@ function startTurn(ctx: Ctx): void {
     u.chargeDeclared = false;
     u.allOutAttack = false;
     u.castsUsed = 0;
+    u.miscast = false;
     u.abilitiesUsed = [];
     u.setUpThisTurn = false;
     u.magicalIntervention = false;
@@ -447,7 +448,12 @@ function endTurn(ctx: Ctx): void {
     s.players[player].vp += st.vp;
     s.players[player].vpByRound[s.round - 1] =
       (s.players[player].vpByRound[s.round - 1] ?? 0) + st.vp;
-    ctx.events.push({ t: 'score', player, vp: st.vp, reason: `${st.cardName} (${st.tacticName})` });
+    const tier = st.tier.charAt(0).toUpperCase() + st.tier.slice(1);
+    const reason =
+      st.tacticName.toLowerCase() === st.tier.toLowerCase()
+        ? `${st.cardName} — ${tier}`
+        : `${st.cardName} — ${tier}: ${st.tacticName}`;
+    ctx.events.push({ t: 'score', player, vp: st.vp, reason });
   }
 }
 
@@ -458,7 +464,7 @@ function advancePhase(ctx: Ctx): void {
   s.reactionsOffered = [];
   for (const id of s.unitOrder) {
     const u = s.units[id]!;
-    u.castsUsed = 0;
+    u.miscast = false;
     u.magicalIntervention = false;
   }
   const next = PHASES[PHASES.indexOf(s.phase) + 1];
@@ -1158,10 +1164,14 @@ export function createEngine(scenario: Scenario): Engine {
       });
     }
 
-    // Offer Redeploy reaction when an active player's unit finishes a movement-phase move within 6" of an enemy unit
+    // Offer Redeploy after each movement-phase move by the active player, to every eligible
+    // unit of the other player (not in combat, CP left, command unused this phase), unless
+    // that player chose "Don't ask again this phase". The NPC's own choice is filtered in
+    // src/ai/baseline.ts, never the offer.
     if (
       s.phase === 'movement' &&
       unit.owner === s.active &&
+      !(s.reactionsOffered ?? []).includes('redeployMuted') &&
       (frame.reason === 'normal' || frame.reason === 'run' || frame.reason === 'retreat')
     ) {
       // Offered after each enemy move while the command is unused this phase (no distance or
@@ -1312,6 +1322,9 @@ export function createEngine(scenario: Scenario): Engine {
     if (action.t === 'pass') {
       if (under?.t === 'endPhase') {
         s.reactionsOffered = [...(s.reactionsOffered ?? []), 'endPhasePassed'];
+      }
+      if (action.dontAskAgain && reaction.options.some((o) => o.command === 'redeploy')) {
+        s.reactionsOffered = [...(s.reactionsOffered ?? []), 'redeployMuted'];
       }
       return;
     }

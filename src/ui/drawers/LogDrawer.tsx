@@ -4,6 +4,7 @@ import { useGame } from '../game/instance.js';
 import { useHuman } from '../game/hooks.js';
 import { buildLog, type LogEntry } from '../game/store.js';
 import { Drawer } from './Drawer.js';
+import { TurnScoreView, turnTitle, useTurnScores } from '../hud/TurnSummary.js';
 
 function Line({ e, human }: { e: LogEntry; human: 0 | 1 }) {
   const [open, setOpen] = useState(false);
@@ -30,6 +31,7 @@ export function LogDrawer() {
   const session = useGame((s) => s.session);
   const human = useHuman();
   const lines = useMemo(() => buildLog(session), [session]);
+  const turns = useTurnScores();
   const list = useRef<HTMLOListElement>(null);
   // Oldest first, like a chronicle; open at the newest line.
   useEffect(() => {
@@ -38,6 +40,19 @@ export function LogDrawer() {
   }, [lines]);
   return (
     <Drawer title="Battle log" testId="log">
+      {turns.length > 0 && (
+        <details className="turn-scores" data-testid="turn-scores">
+          <summary>Scores by turn</summary>
+          <ol className="turn-scores-list">
+            {turns.map((t, i) => (
+              <li key={i}>
+                <h3>{turnTitle(t, human)}</h3>
+                <TurnScoreView turn={t} human={human} />
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
       <ol ref={list} className="log-list" data-testid="log-list">
         {lines.map((e) => (
           <Line key={e.id} e={e} human={human} />

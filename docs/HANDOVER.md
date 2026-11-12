@@ -183,3 +183,16 @@ Done:
 Remaining from the owner's list: none. Partly done: Fight Through the Pain is not offered for mortal damage outside attacks; the fugitive pick has no board highlight; The Burgeoning picks its feature automatically. Open questions are under "Awaiting the owner's ruling" in docs/RULES-DECISIONS.md.
 
 Last checks (commit after 9031771): `pnpm check` 444 tests pass; `SIM_SEEDS=40 pnpm test:sim` 44 pass; `CI=1 pnpm test:e2e` 88 pass on pixel-7, iphone-14 and desktop.
+
+### Progress on 2026-11-12, play-test fixes (branch `worktree-agent-a71a99ce8a93b0ebe`)
+
+- Standing on terrain: `checkMovePlacement` only refused move ends on `unstable` terrain (the ruins), so moves, runs, retreats, charges, pile-ins, Power Through, Redeploy and summons could end on a spire (the Bastiladon on a Place of Power). Now one constant, `LOW_TERRAIN_KINDS` in `src/data/battlefield.ts` (ruins and outcrops by default), decides what may be stood on, for moves and deployment alike; spires always block (`blockedTerrainViolations` in `src/engine/terrain.ts`). Tests `src/engine/terrain-standing.test.ts`; I57.
+- Awakened Wyldwood may be stood on except at its trunk, a circle derived from each traced outline (`WYLDWOOD_PIECES` in `src/data/wyldwood.ts`, `blockingFootprints`/`unitTrunks` in `src/engine/query.ts`), drawn on the board; I59.
+- Unbinds: a Wizard (N) has N uses per turn shared by casting, unbinding and banishing (reset per turn, not per phase); a miscast blocks further spells that phase only (`UnitState.miscast`); unbind also offered against Magical Intervention in the Wizard's own turn. Tests `src/engine/abilities/unbind.test.ts`; I58 (confirmed).
+- The stuck "Seraphon may react" game came from a build before 19daffc (Fight Through the Pain offered for faction terrain, the NPC's answer refused). The UI now falls back to `engine.defaultAction` with a warning when the NPC throws or its action is refused (`src/ui/App.tsx`, `src/ui/npc/npcClient.ts`); `src/engine/terrain-attack.test.ts`; the simulation checks every reaction decision and that no base stands on a spire.
+- Summon set-up measured from the caster in the UI (zone, line, "9.1\" from Alarielle the Everqueen (max 12\")"); `src/engine/summon-setup.test.ts`, e2e in `abilities.spec.ts`.
+- Redeploy: offered to every eligible unit (already so since 7383586); the prompt has "Don't ask again this phase" (`pass` with `dontAskAgain`). e2e `tests/e2e/redeploy.spec.ts`.
+- Manifestations are destroyed with their summoner (`UnitState.summonedBy`); I60.
+- Turn scoring summary after every turn (`src/ui/hud/TurnSummary.tsx`, `src/ui/game/turnScores.ts`), past turns under "Scores by turn" in the log; score reasons now give objective counts and the tactic card and tier. `?fast=1` hides the pop-up unless `summary=1`. e2e `tests/e2e/turn-summary.spec.ts`.
+
+Open questions are under "Awaiting the owner's ruling" (ruins and outcrops blocking, moving across a spire).

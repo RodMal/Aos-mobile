@@ -45,9 +45,15 @@ export const INTO_THE_FIRE_RULES: BattleplanRules = {
     const mine = controlledCount(state, player);
     const theirs = controlledCount(state, player === 0 ? 1 : 0);
     const out: ScoreLine[] = [];
-    if (mine >= 1) out.push({ vp: 3, reason: 'Controls at least 1 objective' });
-    if (mine >= 2) out.push({ vp: 3, reason: 'Controls 2 or more objectives' });
-    if (mine > theirs) out.push({ vp: 4, reason: 'Controls more objectives than the opponent' });
+    const held = `${mine} held`;
+    if (mine >= 1) out.push({ vp: 3, reason: `Controlled at least 1 objective (${held})` });
+    if (mine >= 2) out.push({ vp: 3, reason: `Controlled 2 or more objectives (${held})` });
+    if (mine > theirs) {
+      out.push({
+        vp: 4,
+        reason: `Controlled more objectives than the opponent (${mine} to ${theirs})`,
+      });
+    }
     return out;
   },
 

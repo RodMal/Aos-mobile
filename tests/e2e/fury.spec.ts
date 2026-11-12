@@ -1,6 +1,6 @@
 /** Fury and rage: Eruption of Fury's choices in the ability panel. */
 import { expect, test } from '@playwright/test';
-import { selectFromRoster } from './helpers.js';
+import { selectFromRoster, answerOpponentTurnPrompt } from './helpers.js';
 import { openPosition } from './positions.js';
 
 test('Eruption of Fury: choose how many rage dice and the target, then spend them', async ({
@@ -80,6 +80,10 @@ test('Creeping Dread: pick an enemy unit in the overgrowth at the start of a tur
   await page.screenshot({ path: info.outputPath(`creeping-dread-${info.project.name}.png`) });
   await page.getByTestId('dread-use').click();
   await expect(prompt).toBeHidden();
-  await page.getByRole('button', { name: 'Log' }).click();
+  // The opponent's hero phase goes on: skip an Unbind or other reaction it offers first.
+  await expect(async () => {
+    await answerOpponentTurnPrompt(page);
+    await page.getByRole('button', { name: 'Log' }).click({ timeout: 1000 });
+  }).toPass();
   await expect(page.getByTestId('log-list')).toContainText('Creeping Dread');
 });

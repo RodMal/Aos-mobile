@@ -82,8 +82,14 @@ export interface UnitState {
    * The +1 to hit applies only to the attacks it was used for (the `resolve` frame's flag).
    */
   allOutAttack?: boolean;
-  /** Spell, prayer, unbind and banish abilities used by this unit in the current phase. */
+  /**
+   * Spell, prayer, unbind and banish abilities used by this unit in the current turn; they
+   * share the power level (Wizard (N) / Priest (N)), so a Wizard (3) can attempt three unbinds
+   * in each enemy turn. Reset at the start of every turn.
+   */
   castsUsed?: number;
+  /** The unit miscast this phase: no more spell or summon abilities this phase. */
+  miscast?: boolean;
   /** Ritual points accumulated by a Priest across turns until a prayer is answered. */
   ritualPoints?: number;
   /** Ability IDs used by this unit in the current turn (Rule of One per unit). */
@@ -92,6 +98,11 @@ export interface UnitState {
   setUpThisTurn?: boolean;
   /** True for summoned manifestation units. */
   isManifestation?: boolean;
+  /**
+   * For a manifestation: the unit that summoned it. When that unit is destroyed, the
+   * manifestation is destroyed at once (owner's ruling, 2026-11-12).
+   */
+  summonedBy?: UnitId;
   /** Set while the unit is casting/chanting via Magical Intervention (-1 to the roll). */
   magicalIntervention?: boolean;
 }
@@ -436,7 +447,14 @@ export interface Allocation {
 
 export type Action =
   /** End the phase, decline a reaction, skip a pile-in, or leave a unit in place. */
-  | { t: 'pass' }
+  | {
+      t: 'pass';
+      /**
+       * On a Redeploy reaction: do not offer Redeploy again for the rest of this phase
+       * ("Don't ask again this phase").
+       */
+      dontAskAgain?: boolean;
+    }
   /** Answer a choice: priority takes 'first' or 'second'; a fugitive pick takes a unit ID. */
   | { t: 'choose'; value: string }
   /** Declare a move. Run rolls a D6 and retreat rolls its damage; then a `place` follows. */

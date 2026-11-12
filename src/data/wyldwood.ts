@@ -9,6 +9,9 @@
  * Measured after scaling: piece 1 is 6.59" tip to tip and 2.05" at its widest; piece 2 is
  * 8.5" and 2.05"; piece 3 is 8.13" and 2.55" (widest = largest inscribed circle).
  */
+import { distancePointToBoundary, pointInPolygon } from '../geom/polygon.js';
+import type { OutlineBase } from '../geom/footprint.js';
+
 export const WYLDWOOD_OUTLINES: readonly (readonly (readonly [number, number])[])[] = [
   // Piece 1
   [[-1.875, -3.13], [-1.154, -3.031], [-0.522, -2.725], [-0.275, -2.725], [0.307, -2.311], [0.495, -2.113], [0.811, -1.56], [0.801, -0.968], [0.969, -0.751], [1.107, -0.662], [1.107, -0.395], [1.324, -0.188], [1.255, 0.178], [1.383, 0.345], [1.521, 0.711], [1.334, 1.076], [1.324, 1.214], [1.008, 1.777], [0.89, 2.212], [0.732, 2.31], [0.445, 2.636], [-0.177, 3.179], [-0.384, 3.268], [-0.917, 3.386], [-1.312, 3.386], [-1.441, 3.307], [-0.917, 3.051], [-0.631, 2.853], [-0.394, 2.518], [-0.354, 2.33], [-0.503, 1.639], [-0.601, 1.402], [-0.611, 1.056], [-0.838, 0.385], [-0.7, 0.148], [-0.69, 0.01], [-0.957, -0.711], [-0.967, -1.856], [-1.095, -2.192], [-1.233, -2.271], [-1.569, -2.636], [-1.944, -2.854], [-2.013, -3.012]],
@@ -17,3 +20,48 @@ export const WYLDWOOD_OUTLINES: readonly (readonly (readonly [number, number])[]
   // Piece 3
   [[1.992, -3.821], [2.525, -3.762], [2.752, -3.564], [1.696, -3.258], [1.301, -3.061], [0.718, -2.528], [0.61, -2.31], [0.511, -1.915], [0.679, -0.711], [1.232, -0.553], [1.321, -0.395], [1.133, 0.207], [1.202, 0.583], [1.074, 0.869], [1.084, 1.165], [0.718, 1.53], [0.274, 1.501], [0.284, 1.807], [0.037, 2.458], [0.136, 2.923], [0.432, 3.387], [0.679, 3.466], [0.817, 3.653], [1.558, 3.791], [1.834, 3.979], [1.577, 4.167], [0.975, 4.216], [0.501, 4.078], [-0.032, 3.722], [-0.545, 3.14], [-0.96, 2.212], [-1.444, 1.55], [-1.513, 1.284], [-1.345, 0.928], [-1.592, 0.721], [-1.651, 0.513], [-1.474, 0.207], [-1.562, -0.227], [-1.414, -0.721], [-1.128, -0.879], [-0.94, -1.106], [-0.96, -1.748], [-0.871, -2.439], [-0.131, -3.061], [1.143, -3.663]],
 ];
+
+/**
+ * The largest circle inside an outline (the point furthest from the boundary), found on a
+ * 0.05" grid and refined around the best point. Deterministic.
+ */
+export function largestInscribedCircle(points: readonly (readonly [number, number])[]): {
+  x: number;
+  y: number;
+  r: number;
+} {
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
+  let best = { x: 0, y: 0, r: -1 };
+  const scan = (x0: number, x1: number, y0: number, y1: number, step: number): void => {
+    for (let x = x0; x <= x1; x += step) {
+      for (let y = y0; y <= y1; y += step) {
+        if (!pointInPolygon([x, y], points)) continue;
+        const r = distancePointToBoundary([x, y], points);
+        if (r > best.r) best = { x, y, r };
+      }
+    }
+  };
+  scan(Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys), 0.05);
+  const b = best;
+  scan(b.x - 0.05, b.x + 0.05, b.y - 0.05, b.y + 0.05, 0.005);
+  return best;
+}
+
+/** How much of the local width the trunk zone takes (slightly inset from the outline). */
+export const TRUNK_INSET = 0.9;
+
+/**
+ * The three Wyldwood pieces as bases: the traced outline, and the tree trunk models cannot
+ * stand on (owner, 2026-11-12) at the chunkiest part of the crescent, the centre of the
+ * largest inscribed circle, its radius 90% of that circle's (approximate).
+ */
+export const WYLDWOOD_PIECES: readonly OutlineBase[] = WYLDWOOD_OUTLINES.map((points) => {
+  const c = largestInscribedCircle(points);
+  const round = (n: number) => Math.round(n * 1000) / 1000;
+  return {
+    kind: 'outline',
+    points,
+    trunk: { x: round(c.x), y: round(c.y), r: round(c.r * TRUNK_INSET) },
+  };
+});

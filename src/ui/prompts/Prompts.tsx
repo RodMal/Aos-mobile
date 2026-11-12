@@ -278,6 +278,15 @@ export function DecisionPrompts() {
           <button className="btn primary wide" onClick={() => dispatch({ t: 'pass' })}>
             Skip
           </button>
+          {d.options.some((o) => o.command === 'redeploy') && (
+            <button
+              className="btn wide"
+              data-testid="redeploy-mute"
+              onClick={() => dispatch({ t: 'pass', dontAskAgain: true })}
+            >
+              Don&apos;t ask again this phase
+            </button>
+          )}
         </div>
       </Modal>
     );

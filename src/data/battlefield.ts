@@ -44,17 +44,34 @@ export interface Battlefield {
   deployGapFromEnemyTerritory: number;
   objectives: ObjectiveSpec[];
   terrain: TerrainFeature[];
+  /**
+   * Terrain kinds models may stand on, for tests that try the other ruling. Leave it out to
+   * use `LOW_TERRAIN_KINDS`.
+   */
+  lowTerrainKinds?: readonly TerrainKind[];
 }
 
 /**
- * Features no more than 1" high, which models may be set up on (owner's assumption,
- * 2026-11-11, awaiting a ruling): ruins and outcrops. The spires are too tall.
+ * THE switch for standing on terrain. Terrain kinds no more than 1" high, which models may
+ * be set up on and may end any move on (owner's standing ruling: models may stand on terrain
+ * 1" high or less; ruins and outcrops are assumed that low, awaiting the owner's answer).
+ * Every other kind (the spires, which are the Places of Power) blocks models entirely: no
+ * part of a base may end a move, a charge, a pile-in, a summon or a set-up on it.
+ * If the owner rules that ruins and outcrops block too, change this line to `[]`.
  */
 export const LOW_TERRAIN_KINDS: readonly TerrainKind[] = ['ruin', 'outcrop'];
 
-/** True when models may be set up on this feature (it is 1" high or less). */
-export function allowsSetUpOn(feature: TerrainFeature): boolean {
-  return LOW_TERRAIN_KINDS.includes(feature.kind);
+/** True when models may stand on this feature (it is 1" high or less). */
+export function allowsSetUpOn(
+  feature: TerrainFeature,
+  lowKinds: readonly TerrainKind[] = LOW_TERRAIN_KINDS,
+): boolean {
+  return lowKinds.includes(feature.kind);
+}
+
+/** True when models may stand on this feature of this battlefield. */
+export function canStandOn(battlefield: Battlefield, feature: TerrainFeature): boolean {
+  return allowsSetUpOn(feature, battlefield.lowTerrainKinds ?? LOW_TERRAIN_KINDS);
 }
 
 const TRAITS: Record<TerrainKind, TerrainTrait[]> = {

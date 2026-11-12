@@ -13,6 +13,7 @@ import { useDecision, useGameState, useHuman } from './game/hooks.js';
 import { useGame } from './game/instance.js';
 import { useUi } from './game/uiStore.js';
 import { TopBar } from './hud/TopBar.js';
+import { TurnSummary } from './hud/TurnSummary.js';
 import { useKeyboard } from './hud/useKeyboard.js';
 import { createNpcClient } from './npc/npcClient.js';
 import { Chooser, ConfirmDialog, DecisionPrompts, GameEnd } from './prompts/Prompts.js';
@@ -57,10 +58,21 @@ function useNpc(): void {
     let cancelled = false;
     const timer = setTimeout(
       () => {
-        void npc.chooseAction(state).then((action) => {
-          if (cancelled || useGame.getState().session.state !== state) return;
-          useGame.getState().dispatch(action);
-        });
+        void npc
+          .chooseAction(state)
+          .catch((err: unknown) => {
+            console.warn('The NPC failed to choose an action; using the default action.', err);
+            return null;
+          })
+          .then((action) => {
+            if (cancelled || useGame.getState().session.state !== state) return;
+            // An action the engine rejects would leave the game waiting forever: fall back to
+            // the engine's default action, which is always legal.
+            if (action && useGame.getState().dispatch(action)) return;
+            if (action)
+              console.warn('The engine rejected the NPC action; using the default.', action);
+            useGame.getState().dispatch(engine.defaultAction(state));
+          });
       },
       fast ? 0 : NPC_DELAY_MS,
     );
@@ -101,6 +113,7 @@ export function App() {
       </div>
       <Chooser />
       <DecisionPrompts />
+      <TurnSummary />
       <GameEnd />
       <ConfirmDialog />
       {drawer === 'roster' && <Roster />}

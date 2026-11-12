@@ -70,6 +70,7 @@ export function allocateDamage(
     recordUnitDestroyedForTactics(ctx.scenario, ctx.s, unit);
   }
   ctx.events.push({ t: 'damage', unit: unit.id, amount, slain, destroyed, source });
+  if (destroyed) destroySummoned(ctx, unit);
   return { taken: amount, slain, destroyed };
 }
 
@@ -120,6 +121,20 @@ export function destroyUnit(ctx: Ctx, unit: UnitState, source: string): void {
     ctx.s.banishedThisTurn = [...(ctx.s.banishedThisTurn ?? []), unit.profileId];
   }
   ctx.events.push({ t: 'damage', unit: unit.id, amount: 0, slain, destroyed: true, source });
+  destroySummoned(ctx, unit);
+}
+
+/**
+ * A manifestation is destroyed when the unit that summoned it is destroyed (owner's ruling,
+ * 2026-11-12), by any cause.
+ */
+function destroySummoned(ctx: Ctx, caster: UnitState): void {
+  for (const id of ctx.s.unitOrder) {
+    const m = ctx.s.units[id]!;
+    if (m.status !== 'battlefield' || !m.isManifestation || m.summonedBy !== caster.id) continue;
+    ctx.events.push({ t: 'note', text: `${m.name} is destroyed: ${caster.name} has fallen.` });
+    destroyUnit(ctx, m, `${caster.name} has fallen`);
+  }
 }
 
 function removeModel(state: GameState, unit: UnitState, i: number): void {

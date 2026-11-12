@@ -4,6 +4,7 @@ import {
   aliveCount,
   unitCentre,
   unitFootprints,
+  unitTrunks,
   type GameState,
   type UnitState,
 } from '../../engine/index.js';
@@ -175,6 +176,10 @@ export function UnitsLayer() {
               fps.map((fp, k) => <Shape key={`h${k}`} fp={fp} grow={0.12} className="halo" />)}
             {fps.map((fp, k) => (
               <Shape key={alive[k]} fp={fp} data-model={alive[k]} className="model" />
+            ))}
+            {/* The Awakened Wyldwood's tree trunk: the part models cannot stand on. */}
+            {unitTrunks(scenario, unit).map((fp, k) => (
+              <Shape key={`t${k}`} fp={fp} className="trunk" data-testid="wyldwood-trunk" />
             ))}
           </g>
         );

@@ -17,13 +17,22 @@ export function createNpcClient(engine: Engine): NpcClient {
   const local = (state: GameState): Action => chooseAction(engine, state);
   let worker: Worker | null = null;
   let nextId = 1;
-  const pending = new Map<number, { state: GameState; resolve: (action: Action) => void }>();
+  const pending = new Map<
+    number,
+    { state: GameState; resolve: (action: Action) => void; reject: (err: unknown) => void }
+  >();
 
   /** Stops using the worker and answers everything still waiting on the main thread. */
   const fallBack = (): void => {
     worker?.terminate();
     worker = null;
-    for (const { state, resolve } of pending.values()) resolve(local(state));
+    for (const { state, resolve, reject } of pending.values()) {
+      try {
+        resolve(local(state));
+      } catch (err) {
+        reject(err);
+      }
+    }
     pending.clear();
   };
 
@@ -35,7 +44,15 @@ export function createNpcClient(engine: Engine): NpcClient {
       const entry = pending.get(event.data.id);
       if (!entry) return;
       pending.delete(event.data.id);
-      entry.resolve('action' in event.data ? event.data.action : local(entry.state));
+      if ('action' in event.data) entry.resolve(event.data.action);
+      else {
+        // The worker's NPC threw; try once on the main thread, and let the caller fall back.
+        try {
+          entry.resolve(local(entry.state));
+        } catch (err) {
+          entry.reject(err);
+        }
+      }
     };
     worker.onerror = fallBack;
   } catch {
@@ -44,10 +61,16 @@ export function createNpcClient(engine: Engine): NpcClient {
 
   return {
     chooseAction(state) {
-      if (!worker) return Promise.resolve(local(state));
+      if (!worker) {
+        try {
+          return Promise.resolve(local(state));
+        } catch (err) {
+          return Promise.reject(err instanceof Error ? err : new Error(String(err)));
+        }
+      }
       const id = nextId++;
-      return new Promise<Action>((resolve) => {
-        pending.set(id, { state, resolve });
+      return new Promise<Action>((resolve, reject) => {
+        pending.set(id, { state, resolve, reject });
         const request: NpcRequest = { id, state };
         worker!.postMessage(request);
       });

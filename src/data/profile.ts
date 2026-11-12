@@ -1,7 +1,7 @@
 import { resolveWarscrollModels } from './base-size/warscroll-models.js';
 import type { ModelBase } from '../geom/footprint.js';
 import type { Ability, Warscroll, WeaponProfile } from './schema/index.js';
-import { WYLDWOOD_OUTLINES } from './wyldwood.js';
+import { WYLDWOOD_PIECES } from './wyldwood.js';
 
 /** A dice expression such as "3", "D6", "2D6" or "D3+3": roll `n` dice of `sides`, add `plus`. */
 export interface Dice {
@@ -208,7 +208,7 @@ function factionTerrainBase(warscroll: Warscroll, keywords: string[]): ModelProf
   if (!keywords.includes('FACTION TERRAIN')) return null;
   let base: ModelBase | undefined;
   if (warscroll.name === 'Awakened Wyldwood') {
-    base = { kind: 'outline', points: WYLDWOOD_OUTLINES[0]! };
+    base = WYLDWOOD_PIECES[0]!;
   } else if (warscroll.name === 'Realmshaper Engine') {
     base = { kind: 'rect', lengthMm: 152.4, widthMm: 152.4 };
   } else {

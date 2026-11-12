@@ -2,7 +2,7 @@
  * Terrain, Line of Sight (Obscuring), Cover, Unstable, Guarded Hero, Terrain Control,
  * and Place of Power (GHB 2026-27 Terrain 1.1-1.4 & Core Rules 25.0).
  */
-import type { TerrainFeature } from '../data/battlefield.js';
+import { canStandOn, type TerrainFeature } from '../data/battlefield.js';
 import {
   distancePointToSegment,
   footprintDistanceToPolygon,
@@ -21,6 +21,7 @@ import { illegal, type Ctx } from './ctx.js';
 import { inflictMortalDamage } from './damage.js';
 import {
   aliveIndices,
+  blockingFootprints,
   COMBAT_RANGE,
   DIST_EPS,
   modelFootprint,
@@ -89,26 +90,28 @@ export function unitWhollyOnTerrain(
   return fps.every((fp) => footprintInsidePolygon(fp, terrain.polygon));
 }
 
-// ─── 2. Unstable terrain ('unstable' trait, e.g. ruin) ─────────────────────────
+// ─── 2. Terrain models cannot stand on ──────────────────────────────────────────
 
 /**
  * Sorted array of model indices `m.i` in `placement.models` whose placed footprint overlaps
- * any `'unstable'` terrain feature. Models can move across unstable terrain, but cannot be
- * set up on or end any move on it.
+ * a terrain feature models may not stand on (`canStandOn`: every kind not in
+ * `LOW_TERRAIN_KINDS`, so the spires). Every part of every base is tested, whatever its shape.
+ *
+ * Unstable ("cannot end a move on it if it is more than 1" tall") adds nothing on top: a low
+ * feature is 1" high or less, and a tall one is blocked here anyway.
  */
-export function unstableTerrainViolations(
+export function blockedTerrainViolations(
   scenario: Scenario,
   unit: UnitState,
   placement: Placement,
 ): number[] {
-  const unstable = scenario.battlefield.terrain.filter((t) => t.traits.includes('unstable'));
-  if (unstable.length === 0) return [];
+  const { battlefield } = scenario;
+  const blocking = battlefield.terrain.filter((t) => !canStandOn(battlefield, t));
+  if (blocking.length === 0) return [];
   const out: number[] = [];
   for (const m of placement.models) {
     const fp = modelFootprint(scenario, unit, m.i, m);
-    if (unstable.some((t) => footprintOverlapsPolygon(fp, t.polygon))) {
-      out.push(m.i);
-    }
+    if (blocking.some((t) => footprintOverlapsPolygon(fp, t.polygon))) out.push(m.i);
   }
   return out.sort((a, b) => a - b);
 }
@@ -118,8 +121,8 @@ export function unstableTerrainViolations(
 /**
  * Sorted array of model indices whose straight-line path from their current position to
  * `placement` passes across another unit's model on the battlefield.
- * Units with `FLY` ignore other models along their path. Unstable terrain permits crossing
- * and only blocks ending positions (checked via `unstableTerrainViolations`).
+ * Units with `FLY` ignore other models along their path. Terrain features permit crossing
+ * and only block ending positions (checked via `blockedTerrainViolations`).
  */
 export function pathBlockedModels(
   scenario: Scenario,
@@ -143,7 +146,8 @@ export function pathBlockedModels(
     if (other.id === unit.id || other.status !== 'battlefield') continue;
     const b = unitBounds(scenario, other);
     if (Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r > maxMove + 2) continue;
-    otherFootprints.push(...unitFootprints(scenario, other));
+    // Models walk over an Awakened Wyldwood, but not through its trunk.
+    otherFootprints.push(...blockingFootprints(scenario, other));
   }
 
   if (otherFootprints.length === 0) return [];

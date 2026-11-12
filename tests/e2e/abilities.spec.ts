@@ -136,3 +136,28 @@ test('the opponent casting offers an Unbind reaction that can be answered', asyn
   const text = (await page.getByTestId('log-list').textContent()) ?? '';
   expect(text).toMatch(/(unbinds|fails to unbind)/);
 });
+
+test('setting up a summoned manifestation is measured from the caster', async ({ page }, info) => {
+  // Find a seed where the summon is cast (the casting roll is seeded).
+  let placing = false;
+  for (let seed = 5; seed < 25 && !placing; seed++) {
+    await startGame(page, `seed=${seed}&side=0&fast=1&new=1`);
+    await openAbility(page, '0:0', PENDULUM);
+    await page.getByTestId('ability-confirm').click();
+    await page.waitForTimeout(150);
+    // An Unbind reaction may come first; the opponent answers it.
+    placing = await page
+      .getByTestId('place-panel')
+      .waitFor({ timeout: 1500 })
+      .then(() => true)
+      .catch(() => false);
+  }
+  expect(placing).toBe(true);
+  const panel = page.getByTestId('place-panel');
+  await expect(panel).toContainText('Wholly within 12" of Alarielle the Everqueen');
+  await expect(page.getByTestId('place-status')).toContainText(
+    /from Alarielle the Everqueen \(max 12"\)/,
+  );
+  await expect(page.getByTestId('setup-range')).toHaveCount(1);
+  await page.screenshot({ path: `test-results/summon-setup-${info.project.name}.png` });
+});

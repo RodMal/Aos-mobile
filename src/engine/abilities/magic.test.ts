@@ -205,8 +205,9 @@ describe('Magic & Prayers Core Mechanics', () => {
     expect(
       r.events.some((e) => e.t === 'damage' && e.unit === ALARIELLE && e.source === 'Miscast'),
     ).toBe(true);
-    // Alarielle is Wizard (3), miscast sets castsUsed to full power level (3)
-    expect(r.state.units[ALARIELLE]!.castsUsed).toBe(3);
+    // The miscast uses one of Alarielle's three; it blocks further spells this phase only.
+    expect(r.state.units[ALARIELLE]!.castsUsed).toBe(1);
+    expect(r.state.units[ALARIELLE]!.miscast).toBe(true);
     expect(
       engine
         .unitOptions(r.state, ALARIELLE)
@@ -940,6 +941,33 @@ describe('Six Remaining Commands', () => {
       unit: DRYADS,
       reason: 'charge',
     });
+  });
+
+  it('redeploy is offered for every eligible unit, however far from the moving enemy, until muted', () => {
+    const s = baseArena([DRYADS, DRYADS_2, SAURUS_GUARD, KROAK]);
+    s.phase = 'movement';
+    placeUnit(scenario, s, DRYADS, 6, 6);
+    placeUnit(scenario, s, DRYADS_2, 6, 38);
+    placeUnit(scenario, s, SAURUS_GUARD, 56, 6); // about 50" from the Dryads
+    placeUnit(scenario, s, KROAK, 56, 38);
+    const move = (st: GameState, id: UnitId) => {
+      const decl = engine.apply(st, { t: 'move', unit: id, kind: 'normal' }).state;
+      const p = shiftPlacement(currentPlacement(decl.units[id]!), 1, 0);
+      return engine.apply(decl, { t: 'place', placement: p }).state;
+    };
+    const first = move(s, DRYADS);
+    const d = engine.decision(first);
+    expect(d).toMatchObject({ kind: 'reaction', player: 1, trigger: `move:${DRYADS}` });
+    expect(d?.kind === 'reaction' && d.options.map((o) => o.unit).sort()).toEqual(
+      [KROAK, SAURUS_GUARD].sort(),
+    );
+    // "Don't ask again this phase": the next move raises no offer.
+    const muted = engine.apply(first, { t: 'pass', dontAskAgain: true }).state;
+    const second = move(muted, DRYADS_2);
+    expect(engine.decision(second)).toMatchObject({ kind: 'main', player: 0 });
+    // A plain Skip keeps the offers coming.
+    const skipped = engine.apply(first, { t: 'pass' }).state;
+    expect(engine.decision(move(skipped, DRYADS_2))?.kind).toBe('reaction');
   });
 
   it('redeploy: moves a unit not in combat up to D6" in the enemy Movement phase for 1 CP', () => {
