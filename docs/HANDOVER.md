@@ -168,4 +168,6 @@ Done:
 
 - 12 Reaction offers: Covering Fire not after running or in combat; Magical Intervention offers Banish; invented 18"/6"/once-per-phase/6" filters removed; I52. Tests: `magic.test.ts` "reaction offers".
 
-Remaining: items 13 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- 13 Guarded Hero: invented Health 10 and 3-model conditions removed (`src/engine/terrain.ts` `isGuardedHero`); I32 rewritten, listed under Awaiting. Test: `terrain.test.ts` "guarded hero".
+
+Remaining: items 14 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).

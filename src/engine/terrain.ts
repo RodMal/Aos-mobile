@@ -18,7 +18,6 @@ import { addEffect, hasEffectiveKeyword } from './abilities/effects.js';
 import { illegal, type Ctx } from './ctx.js';
 import { inflictMortalDamage } from './damage.js';
 import {
-  aliveCount,
   aliveIndices,
   COMBAT_RANGE,
   DIST_EPS,
@@ -347,8 +346,8 @@ export function unitHasCover(
 
 /**
  * Checks whether `target` is a Guarded Hero (Core Rules 25.0):
- * - Has `HERO`, does not have `MONSTER` or `WAR MACHINE`, and has Health <= 10.
- * - Within 3" of a friendly non-`HERO`, non-manifestation unit with at least 3 living models.
+ * - Has `HERO`, does not have `MONSTER` or `WAR MACHINE`.
+ * - Within 3" (combat range) of a friendly unit that is not a `HERO`.
  * Returns `{ guarded, infantry }` (`infantry` is true when the guarded Hero also has `INFANTRY`,
  * limiting ranged attacks to targets within 12").
  */
@@ -367,16 +366,13 @@ export function isGuardedHero(
   ) {
     return { guarded: false, infantry: false };
   }
-  const tp = profileOf(scenario, target);
-  if (tp.health > 10) return { guarded: false, infantry: false };
-
+  // "If this Hero is within the combat range of a friendly unit that is not a Hero" (Core
+  // Rules 25.0 as quoted in the earlier engine; awaiting the owner's confirmation). No Health
+  // or model-count condition. Faction terrain has no combat range (owner's ruling).
   const hasBodyguard = unitsOf(state, target.owner).some((other) => {
     if (other.id === target.id) return false;
-    if (other.isManifestation) return false;
-    const op = profileOf(scenario, other);
-    if (op.isManifestation || op.isFactionTerrain) return false;
+    if (profileOf(scenario, other).isFactionTerrain) return false;
     if (hasEffectiveKeyword(scenario, state, other, 'HERO')) return false;
-    if (aliveCount(other) < 3) return false;
     return unitsWithin(scenario, target, other, GUARDED_HERO_RANGE);
   });
 

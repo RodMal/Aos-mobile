@@ -272,7 +272,7 @@ describe('cover', () => {
 });
 
 describe('guarded hero', () => {
-  it('identifies a Hero (Health <= 10, non-Monster) within 3" of a 3+ model non-Hero friendly unit and sets infantry flag', () => {
+  it('identifies a non-Monster Hero within 3" of a friendly non-Hero unit and sets infantry flag', () => {
     const state = cloneState(startGame(engine, 1));
     const warsong = unitsOf(state, 0).find((u) => u.name === 'Warsong Revenant')!; // INFANTRY HERO, health 7
     const dryads = unitsOf(state, 0).find((u) => u.name === 'Dryads')!; // 10 models
@@ -312,10 +312,15 @@ describe('guarded hero', () => {
     }
     expect(isGuardedHero(scenario, state, scarVet)).toEqual({ guarded: true, infantry: false });
 
-    // If bodyguard drops below 3 living models -> not guarded
+    // No model-count condition (awaiting the owner's confirmation): one Dryad within 3"
+    // still guards; with none within 3" the Hero is not guarded.
     dryads.models.forEach((m, idx) => {
-      m.alive = idx < 2;
+      m.alive = idx === 0;
     });
+    dryads.models[0]!.x = 40;
+    dryads.models[0]!.y = 18;
+    expect(isGuardedHero(scenario, state, warsong)).toEqual({ guarded: true, infantry: true });
+    dryads.models[0]!.y = 10;
     expect(isGuardedHero(scenario, state, warsong)).toEqual({ guarded: false, infantry: false });
 
     // MONSTER hero (Durthu) is never a Guarded Hero
