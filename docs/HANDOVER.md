@@ -178,4 +178,8 @@ Done:
 
 - 17 Deployment robustness: deploy frames store `allowance: 0` instead of `Infinity` (the UI treats deploy and set-up as unlimited); `npcDeployPlacement` returns `null` instead of an illegal fallback (it also tries the other three facings), and a unit with no legal place may then pass and stay in reserve; the simulation plays alternating-deployment games and checks the JSON round trip at every deployment step and every phase. Tests: `deployment.test.ts` "deployment robustness", `tests/sim/full-game.test.ts` "alternating deployment".
 
-Remaining: items 18 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- Follow-ups after the integrator's run: no Fight Through the Pain prompt for faction terrain (a seed 3 alternating-deployment game threw; regression test in `fury-pain.test.ts`); the Unbind e2e test starts from an NPC-played position; undo skips the opponent's declined reactions (`session.ts`); the NPC only Redeploys a unit the mover came within 9" of; summon placement searches and polygon bounding radii are memoised (a game took about twice as long as on 2e499b5, now within a few per cent).
+
+Remaining from the owner's list: none. Partly done: Fight Through the Pain is not offered for mortal damage outside attacks; the fugitive pick has no board highlight; The Burgeoning picks its feature automatically. Open questions are under "Awaiting the owner's ruling" in docs/RULES-DECISIONS.md.
+
+Last checks (commit after 9031771): `pnpm check` 444 tests pass; `SIM_SEEDS=40 pnpm test:sim` 44 pass; `CI=1 pnpm test:e2e` 88 pass on pixel-7, iphone-14 and desktop.
