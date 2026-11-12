@@ -6,7 +6,13 @@ import { scenario } from '../game/engine.js';
 import { inches } from '../game/eventText.js';
 import { useDecision, useGameState } from '../game/hooks.js';
 import { useGame } from '../game/instance.js';
-import { faceEnemy, maxDistance, reformDraft, rotateDraft } from '../game/placementEdit.js';
+import {
+  faceEnemy,
+  maxDistance,
+  reformDraft,
+  rotateDraft,
+  setUpReach,
+} from '../game/placementEdit.js';
 import { useUi } from '../game/uiStore.js';
 import { Icon } from '../components/Icon.js';
 import { finePointer, tapWord } from '../components/pointer.js';
@@ -56,6 +62,11 @@ export function PlacePanel() {
   const unit = state.units[draft.unit]!;
   const dist = maxDistance(unit, draft.placement);
   const first = draft.violations[0];
+  // A summoned manifestation is measured from its caster, not from where it was suggested.
+  const reach = setUpReach(scenario, state, draft.placement);
+  const fromCaster = reach
+    ? `${inches(Math.round(reach.dist * 10) / 10)} from ${reach.caster.name} (max ${inches(reach.range)})`
+    : null;
   const n = draft.placement.models.length;
   const diceText =
     d.dice.length > 0
@@ -106,9 +117,11 @@ export function PlacePanel() {
         <p className="panel-hint">
           {d.reason === 'setUp'
             ? 'Hero phase · anywhere legal'
-            : Number.isFinite(d.allowance)
-              ? `Up to ${inches(d.allowance)}`
-              : 'Anywhere legal'}
+            : reach
+              ? `Wholly within ${inches(reach.range)} of ${reach.caster.name}`
+              : Number.isFinite(d.allowance)
+                ? `Up to ${inches(d.allowance)}`
+                : 'Anywhere legal'}
           {diceText}
         </p>
       </header>
@@ -118,10 +131,12 @@ export function PlacePanel() {
         role="status"
       >
         {first
-          ? first.message
-          : dist > 0.05
-            ? `Moved ${inches(Math.round(dist * 10) / 10)}. Ready to confirm.`
-            : note}
+          ? `${first.message}${fromCaster ? ` ${fromCaster}.` : ''}`
+          : fromCaster
+            ? `${fromCaster}. Ready to confirm.`
+            : dist > 0.05
+              ? `Moved ${inches(Math.round(dist * 10) / 10)}. Ready to confirm.`
+              : note}
       </p>
       {first && <p className="panel-hint small">{note}</p>}
       <div className="tools" role="toolbar" aria-label="Formation">

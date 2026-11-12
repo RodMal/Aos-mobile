@@ -11,11 +11,14 @@ import {
   unitCentre,
   unitsOf,
   opponent,
+  modelFootprint,
+  unitFootprints,
   type GameState,
   type Placement,
   type Scenario,
   type UnitState,
 } from '../../engine/index.js';
+import { boundingRadius, footprintGap } from '../../geom/index.js';
 
 export interface PlacementDraft {
   unit: string;
@@ -160,4 +163,39 @@ export function maxDistance(unit: UnitState, p: Placement): number {
   let best = 0;
   for (const d of modelDistances(unit, p).values()) best = Math.max(best, d);
   return best;
+}
+
+/** A set-up measured from a caster (a summoned manifestation): who, how far, and the limit. */
+export interface SetUpReach {
+  caster: UnitState;
+  range: number;
+  /** How far the furthest part of any placed model is from the caster's nearest base. */
+  dist: number;
+}
+
+/**
+ * For a set-up wholly within range of a caster (`summon` place frames), the caster, the range
+ * and the distance of the placement from it; null for every other placement. The engine's
+ * `checkPlacement` stays the judge; this is for the ring, the measuring line and the status.
+ */
+export function setUpReach(
+  scenario: Scenario,
+  state: GameState,
+  placement: Placement,
+): SetUpReach | null {
+  const top = state.stack[state.stack.length - 1];
+  if (top?.t !== 'place' || top.reason !== 'summon' || !top.caster) return null;
+  const caster = state.units[top.caster];
+  const unit = state.units[placement.unit];
+  if (!caster || !unit) return null;
+  const sources = unitFootprints(scenario, caster);
+  let dist = 0;
+  for (const m of placement.models) {
+    const fp = modelFootprint(scenario, unit, m.i, m);
+    let near = Infinity;
+    for (const src of sources) near = Math.min(near, footprintGap(fp, src));
+    // The far side of the base: its gap plus its width along the line to the caster.
+    dist = Math.max(dist, Math.max(0, near) + 2 * boundingRadius(fp));
+  }
+  return { caster, range: top.allowance, dist };
 }

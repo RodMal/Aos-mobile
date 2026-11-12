@@ -109,7 +109,7 @@ export function checkMovePlacement(
     if (notWhollyWithin.length > 0) {
       violations.push({
         code: 'TOO_FAR',
-        message: `Must be set up wholly within ${formatInches(rules.allowance)} of the caster.`,
+        message: `Must be set up wholly within ${formatInches(rules.allowance)} of ${caster?.name ?? 'the caster'}.`,
         models: notWhollyWithin,
       });
     }
