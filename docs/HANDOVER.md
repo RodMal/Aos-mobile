@@ -176,4 +176,6 @@ Done:
 
 - 16 Declining to attack faction terrain no longer marks the unit as having fought (`declinedTerrainFight` flag, additive on `UnitState`); it can fight later if an enemy comes within 3". I39 amended. Test: `factionTerrain.test.ts` "declining to attack the terrain does not stop the unit fighting later".
 
-Remaining: items 17 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- 17 Deployment robustness: deploy frames store `allowance: 0` instead of `Infinity` (the UI treats deploy and set-up as unlimited); `npcDeployPlacement` returns `null` instead of an illegal fallback (it also tries the other three facings), and a unit with no legal place may then pass and stay in reserve; the simulation plays alternating-deployment games and checks the JSON round trip at every deployment step and every phase. Tests: `deployment.test.ts` "deployment robustness", `tests/sim/full-game.test.ts` "alternating deployment".
+
+Remaining: items 18 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).

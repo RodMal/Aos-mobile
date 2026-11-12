@@ -269,7 +269,8 @@ function placeAction(
 ): Action | null {
   const unit = state.units[d.unit]!;
   if (d.reason === 'deploy') {
-    return { t: 'place', placement: npcDeployPlacement(engine.scenario, state, unit) };
+    const placement = npcDeployPlacement(engine.scenario, state, unit);
+    return placement ? { t: 'place', placement } : null;
   }
   if (d.reason === 'setUp') {
     // A further Awakened Wyldwood starts at a legal spot near an objective: keep it there.

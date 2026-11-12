@@ -56,6 +56,7 @@ export class InvariantChecker {
       const health = profileOf(scenario, unit).health;
       expect(unit.damage, `${unit.name} damage below Health`).toBeLessThan(health);
       expect(unit.damage).toBeGreaterThanOrEqual(0);
+      if (unit.status === 'reserve') continue;
       if (unit.status !== 'battlefield') {
         expect(
           unit.models.some((m) => m.alive),
@@ -143,6 +144,26 @@ describe('full games, baseline NPC against itself', () => {
         vp: [state.players[0].vp, state.players[1].vp],
         ms: performance.now() - t0,
       });
+    });
+  }
+
+  for (let seed = 1; seed <= Math.min(SEEDS, 3); seed++) {
+    it(`alternating deployment, seed ${seed}: the state survives a JSON round trip in every phase`, () => {
+      const checker = new InvariantChecker(engine);
+      let state = engine.newGame(seed, { deploy: true });
+      let where = '';
+      for (let i = 0; engine.decision(state); i++) {
+        const d = engine.decision(state);
+        const deploying = d?.kind === 'place' && d.reason === 'deploy';
+        const now = `${state.round}:${state.turnIndex}:${state.phase}`;
+        // Every step of deployment, and the first step of every phase after it.
+        checker.check(state, deploying || now !== where);
+        where = now;
+        state = engine.apply(state, chooseAction(engine, state)).state;
+        if (i > MAX_STEPS) throw new Error('game did not end');
+      }
+      checker.check(state, true);
+      expect(state.status).toBe('ended');
     });
   }
 

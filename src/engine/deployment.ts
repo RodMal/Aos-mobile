@@ -22,7 +22,6 @@ import { allowsSetUpOn } from '../data/battlefield.js';
 import {
   aliveIndices,
   attackerOf,
-  currentPlacement,
   defaultFrontage,
   DIST_EPS,
   facingTowards,
@@ -203,7 +202,8 @@ export function buildDeploymentFrames(
     t: 'place',
     unit: u.id,
     reason: 'deploy',
-    allowance: Infinity,
+    // Deployment has no distance limit; 0 keeps the state plain JSON (Infinity turns into null).
+    allowance: 0,
     dice: [],
   }));
 
@@ -375,7 +375,7 @@ export function npcDeployPlacement(
   scenario: Scenario,
   state: GameState,
   unit: UnitState,
-): Placement {
+): Placement | null {
   const { battlefield } = scenario;
   const own = battlefield.territories[scenario.sides[unit.owner]];
   const enemy = battlefield.territories[scenario.sides[opponent(unit.owner)]];
@@ -406,21 +406,33 @@ export function npcDeployPlacement(
     friendlyFps.push(...unitFootprints(scenario, u));
   }
 
-  let fallback: Placement | null = null;
-
-  for (const c of candidates) {
-    const placement = formPlacement(scenario, unit, { x: c.x, y: c.y }, facing);
-    const fps = placement.models.map((m) =>
-      baseFootprint(profile.models[m.i]!.base, m.x, m.y, m.rot),
-    );
-    const hasAir = fps.every((fp) => !friendlyFps.some((other) => gapBelow(fp, other, 1)));
-    if (!hasAir && fallback !== null) continue;
-    if (checkDeployPlacement(scenario, state, unit, placement).length !== 0) continue;
-    if (hasAir) return placement;
-    fallback = placement;
+  // A spot whose centre lies on another unit's base can never hold the unit's centre model:
+  // skip it before forming the unit (keeps a crowded territory cheap to search).
+  const allFps: Footprint[] = [];
+  for (const id of state.unitOrder) {
+    const u = state.units[id]!;
+    if (u.id !== unit.id && u.status === 'battlefield') allFps.push(...unitFootprints(scenario, u));
   }
+  const open = candidates.filter((c) => !allFps.some((fp) => footprintToPoint(fp, c.x, c.y) <= 0));
 
-  return fallback ?? currentPlacement(unit);
+  // Facing the enemy first, then the other three ways; a legal placement with a little air
+  // around it is preferred, then any legal one. Never an illegal placement: null when none.
+  for (const turn of [0, 90, 270, 180]) {
+    let fallback: Placement | null = null;
+    for (const c of open) {
+      const placement = formPlacement(scenario, unit, { x: c.x, y: c.y }, facing + turn);
+      const fps = placement.models.map((m) =>
+        baseFootprint(profile.models[m.i]!.base, m.x, m.y, m.rot),
+      );
+      const hasAir = fps.every((fp) => !friendlyFps.some((other) => gapBelow(fp, other, 1)));
+      if (!hasAir && fallback !== null) continue;
+      if (checkDeployPlacement(scenario, state, unit, placement).length !== 0) continue;
+      if (hasAir) return placement;
+      fallback = placement;
+    }
+    if (fallback) return fallback;
+  }
+  return null;
 }
 
 /**

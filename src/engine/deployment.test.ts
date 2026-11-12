@@ -12,7 +12,7 @@ import {
   npcDeployPlacement,
 } from './deployment.js';
 import { createEngine } from './engine.js';
-import { startGame } from './test-helpers.js';
+import { editable, startGame } from './test-helpers.js';
 import { currentPlacement, formPlacement, profileOf } from './query.js';
 import { createScenario } from './scenario.js';
 import type { GameState, PlayerId, Scenario, UnitId, UnitState } from './types.js';
@@ -165,7 +165,7 @@ describe('deployment: checkDeployPlacement', () => {
     expect(terrainViolations.map((v) => v.code)).toContain('OVERLAP');
 
     // Deploy durthu legally, then place drycha on top of durthu
-    const legalDurthu = npcDeployPlacement(scenario, state, durthu);
+    const legalDurthu = npcDeployPlacement(scenario, state, durthu)!;
     expect(checkDeployPlacement(scenario, state, durthu, legalDurthu)).toEqual([]);
     for (const m of legalDurthu.models) {
       Object.assign(durthu.models[m.i]!, { x: m.x, y: m.y, rot: m.rot });
@@ -195,7 +195,7 @@ describe('deployment: checkDeployPlacement', () => {
   it('rejects incoherent multi-model unit placements (COHERENCY)', () => {
     const state = makeReserveState(scenario);
     const spiteRevs = state.units['0:4']!;
-    const legal = npcDeployPlacement(scenario, state, spiteRevs);
+    const legal = npcDeployPlacement(scenario, state, spiteRevs)!;
     expect(checkDeployPlacement(scenario, state, spiteRevs, legal)).toEqual([]);
 
     // Pull model 0 far away from the rest while staying inside territory B and >9" from A
@@ -228,7 +228,7 @@ describe('deployment: full alternating deployment via npcDeployPlacement', () =>
         const unit = state.units[frame.unit]!;
         expect(unit.status).toBe('reserve');
 
-        const placement = npcDeployPlacement(scenario, state, unit);
+        const placement = npcDeployPlacement(scenario, state, unit)!;
         const violations = checkDeployPlacement(scenario, state, unit, placement);
         expect(violations, `violations for ${unit.id} (${unit.name})`).toEqual([]);
 
@@ -248,6 +248,50 @@ describe('deployment: full alternating deployment via npcDeployPlacement', () =>
       }
     },
   );
+});
+
+describe('deployment robustness', () => {
+  const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
+  const engine = createEngine(scenario);
+
+  it('keeps the state plain JSON through deployment (no Infinity allowance)', () => {
+    let s = engine.newGame(2, { deploy: true });
+    while (engine.decision(s)?.kind === 'place') {
+      const d = engine.decision(s)!;
+      if (d.kind === 'place') expect(Number.isFinite(d.allowance)).toBe(true);
+      expect(JSON.parse(JSON.stringify(s))).toEqual(s);
+      s = engine.apply(s, engine.defaultAction(s)).state;
+    }
+    expect(JSON.parse(JSON.stringify(s))).toEqual(s);
+  });
+
+  it('never suggests an illegal placement: with no room, null, and the unit may stay in reserve', () => {
+    const s = editable(engine.newGame(2, { deploy: true }));
+    const d = engine.decision(s)!;
+    if (d.kind !== 'place') throw new Error('expected a deployment');
+    const unit = s.units[d.unit]!;
+    expect(() => engine.apply(s, { t: 'pass' })).toThrow(/mandatory/);
+    // Cover the whole board with 6" square blocks (copies of the Realmshaper Engine).
+    const units = { ...s.units };
+    const order = [...s.unitOrder];
+    let k = 0;
+    for (let x = 2.5; x < scenario.battlefield.width + 3; x += 5)
+      for (let y = 2.5; y < scenario.battlefield.height + 3; y += 5) {
+        const id = `block${k++}`;
+        units[id] = {
+          ...(JSON.parse(JSON.stringify(s.units['1:terrain'])) as (typeof s.units)[string]),
+          id,
+          status: 'battlefield',
+          models: [{ x, y, rot: 0, alive: true }],
+        };
+        order.push(id);
+      }
+    const crowded = { ...s, units, unitOrder: order };
+    expect(npcDeployPlacement(scenario, crowded, unit)).toBeNull();
+    expect(engine.defaultAction(crowded)).toEqual({ t: 'pass' });
+    const after = engine.apply(crowded, { t: 'pass' }).state;
+    expect(after.units[unit.id]!.status).toBe('reserve');
+  }, 60_000); // an exhaustive search over a full board
 });
 
 describe('deployment: quick start sets up faction terrain', () => {

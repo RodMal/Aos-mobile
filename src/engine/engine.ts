@@ -1656,8 +1656,19 @@ export function createEngine(scenario: Scenario): Engine {
       }
       case 'place':
         if (action.t === 'pass') {
-          if (d.reason === 'deploy')
-            illegal('Deployment placement is mandatory; pass is not allowed.');
+          if (d.reason === 'deploy') {
+            // Only a unit with no legal place left may be left out (it stays in reserve).
+            if (npcDeployPlacement(scenario, s, s.units[d.unit]!)) {
+              illegal('Deployment placement is mandatory; pass is not allowed.');
+            }
+            s.stack.pop();
+            ctx.events.push({
+              t: 'note',
+              text: `${s.units[d.unit]!.name} has no legal place to deploy and stays in reserve.`,
+            });
+            if (s.stack.length === 0) startRound(ctx);
+            break;
+          }
           if (d.reason === 'setUp') {
             s.stack.pop();
             cancelWyldwood(ctx, d.unit);
@@ -1808,10 +1819,8 @@ export function createEngine(scenario: Scenario): Engine {
         return { t: 'fight', unit: eligibleFighters(scenario, state, d.player)[0]!.id };
       case 'place':
         if (d.reason === 'deploy') {
-          return {
-            t: 'place',
-            placement: npcDeployPlacement(scenario, state, unitById(state, d.unit)),
-          };
+          const placement = npcDeployPlacement(scenario, state, unitById(state, d.unit));
+          return placement ? { t: 'place', placement } : { t: 'pass' };
         }
         return { t: 'pass' };
       case 'targets':
