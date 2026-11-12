@@ -332,6 +332,27 @@ function chooseHeroAbilityAction(
       };
     }
 
+    // 2. A spell that hits several enemies (Enrage The Spites): up to its maximum targets.
+    const multi = abilOpts.find(
+      (o) => o.kind === 'spell' && (o.maxTargets ?? 1) > 1 && o.targets.length > 0,
+    );
+    if (multi) {
+      const opt = multi;
+      // Up to the maximum: a unit D3 mortal damage could finish off first, then by points.
+      const score = (tid: string) => {
+        const u = state.units[tid]!;
+        const lastModel = u.models.filter((m) => m.alive).length === 1;
+        const left = profileOf(engine.scenario, u).health - u.damage;
+        return (lastModel && left <= 2 ? 1000 : 0) + points(engine, state, tid);
+      };
+      const ranked = [...opt.targets].sort((x, y) => score(y) - score(x));
+      return {
+        t: 'ability',
+        unit: unit.id,
+        abilityId: opt.abilityId,
+        targets: ranked.slice(0, opt.maxTargets ?? 1),
+      };
+    }
     // 2. Summon manifestations
     const summon = abilOpts.find((o) => o.kind === 'summon');
     if (summon) {

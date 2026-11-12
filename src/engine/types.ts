@@ -216,6 +216,8 @@ export type Frame =
       unit: UnitId;
       abilityId: string;
       target?: UnitId;
+      /** Several targets picked for the spell (`Action.targets`). */
+      targets?: UnitId[];
       roll: number;
     }
   /**
@@ -489,6 +491,11 @@ export type Action =
       abilityId: string;
       target?: UnitId;
       secondTarget?: UnitId;
+      /**
+       * Abilities that take several targets (`UnitOption.maxTargets`, e.g. Enrage The Spites):
+       * 1 up to `maxTargets` distinct legal targets. When set, `target` is ignored.
+       */
+      targets?: UnitId[];
       choice?: string;
       /** Eruption of Fury: rage dice to spend, 1 up to `UnitOption.maxRageDice` (default: the maximum). */
       rageDice?: number;
@@ -517,6 +524,8 @@ export type UnitOption =
       kind: AbilityOptionKind;
       targetValue?: number;
       targets: UnitId[];
+      /** Abilities that take several targets: the most that may be picked (`Action.targets`). */
+      maxTargets?: number;
       /** Eruption of Fury: the most rage dice that may be spent now. */
       maxRageDice?: number;
       /** Eruption of Fury: the melee weapons the unit may attack with. */

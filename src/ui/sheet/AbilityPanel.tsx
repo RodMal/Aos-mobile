@@ -8,7 +8,7 @@ import { dispatch, optionLabel, runOption } from '../game/actions.js';
 import { findAbility } from '../game/engine.js';
 import { COMMAND_NAMES } from '../game/eventText.js';
 import { useGameState, useHumanDecision } from '../game/hooks.js';
-import { useUi } from '../game/uiStore.js';
+import { toggleAbilityTarget, useUi } from '../game/uiStore.js';
 import { AbilityView } from '../components/AbilityView.js';
 import { tapWord } from '../components/pointer.js';
 
@@ -71,6 +71,11 @@ export function AbilityPanel() {
   const ability = option.t === 'ability' ? findAbility(option.abilityId) : null;
   const kind = option.t === 'ability' ? option.kind : 'command';
   const needsTarget = targets.length > 0;
+  // "Pick up to 3": toggle targets; the cast needs at least one.
+  const maxTargets = option.t === 'ability' ? (option.maxTargets ?? 1) : 1;
+  const multi = needsTarget && maxTargets > 1;
+  const chosen = pick.targets ?? [];
+  const ready = !needsTarget || (multi ? chosen.length > 0 : !!pick.target);
 
   // Two units with the same name get a number, in the order they stand in the army list.
   const names = targets.map((id) => state.units[id]?.name ?? id);
@@ -88,8 +93,10 @@ export function AbilityPanel() {
   const weapon = weaponId ?? weapons[0]?.id;
 
   const confirm = () => {
-    if (needsTarget && !pick.target) return;
-    if (eruption && option.t === 'ability') {
+    if (!ready) return;
+    if (multi && option.t === 'ability') {
+      dispatch({ t: 'ability', unit: pick.unit, abilityId: option.abilityId, targets: chosen });
+    } else if (eruption && option.t === 'ability') {
       dispatch({
         t: 'ability',
         unit: pick.unit,
@@ -111,9 +118,11 @@ export function AbilityPanel() {
         <p className="panel-hint">
           {unit.name}
           {needsTarget &&
-            (pick.target
-              ? ' · target chosen'
-              : ` · ${tapWord().toLowerCase()} a highlighted unit or a name`)}
+            (multi
+              ? ` · ${chosen.length} of up to ${maxTargets} targets`
+              : pick.target
+                ? ' · target chosen'
+                : ` · ${tapWord().toLowerCase()} a highlighted unit or a name`)}
         </p>
       </header>
       <div className="ability-text">
@@ -138,24 +147,35 @@ export function AbilityPanel() {
           <div
             className="ready"
             data-testid="ability-targets"
-            role="radiogroup"
-            aria-label="Target"
+            role={multi ? 'group' : 'radiogroup'}
+            aria-label={multi ? `Targets, up to ${maxTargets}` : 'Target'}
           >
-            {targets.map((id, k) => (
-              <button
-                key={id}
-                role="radio"
-                aria-checked={pick.target === id}
-                className={`chip ${pick.target === id ? 'chosen' : ''} ${
-                  state.units[id]?.owner === unit.owner ? '' : 'enemy'
-                }`}
-                data-target={id}
-                onClick={() => setPick({ ...pick, target: id })}
-              >
-                {label(id, k)}
-              </button>
-            ))}
+            {targets.map((id, k) => {
+              const on = multi ? chosen.includes(id) : pick.target === id;
+              return (
+                <button
+                  key={id}
+                  role={multi ? 'checkbox' : 'radio'}
+                  aria-checked={on}
+                  disabled={multi && !on && chosen.length >= maxTargets}
+                  className={`chip ${on ? 'chosen' : ''} ${
+                    state.units[id]?.owner === unit.owner ? '' : 'enemy'
+                  }`}
+                  data-target={id}
+                  onClick={() =>
+                    setPick(multi ? toggleAbilityTarget(pick, id) : { ...pick, target: id })
+                  }
+                >
+                  {label(id, k)}
+                </button>
+              );
+            })}
           </div>
+          {multi && (
+            <p className="muted small" data-testid="ability-target-count">
+              {chosen.length} of up to {maxTargets} targets picked
+            </p>
+          )}
         </>
       )}
       {eruption && (
@@ -207,7 +227,7 @@ export function AbilityPanel() {
         </button>
         <button
           className="btn primary grow"
-          disabled={needsTarget && !pick.target}
+          disabled={!ready}
           onClick={confirm}
           data-testid="ability-confirm"
         >

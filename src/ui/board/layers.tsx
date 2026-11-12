@@ -142,6 +142,7 @@ function useHighlights(state: GameState) {
     // An ability being aimed: its legal targets, and the one chosen so far.
     const aimed = new Set(abilityPick?.option.targets ?? []);
     if (abilityPick?.target) assigned.add(abilityPick.target);
+    for (const id of abilityPick?.targets ?? []) assigned.add(id);
     return { canAct, targets, assigned, aimed };
   }, [decision, human, attack, abilityPick, state]);
 }

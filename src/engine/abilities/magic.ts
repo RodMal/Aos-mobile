@@ -321,6 +321,7 @@ export function magicOptionsForUnit(
           kind: 'spell',
           targetValue: def.castingValue,
           targets,
+          ...(def.maxTargets && def.maxTargets > 1 ? { maxTargets: def.maxTargets } : {}),
         });
       }
     }
@@ -467,7 +468,24 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
   if (!def) throw new IllegalActionError(`unknown ability ${action.abilityId}`);
 
   let target: UnitState | undefined;
-  if (def.target) {
+  let targets: UnitState[] | undefined;
+  if (def.target && action.targets) {
+    const max = def.maxTargets ?? 1;
+    const ids = action.targets;
+    if (ids.length < 1 || ids.length > max) {
+      throw new IllegalActionError(`${def.name} takes 1 to ${max} targets.`);
+    }
+    if (new Set(ids).size !== ids.length) {
+      throw new IllegalActionError(`${def.name}: each target can be picked only once.`);
+    }
+    const bad = ids.find((id) => !opt.targets.includes(id));
+    if (bad) {
+      const name = ctx.s.units[bad]?.name ?? bad;
+      throw new IllegalActionError(`${name} is not a legal target for ${def.name}.`);
+    }
+    targets = ids.map((id) => unitById(ctx.s, id));
+    target = targets[0];
+  } else if (def.target) {
     const targetId = action.target ?? opt.targets[0];
     if (!targetId || !opt.targets.includes(targetId)) {
       throw new IllegalActionError(`${def.name} requires a legal target`);
@@ -516,6 +534,7 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
         unit: unit.id,
         abilityId: def.id,
         target: target?.id,
+        ...(targets ? { targets: targets.map((u) => u.id) } : {}),
         roll: total,
       });
       ctx.s.stack.push({
@@ -527,7 +546,7 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
       return;
     }
 
-    resolveSpellOrSummon(ctx, unit, def, target, total);
+    resolveSpellOrSummon(ctx, unit, def, target, total, targets);
     return;
   }
 
@@ -640,7 +659,8 @@ export function resolvePendingSpell(
   }
 
   const target = frame.target ? ctx.s.units[frame.target] : undefined;
-  resolveSpellOrSummon(ctx, caster, def, target, frame.roll);
+  const targets = frame.targets?.map((id) => unitById(ctx.s, id));
+  resolveSpellOrSummon(ctx, caster, def, target, frame.roll, targets);
 }
 
 export function resolveSpellOrSummon(
@@ -649,6 +669,7 @@ export function resolveSpellOrSummon(
   def: AbilityDefinition,
   target: UnitState | undefined,
   roll: number,
+  targets?: UnitState[],
 ): void {
   if (def.kind === 'summon' && def.summonWarscrollId) {
     const warscrollId = def.summonWarscrollId;
@@ -691,6 +712,13 @@ export function resolveSpellOrSummon(
     return;
   }
 
+  if (targets) {
+    // Several targets: those still on the battlefield are affected.
+    const left = targets.filter((u) => u.status === 'battlefield');
+    if (left.length === 0) return;
+    def.resolve?.({ ctx, unit: caster, target: left[0], targets: left, roll });
+    return;
+  }
   if (target && target.status !== 'battlefield') return;
   def.resolve?.({ ctx, unit: caster, target, roll });
 }
