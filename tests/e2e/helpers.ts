@@ -141,15 +141,51 @@ export async function startGame(page: Page, query = 'seed=5&side=0&fast=1&new=1'
  * Power, so a test starts in the hero phase.
  */
 export async function answerPreBattle(page: Page): Promise<void> {
-  for (let i = 0; i < 6; i++) {
-    const fugitive = page.locator('[data-fugitive]').first();
-    const first = page.getByRole('button', { name: 'Take first turn' });
-    const power = page.getByTestId('place-of-power').getByRole('button', { name: 'Pass' });
-    if (await usable(fugitive)) await fugitive.click();
-    else if (await usable(first)) await first.click();
-    else if (await usable(power)) await power.click();
-    else return;
+  // Answer prompts until the player's own hero phase shows (the opponent's own start-of-turn
+  // choice comes in between, from the worker). In a game where the opponent goes first this
+  // gives up after a few seconds and leaves the rest to the test.
+  for (let i = 0; i < 60; i++) {
+    if (await answerStartPrompt(page)) continue;
+    if (await usable(page.getByTestId('end-phase'))) break;
+    await page.waitForTimeout(100);
   }
+  // Those answers leave a toast that would catch the next tap on the board; let it go first.
+  await expect(page.getByTestId('toast')).toHaveCount(0, { timeout: 6000 });
+}
+
+/**
+ * While the opponent plays: answers a start-of-turn prompt, skips a reaction or takes the
+ * damage instead of Fight Through the Pain. True when it answered something.
+ */
+export async function answerOpponentTurnPrompt(page: Page): Promise<boolean> {
+  if (await answerStartPrompt(page)) return true;
+  for (const l of [
+    page.getByRole('button', { name: 'Skip', exact: true }),
+    page.getByTestId('pain-skip'),
+  ]) {
+    if (await usable(l)) {
+      await l.click();
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Answers one pre-battle or start-of-turn prompt if one is showing (the fugitive pick, the
+ * first-turn choice, the optional Place of Power, declined). True when it answered one.
+ */
+export async function answerStartPrompt(page: Page): Promise<boolean> {
+  const fugitive = page.locator('[data-fugitive]').first();
+  const first = page.getByRole('button', { name: 'Take first turn' });
+  const power = page.getByTestId('place-of-power').getByRole('button', { name: 'Pass' });
+  for (const l of [fugitive, first, power]) {
+    if (await usable(l)) {
+      await l.click();
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

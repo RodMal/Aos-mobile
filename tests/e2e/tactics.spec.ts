@@ -1,6 +1,6 @@
 /** The battle tactics tracker: one tap from the top bar on every project. */
 import { expect, test } from '@playwright/test';
-import { startGame } from './helpers.js';
+import { answerPreBattle, startGame } from './helpers.js';
 
 test('the top bar opens the battle tactics tracker with both armies’ cards and tiers', async ({
   page,
@@ -36,6 +36,7 @@ test('Burning for Vengeance asks the player to pick the fugitive, and the tracke
   const name = ((await last.textContent()) ?? '').replace(/ · in reserve$/, '').trim();
   await last.click();
   await expect(prompt).toBeHidden();
+  await answerPreBattle(page);
   await page.getByTestId('tactics-button').click();
   await expect(page.getByTestId('tactics-panel')).toContainText(`Fugitive: ${name}`);
 });
