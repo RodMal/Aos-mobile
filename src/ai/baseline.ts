@@ -15,6 +15,7 @@ import {
   controlScores,
   currentPlacement,
   enemiesInCombat,
+  expectedDamage,
   opponent,
   profileOf,
   unitCentre,
@@ -93,6 +94,39 @@ export function chooseAction(engine: Engine, state: GameState): Action {
     case 'main':
       return mainAction(engine, state, d.player, d.phase) ?? { t: 'pass' };
   }
+}
+
+/**
+ * Eruption of Fury: the weapon and target with the most expected damage per attack (no crits);
+ * every die it may spend, except one when the unit has 3 or fewer wounds left (each 1 rolled
+ * costs it D3 mortal damage).
+ */
+export function eruptionAction(
+  engine: Engine,
+  state: GameState,
+  unit: UnitState,
+  option: Extract<UnitOption, { t: 'ability' }>,
+): Action {
+  const profile = profileOf(engine.scenario, unit);
+  let best: { target: string; weaponId: string; value: number } | null = null;
+  for (const w of profile.weapons.filter((x) => x.kind === 'melee')) {
+    const noCrit = { ...w, abilities: w.abilities.filter((a) => !a.t.startsWith('crit')) };
+    for (const id of option.targets) {
+      const tp = profileOf(engine.scenario, state.units[id]!);
+      const value = expectedDamage(noCrit, 1, { save: tp.save, ward: tp.ward ?? null }).total;
+      if (!best || value > best.value) best = { target: id, weaponId: w.id, value };
+    }
+  }
+  const max = option.maxRageDice ?? 1;
+  const woundsLeft = profile.health * aliveIndices(unit).length - unit.damage;
+  const rageDice = woundsLeft <= 3 ? 1 : max;
+  return {
+    t: 'ability',
+    unit: unit.id,
+    abilityId: 'eruption-of-fury',
+    rageDice,
+    ...(best ? { target: best.target, weaponId: best.weaponId } : {}),
+  };
 }
 
 function points(engine: Engine, state: GameState, unitId: string): number {
@@ -345,8 +379,8 @@ function mainAction(
         const eruption = engine
           .unitOptions(state, unit.id)
           .find((o) => o.t === 'ability' && o.abilityId === 'eruption-of-fury');
-        if (eruption) {
-          return { t: 'ability', unit: unit.id, abilityId: 'eruption-of-fury' };
+        if (eruption && eruption.t === 'ability') {
+          return eruptionAction(engine, state, unit, eruption);
         }
       }
       if (cp < SPARE_CP) return null;

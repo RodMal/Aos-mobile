@@ -1708,3 +1708,29 @@ button {
     transition: none !important;
   }
 }
+
+/* Eruption of Fury: how many rage dice, and which weapon. */
+.rage-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stepper .btn {
+  min-width: 44px;
+}
+.stepper-label {
+  font-size: 14px;
+  margin-right: 4px;
+}
+.stepper-value {
+  font-family: var(--serif);
+  font-size: 22px;
+  min-width: 20px;
+  text-align: center;
+}

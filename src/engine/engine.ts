@@ -52,6 +52,7 @@ import {
   canUseEruptionOfFury,
   eruptionOfFuryTargets,
   initFury,
+  MAX_ERUPTION_RAGE_DICE,
   resolveEruptionOfFury,
 } from '../rules/core/fury.js';
 import { canUsePlaceOfPower, resolvePlaceOfPower, type PlaceOfPowerBoon } from './terrain.js';
@@ -649,6 +650,10 @@ export function createEngine(scenario: Scenario): Engine {
             name: 'Eruption of Fury',
             kind: 'activated',
             targets: eruptionOfFuryTargets(scenario, state, unit).map((u) => u.id),
+            maxRageDice: Math.min(MAX_ERUPTION_RAGE_DICE, state.players[unit.owner].rageDice ?? 0),
+            weapons: profileOf(scenario, unit)
+              .weapons.filter((w) => w.kind === 'melee')
+              .map((w) => ({ id: w.id, name: w.name })),
           });
         }
         return opts;
@@ -1358,16 +1363,18 @@ export function createEngine(scenario: Scenario): Engine {
             illegal('Eruption of Fury must target an enemy unit in combat with the unit.');
           }
           const profile = profileOf(scenario, unit);
-          const melee = profile.weapons.find((w) => w.kind === 'melee');
-          if (!melee) illegal('No melee weapon for Eruption of Fury.');
-          const pState = s.players[unit.owner];
-          resolveEruptionOfFury(
-            ctx,
-            unit,
-            s.units[targetId]!,
-            melee,
-            Math.min(3, pState.rageDice ?? 0),
-          );
+          const meleeWeapons = profile.weapons.filter((w) => w.kind === 'melee');
+          const melee =
+            action.weaponId === undefined
+              ? meleeWeapons[0]
+              : meleeWeapons.find((w) => w.id === action.weaponId);
+          if (!melee) illegal(`${unit.name} has no such melee weapon for Eruption of Fury.`);
+          const max = option.maxRageDice ?? 1;
+          const dice = action.rageDice ?? max;
+          if (!Number.isInteger(dice) || dice < 1 || dice > max) {
+            illegal(`Spend between 1 and ${max} rage dice on Eruption of Fury.`);
+          }
+          resolveEruptionOfFury(ctx, unit, s.units[targetId]!, melee, dice);
         } else if (action.t === 'command') {
           if (d.phase === 'hero' && action.command === 'rally') {
             rally(ctx, action.unit);

@@ -403,6 +403,10 @@ export type Action =
       target?: UnitId;
       secondTarget?: UnitId;
       choice?: string;
+      /** Eruption of Fury: rage dice to spend, 1 up to `UnitOption.maxRageDice` (default: the maximum). */
+      rageDice?: number;
+      /** Eruption of Fury: the melee weapon to attack with (default: the first one). */
+      weaponId?: string;
     };
 
 export type AbilityOptionKind = 'spell' | 'prayer' | 'summon' | 'banish' | 'activated';
@@ -426,6 +430,10 @@ export type UnitOption =
       kind: AbilityOptionKind;
       targetValue?: number;
       targets: UnitId[];
+      /** Eruption of Fury: the most rage dice that may be spent now. */
+      maxRageDice?: number;
+      /** Eruption of Fury: the melee weapons the unit may attack with. */
+      weapons?: { id: string; name: string }[];
     };
 
 /** The legal targets of one weapon, for a `shoot` action or a `targets` decision. */
