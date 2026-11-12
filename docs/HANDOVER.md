@@ -170,4 +170,6 @@ Done:
 
 - 13 Guarded Hero: invented Health 10 and 3-model conditions removed (`src/engine/terrain.ts` `isGuardedHero`); I32 rewritten, listed under Awaiting. Test: `terrain.test.ts` "guarded hero".
 
-Remaining: items 14 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- 14 Set-up on terrain: units may be deployed on ruins and outcrops (1" high or less), not on spires (`allowsSetUpOn` in `src/data/battlefield.ts`, used by `checkDeployPlacement`); assumption listed under Awaiting. Test: `deployment.test.ts` "allows setting up on ruins and outcrops".
+
+Remaining: items 15 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).

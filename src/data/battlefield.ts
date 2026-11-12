@@ -46,6 +46,17 @@ export interface Battlefield {
   terrain: TerrainFeature[];
 }
 
+/**
+ * Features no more than 1" high, which models may be set up on (owner's assumption,
+ * 2026-11-11, awaiting a ruling): ruins and outcrops. The spires are too tall.
+ */
+export const LOW_TERRAIN_KINDS: readonly TerrainKind[] = ['ruin', 'outcrop'];
+
+/** True when models may be set up on this feature (it is 1" high or less). */
+export function allowsSetUpOn(feature: TerrainFeature): boolean {
+  return LOW_TERRAIN_KINDS.includes(feature.kind);
+}
+
 const TRAITS: Record<TerrainKind, TerrainTrait[]> = {
   ruin: ['cover', 'unstable'],
   spire: ['obscuring', 'placeOfPower'],

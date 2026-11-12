@@ -18,6 +18,7 @@ import {
   type Polygon,
 } from '../geom/index.js';
 import { boardPolygon } from './movement.js';
+import { allowsSetUpOn } from '../data/battlefield.js';
 import {
   aliveIndices,
   attackerOf,
@@ -306,7 +307,13 @@ export function checkDeployPlacement(
     if (others.some((o) => footprintsOverlap(fp, o))) {
       overlapping.add(i);
     }
-    if (battlefield.terrain.some((t) => footprintOverlapsPolygon(fp, t.polygon))) {
+    // Units may be set up on features 1" high or less (ruins, outcrops), not on the spires;
+    // faction terrain is never set up on a terrain feature.
+    if (
+      battlefield.terrain.some(
+        (t) => (isTerrain || !allowsSetUpOn(t)) && footprintOverlapsPolygon(fp, t.polygon),
+      )
+    ) {
       overlapping.add(i);
     }
     if (isTerrain) {

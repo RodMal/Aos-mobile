@@ -117,6 +117,24 @@ describe('deployment: createReserveUnits and buildDeploymentFrames', () => {
 describe('deployment: checkDeployPlacement', () => {
   const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 
+  it('allows setting up on ruins and outcrops (1" high or less) but not on a spire', () => {
+    const state = makeReserveState(scenario);
+    const warsong = state.units['0:5']!; // one model
+    const at = (x: number, y: number) =>
+      checkDeployPlacement(scenario, state, warsong, formPlacement(scenario, warsong, { x, y }, 0))
+        .map((v) => v.code)
+        .filter((c) => c === 'OVERLAP');
+    const own = scenario.battlefield.territories[scenario.sides[0]];
+    const inOwn = (t: { centre: readonly [number, number] }) =>
+      own.some((poly) => pointInPolygon(t.centre, poly));
+    const low = scenario.battlefield.terrain.filter((t) => t.kind !== 'spire' && inOwn(t));
+    const spires = scenario.battlefield.terrain.filter((t) => t.kind === 'spire' && inOwn(t));
+    expect(low.length).toBeGreaterThan(0);
+    expect(spires.length).toBeGreaterThan(0);
+    for (const t of low) expect(at(t.centre[0], t.centre[1]), t.id).toEqual([]);
+    for (const t of spires) expect(at(t.centre[0], t.centre[1]), t.id).toEqual(['OVERLAP']);
+  });
+
   it('rejects placements outside friendly territory (OUTSIDE_TERRITORY)', () => {
     const state = makeReserveState(scenario);
     const alarielle = state.units['0:0']!;
