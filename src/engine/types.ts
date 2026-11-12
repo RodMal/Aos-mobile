@@ -68,6 +68,11 @@ export interface UnitState {
   charged: boolean;
   shot: boolean;
   fought: boolean;
+  /**
+   * The unit declined to attack enemy faction terrain this turn; it may still fight if an
+   * enemy unit comes within its combat range.
+   */
+  declinedTerrainFight?: boolean;
   /** Set once the unit has declared a charge this turn, whether or not the charge succeeded. */
   chargeDeclared?: boolean;
   /** The command this unit has used in the current phase (a unit may use one per phase). */

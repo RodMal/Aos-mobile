@@ -146,4 +146,17 @@ describe('faction terrain (owner ruling, 2026-11-11)', () => {
     expect(targets.length).toBeGreaterThan(0);
     expect(targets.every((w) => w.targets.some((t) => t.unit === REALMSHAPER))).toBe(true);
   });
+
+  it('declining to attack the terrain does not stop the unit fighting later if an enemy comes within 3"', () => {
+    const combat = passTo(engine, nearEngine(), 'combat');
+    const dryads = named(combat, 'Dryads');
+    const passed = editable(engine.apply(combat, { t: 'pass' }).state);
+    expect(passed.units[dryads.id]!.fought).toBe(false);
+    // An enemy unit ends up within 3" (as a pile-in would bring it) in the same tier.
+    const kx = dryads.models[0]!.x;
+    const ky = dryads.models[0]!.y;
+    placeUnit(scenario, passed, '1:1', kx, ky + 4.2);
+    expect(inCombat(scenario, passed, passed.units[dryads.id]!)).toBe(true);
+    expect(engine.unitOptions(passed, dryads.id)).toContainEqual({ t: 'fight' });
+  });
 });

@@ -174,4 +174,6 @@ Done:
 
 - 15 Seasons Of War and Creeping Dread wired (`src/rules/factions/seasons.ts`; `alarielleSeason` asked at round start before Ever Growing; new `creepingDread` start-of-turn decision; command cost surcharge through `commandBlocker`/`payCommand` extra cost); I54. Tests: `src/rules/factions/seasons.test.ts`, e2e `first-turn.spec.ts` (season prompt) and `fury.spec.ts` "Creeping Dread". e2e helpers answer the season (first allowed) and pass Creeping Dread.
 
-Remaining: items 16 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).
+- 16 Declining to attack faction terrain no longer marks the unit as having fought (`declinedTerrainFight` flag, additive on `UnitState`); it can fight later if an enemy comes within 3". I39 amended. Test: `factionTerrain.test.ts` "declining to attack the terrain does not stop the unit fighting later".
+
+Remaining: items 17 to 17 of the owner's list (Song Of The Lost/Dread, Power Through, first-turn choice, reaction filters, Guarded Hero, set-up on terrain, Creeping Dread and Seasons Of War, declined faction-terrain attacks, deployment robustness).

@@ -228,6 +228,7 @@ function startTurn(ctx: Ctx): void {
     u.charged = false;
     u.shot = false;
     u.fought = false;
+    u.declinedTerrainFight = false;
     u.chargeDeclared = false;
     u.allOutAttack = false;
     u.castsUsed = 0;
@@ -497,6 +498,9 @@ function moveOptions(scenario: Scenario, state: GameState, unit: UnitState): Uni
 function rawEligibleFighters(scenario: Scenario, state: GameState, player: PlayerId): UnitState[] {
   return unitsOf(state, player).filter((u) => {
     if (u.fought || isFactionTerrainUnit(scenario, u)) return false;
+    // A unit that declined to attack faction terrain can still fight if an enemy unit comes
+    // within combat range (it is not marked as having fought).
+    if (u.declinedTerrainFight && !u.charged && !inCombat(scenario, state, u)) return false;
     if (u.isManifestation && !profileOf(scenario, u).weapons.some((w) => w.kind === 'melee')) {
       return false;
     }
@@ -1672,7 +1676,9 @@ export function createEngine(scenario: Scenario): Engine {
         if (action.t === 'fight') declareFight(ctx, d.player, action.unit);
         else if (action.t === 'pass' && d.canPass) {
           // Declines to attack faction terrain with every optional fighter of this tier.
-          for (const u of eligibleFighters(scenario, s, d.player)) s.units[u.id]!.fought = true;
+          for (const u of eligibleFighters(scenario, s, d.player)) {
+            s.units[u.id]!.declinedTerrainFight = true;
+          }
         } else illegal('Pick a unit to fight.');
         break;
       case 'targets':
