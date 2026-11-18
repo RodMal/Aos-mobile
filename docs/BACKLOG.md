@@ -14,12 +14,13 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R6 Owner rulings on Asterisms and Dizzying Rage
+### B1 Answered prayers can't be banked
 
 - **Tier**: sonnet+review
-- **Touches**: rules, engine, ai
-- **Read**: `docs/RULES-DECISIONS.md` (the 2026-11-18 rulings on I78 and Dizzying Rage), `src/rules/factions/seraphon.ts`, the Dizzying Rage implementation (search `src/` for it) and its printed text in `data/`, `src/engine/abilities/magic.ts`
-- **Done when**: (a) Itzl's destroyed-units count and Quetzl's condition exclude manifestations and faction terrain, with tests. (b) Dizzying Rage grants only unbinding and banishing, never casting: a non-Wizard with Dizzying Rage is offered Unbind and Banish but no spells, the NPC never casts through it, and there are tests. Saved games stay replayable, or the impact is stated in RULES-DECISIONS as with I84. `docs/ABILITIES.md` is updated if a status changes.
+- **Touches**: rules, engine, ui/prompts, ai
+- **Ruling**: "Prayers are not giving me the option to bank them when answered."
+- **Read**: the chanting and ritual points rules in `data/ruleset.json` (core rules), `src/engine/abilities/magic.ts` (chanting), the prayer prompt in `src/ui/prompts/`, `src/ai/baseline.ts`
+- **Done when**: when a chanting roll answers a prayer, the player is offered the choice the core rules give (use the prayer now, or bank the roll as ritual points) exactly as printed, and banked points carry over and count toward later chants as printed. The NPC makes the choice deterministically. There are tests for answering, banking, and using banked points; the prompt is checked on phone and desktop; the reading is recorded in `docs/RULES-DECISIONS.md`; and old saves stay replayable.
 
 ### S1 Version saved games so a rules change offers a fresh game instead of silently diverging
 
