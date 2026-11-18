@@ -9,7 +9,6 @@
  * Ported from aos-webapp `rules/battleTactics.ts` and adapted to polygon territories and
  * exact model footprints.
  */
-import type {} from '../../data/battlefield.js';
 import type { GameState, PlayerId, Scenario, TacticTier } from '../../engine/types.js';
 import {
   BLAZING_ONSLAUGHT_ID,
