@@ -10,7 +10,7 @@ test('a reaction can be collapsed to see the map, and a tapped unit is highlight
   const reaction = page.getByTestId('reaction');
   let offered = false;
   for (let i = 0; i < 600 && !offered; i++) {
-    if (await usable(reaction.getByTestId('reaction-see-map'))) {
+    if (await usable(reaction.locator('[data-reaction-unit]').first())) {
       offered = true;
       break;
     }

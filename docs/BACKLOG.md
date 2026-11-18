@@ -96,5 +96,3 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 History before the loop is in git and in `docs/RULES-DECISIONS.md`. One line per task from here on: `id — title — PR #n`.
 
 R1 — Redeploy timing, and Redeploy counts as a run
-
-U1 — Reaction prompt: see the map, and unit names

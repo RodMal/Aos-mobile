@@ -37,6 +37,18 @@ function Die({ value }: { value: number }) {
   );
 }
 
+/** The collapsed form of a prompt: a small bar that leaves the board free. */
+function PeekBar({ onReopen }: { onReopen: () => void }) {
+  return (
+    <div className="peek-bar" data-testid="reaction-bar" role="region" aria-label="Reaction">
+      <span className="small">Reaction waiting</span>
+      <button className="btn primary" data-testid="reaction-reopen" onClick={onReopen}>
+        Back to reaction
+      </button>
+    </div>
+  );
+}
+
 /** Fight Through the Pain: the incoming damage, how many rage dice to spend, or take it all. */
 function PainPrompt({ option, fury }: { option: ReactionOption; fury: number }) {
   const state = useGameState();
@@ -44,6 +56,13 @@ function PainPrompt({ option, fury }: { option: ReactionOption; fury: number }) 
   const damage = option.damage ?? 0;
   const [dice, setDice] = useState(Math.min(max, damage));
   const name = state.units[option.unit]?.name ?? option.unit;
+  const [peek, setPeek] = useState(false);
+  const setFlagged = useUi((s) => s.setFlagged);
+  useEffect(() => {
+    setFlagged([option.unit]);
+    return () => setFlagged([]);
+  }, [option.unit, setFlagged]);
+  if (peek) return <PeekBar onReopen={() => setPeek(false)} />;
   return (
     <Modal title="Fight Through the Pain" testId="reaction">
       <p data-testid="pain-damage">
@@ -76,6 +95,9 @@ function PainPrompt({ option, fury }: { option: ReactionOption; fury: number }) 
         <span className="muted small">of {max}</span>
       </div>
       <div className="stack">
+        <button className="btn wide" data-testid="reaction-see-map" onClick={() => setPeek(true)}>
+          See the map
+        </button>
         <button
           className="btn wide"
           data-testid="pain-spend"
@@ -190,18 +212,7 @@ function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' }> }) {
     useUi.getState().moveCamera({ kind: 'unit', unit: id, zoom: false, onlyIfHidden: true });
   };
   if (peek) {
-    return (
-      <div className="peek-bar" data-testid="reaction-bar" role="region" aria-label="Reaction">
-        <span className="small">Reaction waiting</span>
-        <button
-          className="btn primary"
-          data-testid="reaction-reopen"
-          onClick={() => setPeek(false)}
-        >
-          Back to reaction
-        </button>
-      </div>
-    );
+    return <PeekBar onReopen={() => setPeek(false)} />;
   }
   return (
     <Modal title="Reaction" testId="reaction">
