@@ -16,7 +16,7 @@ Requires Node 22 and pnpm 10.
 pnpm install
 pnpm dev          # local dev server
 pnpm build        # static site in dist/
-pnpm preview      # serve dist/ on http://localhost:4173
+pnpm preview      # serve dist/ on http://localhost:4173 (manual use; e2e uses its own port, see docs/HANDOVER.md)
 ```
 
 ## Install and play offline
