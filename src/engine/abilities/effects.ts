@@ -126,10 +126,7 @@ function reachedByRange(
  * it is measured from the overgrowth, not the caster, so it needs no visibility (owner's
  * ruling I75, 2026-11-18, for Sylvaneth spells and prayers measured from the overgrowth).
  *
- * AWAITING THE OWNER: Enrage The Spites ("visible to and within 12" of this unit or that are
- * within the creeping overgrowth") is treated the same way: the overgrowth-only branch needs
- * no visibility, the 12" branch does. This is the one place to change if the owner rules
- * otherwise (see RULES-DECISIONS, "Awaiting the owner's ruling").
+ * Enrage The Spites has the same structure and is covered by the same ruling (I75).
  */
 export function reachedThroughOvergrowth(
   scenario: Scenario,
