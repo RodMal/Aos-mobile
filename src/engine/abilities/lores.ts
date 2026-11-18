@@ -450,7 +450,8 @@ export const LORE_ABILITIES: AbilityDefinition[] = [
         label: 'Metamorphosis damage',
         dice,
       });
-      const res = applyMortalDamage(ctx, target, dmg, 'Metamorphosis');
+      // Its follow-up needs to know whether the target fell, so no Fight Through the Pain here.
+      const res = applyMortalDamage(ctx, target, dmg, 'Metamorphosis', { immediate: true });
       if (!res.destroyed) return;
 
       const closest = closestFeatureWithoutToken(ctx.scenario, ctx.s, unit.owner, targetFps);

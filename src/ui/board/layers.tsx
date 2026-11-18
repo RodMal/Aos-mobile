@@ -172,6 +172,27 @@ export function OvergrowthLayer({ onUnits = false }: { onUnits?: boolean }) {
   );
 }
 
+/** Outlines the battlefield terrain a prompt points out (The Burgeoning's candidates). */
+export function FlaggedTerrainLayer() {
+  const ids = useUi((s) => s.flaggedTerrain);
+  if (ids.length === 0) return null;
+  return (
+    <g className="layer-flagged-terrain" pointerEvents="none">
+      {battlefield.terrain
+        .filter((t) => ids.includes(t.id))
+        .map((t) => (
+          <polygon
+            key={t.id}
+            points={points(t.polygon)}
+            className="terrain-flag"
+            data-testid="terrain-flag"
+            data-terrain-id={t.id}
+          />
+        ))}
+    </g>
+  );
+}
+
 function unitClasses(unit: UnitState, human: 0 | 1): string {
   return `unit p${unit.owner} ${unit.owner === human ? 'friendly' : 'enemy'}`;
 }

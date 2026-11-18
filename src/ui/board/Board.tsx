@@ -15,6 +15,7 @@ import {
   Defs,
   LabelsLayer,
   OvergrowthLayer,
+  FlaggedTerrainLayer,
   ObjectivesLayer,
   RangeLayer,
   TableLayer,
@@ -361,6 +362,7 @@ export function Board() {
         <RangeLayer />
         <UnitsLayer />
         <OvergrowthLayer onUnits />
+        <FlaggedTerrainLayer />
         <GhostLayer rot={rot} />
         <LabelsLayer rot={rot} />
         <MeasureLayer rot={rot} />

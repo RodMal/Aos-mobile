@@ -19,6 +19,7 @@ import {
   featureController,
   hasOvergrownToken,
   terrainFeatures,
+  type OvergrowthFeature,
 } from '../../engine/overgrowth.js';
 import { hasKeyword, opponent, profileOf, unitsOf, unitWhollyWithin } from '../../engine/query.js';
 import type { GameState, PlayerId, Scenario, UnitId, UnitState } from '../../engine/types.js';
@@ -76,9 +77,25 @@ export function dwindling(scenario: Scenario, state: GameState, unit: UnitState)
 }
 
 /**
- * The Burgeoning's pick for Ever Growing (an automatic choice, recorded as a simplification):
- * the terrain feature without a friendly token that the opponent does not control, closest to
- * the centre of the battlefield, so the overgrowth reaches the middle of the table.
+ * The terrain features The Burgeoning may name for Ever Growing: those without a friendly
+ * overgrown token that the opponent does not control.
+ */
+export function burgeoningOptions(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+): OvergrowthFeature[] {
+  return terrainFeatures(scenario, state).filter(
+    (f) =>
+      !hasOvergrownToken(scenario, state, player, f.id) &&
+      featureController(scenario, state, f) !== opponent(player),
+  );
+}
+
+/**
+ * The Burgeoning's pick for Ever Growing: the feature the player named (`burgeoningChoice`) while
+ * it is still allowed, otherwise (the NPC, or a pick left to the engine) the one closest to the
+ * centre of the battlefield, so the overgrowth reaches the middle of the table.
  */
 export function burgeoningPick(
   scenario: Scenario,
@@ -86,12 +103,14 @@ export function burgeoningPick(
   player: PlayerId,
 ): string | undefined {
   if (seasonFor(scenario, state, player) !== 'burgeoning') return undefined;
+  const options = burgeoningOptions(scenario, state, player);
+  if (state.burgeoningChoice && options.some((f) => f.id === state.burgeoningChoice)) {
+    return state.burgeoningChoice;
+  }
   const cx = scenario.battlefield.width / 2;
   const cy = scenario.battlefield.height / 2;
   let best: { id: string; d: number } | undefined;
-  for (const f of terrainFeatures(scenario, state)) {
-    if (hasOvergrownToken(scenario, state, player, f.id)) continue;
-    if (featureController(scenario, state, f) === opponent(player)) continue;
+  for (const f of options) {
     const pts =
       f.polygon ??
       (f.unit ? f.unit.models.filter((m) => m.alive).map((m) => [m.x, m.y] as const) : []);

@@ -21,13 +21,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: `src/engine/overgrowth.ts`, `src/ui/board/layers.tsx`
 - **Done when**: a light, toggleable shading shows where the creeping overgrowth reaches, updating as it changes.
 
-### R4 Leftovers from earlier rules work
-
-- **Tier**: sonnet+review
-- **Touches**: rules, ui/prompts
-- **Read**: `src/rules/core/fury.ts`, the fugitive pick in `src/ui/prompts/`, Seasons Of War in `src/rules/factions/sylvaneth.ts`
-- **Done when**: Fight Through the Pain is also offered for mortal damage outside attacks; the Burning for Vengeance fugitive pick highlights the candidates on the board; The Burgeoning lets the player pick its terrain feature.
-
 ### X2 Split `src/rules/core/battleTactics.ts` per card, and `src/ui/prompts/Prompts.tsx` per prompt
 
 - **Tier**: sonnet

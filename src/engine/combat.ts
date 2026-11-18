@@ -324,11 +324,32 @@ export function allocateOne(
   const { s } = ctx;
   // The frame may share its array with an earlier state (states are copied shallowly), so
   // replace it instead of shifting it.
-  const { target: id } = frame.pending[0]!;
+  const { target: id, source: named } = frame.pending[0]!;
   frame.pending = frame.pending.slice(1);
   const attacker = s.units[frame.attacker]!;
-  const res = allocateDamage(ctx, s.units[id]!, amount, `${attacker.name} (${frame.mode})`);
-  if (res.destroyed && frame.mode === 'fight' && attacker.charged) {
+  const res = allocateDamage(
+    ctx,
+    s.units[id]!,
+    amount,
+    named ?? `${attacker.name} (${frame.mode})`,
+  );
+  if (!named && res.destroyed && frame.mode === 'fight' && attacker.charged) {
     s.destroyedByChargeCombat = [...(s.destroyedByChargeCombat ?? []), id];
   }
+}
+
+/**
+ * Allocates the mortal damage queued by `inflictMortalDamage`, asking each target's owner about
+ * Fight Through the Pain first (the same prompt as for attack damage). A no-op when none is queued.
+ */
+export function flushMortalDamage(ctx: Ctx): void {
+  const queued = ctx.s.pendingMortal;
+  if (!queued || queued.length === 0) return;
+  ctx.s.pendingMortal = [];
+  allocatePending(ctx, {
+    t: 'allocate',
+    attacker: queued[0]!.target,
+    mode: 'shoot',
+    pending: queued.map((q) => ({ target: q.target, amount: q.amount, source: q.source })),
+  });
 }

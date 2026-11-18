@@ -37,6 +37,12 @@ test('Burning for Vengeance asks the player to pick the fugitive, and the tracke
   const choices = prompt.locator('[data-fugitive]');
   expect(await choices.count()).toBeGreaterThan(1);
   await page.screenshot({ path: info.outputPath(`fugitive-${info.project.name}.png`) });
+  // The candidates on the table are outlined, and the prompt can be collapsed to see them.
+  await expect(page.locator('.unit.flagged').first()).toBeAttached();
+  await page.getByTestId('fugitive-see-map').click();
+  await expect(prompt).toBeHidden();
+  await page.getByTestId('reaction-reopen').click();
+  await expect(prompt).toBeVisible();
   const last = choices.last();
   const name = ((await last.textContent()) ?? '').replace(/ · in reserve$/, '').trim();
   await last.click();
@@ -44,4 +50,18 @@ test('Burning for Vengeance asks the player to pick the fugitive, and the tracke
   await answerPreBattle(page);
   await page.getByTestId('tactics-button').click();
   await expect(page.getByTestId('tactics-panel')).toContainText(`Fugitive: ${name}`);
+});
+
+test('The Burgeoning lets the player pick the terrain feature, outlined on the board', async ({
+  page,
+}, info) => {
+  await page.goto('./?seed=5&side=0&fast=1&new=1');
+  await page.locator('[data-season="burgeoning"]').click();
+  const prompt = page.getByTestId('burgeoning');
+  await expect(prompt).toBeVisible();
+  await expect(page.locator('.unit.flagged, [data-testid="terrain-flag"]').first()).toBeAttached();
+  await page.screenshot({ path: info.outputPath(`burgeoning-${info.project.name}.png`) });
+  await prompt.locator('[data-feature]').last().click();
+  await expect(prompt).toBeHidden();
+  await expect(page.getByTestId('overgrown-mark').first()).toBeAttached();
 });

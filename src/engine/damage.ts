@@ -80,6 +80,7 @@ export function inflictMortalDamage(
   unit: UnitState,
   amount: number,
   source: string,
+  opts: { immediate?: boolean } = {},
 ): DamageResult {
   const wardVal = effectiveWard(ctx.scenario, ctx.s, unit) ?? null;
   const ward = rollWard(ctx.rng, amount, wardVal);
@@ -89,6 +90,21 @@ export function inflictMortalDamage(
   if (ward.taken === 0) {
     ctx.events.push({ t: 'damage', unit: unit.id, amount: 0, slain: 0, destroyed: false, source });
     return { taken: 0, slain: 0, destroyed: false };
+  }
+  // Fight Through the Pain also covers mortal damage: when the owner holds rage dice, the damage
+  // waits in the queue until the action ends (`flushMortalDamage`), so the callers' own steps
+  // finish first. `immediate` is for a caller that needs the outcome at once.
+  if (
+    !opts.immediate &&
+    unit.status === 'battlefield' &&
+    (ctx.s.players[unit.owner].rageDice ?? 0) > 0 &&
+    !profileOf(ctx.scenario, unit).isFactionTerrain
+  ) {
+    ctx.s.pendingMortal = [
+      ...(ctx.s.pendingMortal ?? []),
+      { target: unit.id, amount: ward.taken, source },
+    ];
+    return { taken: ward.taken, slain: 0, destroyed: false };
   }
   return allocateDamage(ctx, unit, ward.taken, source);
 }

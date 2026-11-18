@@ -57,6 +57,7 @@ export function cloneState(state: GameState): GameState {
           ),
         }
       : {}),
+    ...(state.pendingMortal ? { pendingMortal: [...state.pendingMortal] } : {}),
     ...(state.alarielleSeason ? { alarielleSeason: { ...state.alarielleSeason } } : {}),
   };
 }

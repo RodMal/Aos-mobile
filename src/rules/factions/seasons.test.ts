@@ -4,6 +4,7 @@ import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../../da
 import { createEngine, createScenario, type GameState } from '../../engine/index.js';
 import { editable, keepOnly, passTo, placeUnit, startGame } from '../../engine/test-helpers.js';
 import {
+  burgeoningOptions,
   burgeoningPick,
   creepingDreadCandidates,
   creepingDreadSurcharge,
@@ -88,6 +89,26 @@ describe('Seasons Of War (owner, 2026-11-11)', () => {
     expect(pick).toBeDefined();
     s.alarielleSeason = { 1: 'reaping' };
     expect(burgeoningPick(scenario, s, 0)).toBeUndefined();
+  });
+
+  it('The Burgeoning lets the player name the feature, offered in the decision', () => {
+    const s0 = engine.newGame(1);
+    const d = engine.decision(s0)!;
+    if (d.kind !== 'alarielleSeason') throw new Error('expected the season decision');
+    const options = burgeoningOptions(scenario, s0, 0);
+    expect(d.features).toEqual(options.map((f) => ({ id: f.id, name: f.name })));
+    // A feature that is not the default pick.
+    const auto = engine.apply(s0, { t: 'choose', value: 'burgeoning' }).state;
+    const defaultPick = auto.overgrown?.[0]?.find((id) => !s0.overgrown?.[0]?.includes(id));
+    const other = d.features.find((f) => f.id !== defaultPick)!;
+    const r = engine.apply(s0, { t: 'choose', value: `burgeoning:${other.id}` });
+    expect(r.state.burgeoningChoice).toBe(other.id);
+    expect(r.state.overgrown?.[0]).toContain(other.id);
+    expect(r.events).toContainEqual(
+      expect.objectContaining({ t: 'note', text: expect.stringContaining(other.name) }),
+    );
+    expect(() => engine.apply(s0, { t: 'choose', value: 'burgeoning:nowhere' })).toThrow();
+    expect(() => engine.apply(s0, { t: 'choose', value: `reaping:${other.id}` })).toThrow();
   });
 });
 
