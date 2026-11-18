@@ -117,6 +117,23 @@ export function creepingOvergrowthRange(tokens: number): number {
   return 6;
 }
 
+/**
+ * Where `player`'s creeping overgrowth reaches, for drawing: the range and the features it is
+ * measured from (empty when the player has no token). Same range rule as `inCreepingOvergrowth`.
+ */
+export function overgrowthReach(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+): { range: number; features: OvergrowthFeature[] } {
+  const ids = overgrownTokenIds(scenario, state, player);
+  if (ids.length === 0) return { range: 0, features: [] };
+  return {
+    range: creepingOvergrowthRange(ids.length),
+    features: terrainFeatures(scenario, state).filter((f) => ids.includes(f.id)),
+  };
+}
+
 /** Edge distance from a set of bases to a feature (0 when touching or overlapping it). */
 export function featureDistance(
   scenario: Scenario,

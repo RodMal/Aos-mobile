@@ -7,6 +7,7 @@ import {
   createScenario,
   inCreepingOvergrowth,
   overgrownTokenIds,
+  overgrowthReach,
   type GameState,
 } from './index.js';
 import { editable, keepOnly, placeUnit, startGame } from './test-helpers.js';
@@ -156,5 +157,20 @@ describe('Ever Growing in a played game', () => {
     expect(s.round).toBe(2);
     expect(notes.some((n) => /^Ever Growing: .+ gains an overgrown token\.$/.test(n))).toBe(true);
     expect(s.overgrown![0]!.length).toBeGreaterThan(roundOne);
+  });
+});
+
+describe('overgrowthReach (the board shading)', () => {
+  it('is empty without tokens and follows the token count', () => {
+    const s = arena([]);
+    s.units[WYLDWOOD]!.status = 'reserve';
+    expect(overgrowthReach(scenario, s, 0)).toEqual({ range: 0, features: [] });
+    s.units[WYLDWOOD]!.status = 'battlefield';
+    const ids = scenario.battlefield.terrain.map((t) => t.id);
+    s.overgrown = [ids.slice(0, 2), []];
+    const two = overgrowthReach(scenario, s, 0);
+    expect(two.range).toBe(9); // two stored tokens plus the Wyldwood's own
+    expect(two.features.map((f) => f.id)).toContain(WYLDWOOD);
+    expect(overgrowthReach(scenario, s, 1).features).toEqual([]);
   });
 });
