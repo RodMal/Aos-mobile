@@ -254,6 +254,15 @@ button {
 .tactic-tier.next .tier-name {
   font-weight: 600;
 }
+.tier-live {
+  grid-column: 2 / 4;
+  font-size: 12px;
+  color: var(--muted);
+}
+.tier-live.met {
+  color: var(--friendly);
+  font-weight: 600;
+}
 .tactic-condition {
   margin: 0;
   font-size: 13px;

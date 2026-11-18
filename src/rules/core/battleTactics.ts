@@ -836,3 +836,18 @@ export function evaluateEndOfTurnTactics(
   }
   return out;
 }
+
+/**
+ * Live check for the tracker: whether the card's current tier would be met if the turn ended
+ * on the present state. Null once the card is completed. Pure; does not change the state.
+ */
+export function liveTacticCheck(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+  cardId: string,
+): { tier: ActiveTacticTier; met: boolean } | null {
+  const current = state.players[player].tacticProgress?.[cardId] ?? 'affray';
+  if (current === 'completed') return null;
+  return { tier: current, met: evaluateBattleTactic(scenario, state, player, cardId, current) };
+}
