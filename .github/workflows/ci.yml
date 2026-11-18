@@ -97,6 +97,8 @@ jobs:
   e2e:
     needs: build
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -120,24 +122,11 @@ jobs:
           name: dist
           path: dist
 
-      - name: Playwright version
-        id: pw
-        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browser
-        id: pw-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-
-      - name: Install Playwright browser
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Install Playwright system dependencies
-        if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+      # The browser and its system libraries come with the image, so there is no apt step (the
+      # old `playwright install-deps` took 13 s to 9 min depending on the Ubuntu mirror). The image
+      # tag must match the pinned @playwright/test version.
+      - name: Check the image matches the pinned Playwright
+        run: test "$(pnpm exec playwright --version)" = "Version 1.63.0"
 
       - name: E2E (${{ matrix.project }})
         run: pnpm exec playwright test --project=${{ matrix.project }}

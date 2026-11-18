@@ -8,11 +8,15 @@ import { Icon } from '../components/Icon.js';
 function Toast() {
   const toast = useGame((s) => s.toast);
   const clear = useGame((s) => s.clearToast);
+  // `?fast=1` (tests): a short toast, so a test waiting for it to go (it covers the board and
+  // catches taps) does not pay the full three seconds in every game it starts.
+  const fast = useGame((s) => s.fast);
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(clear, toast.tone === 'error' ? 4500 : 3000);
+    const ms = toast.tone === 'error' ? 4500 : 3000;
+    const t = setTimeout(clear, fast ? ms / 3 : ms);
     return () => clearTimeout(t);
-  }, [toast, clear]);
+  }, [toast, clear, fast]);
   if (!toast) return <div className="toast-slot" />;
   return (
     <div className="toast-slot">
