@@ -18,7 +18,7 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 - **Tier**: sonnet+review
 - **Touches**: rules, engine, ui/prompts, ai
-- **Owner's report**: "Prayers are not giving me the option to bank them when answered."
+- **Ruling**: "Prayers are not giving me the option to bank them when answered."
 - **Read**: the chanting and ritual points rules in `data/ruleset.json` (core rules), `src/engine/abilities/magic.ts` (chanting), the prayer prompt in `src/ui/prompts/`, `src/ai/baseline.ts`
 - **Done when**: when a chanting roll answers a prayer, the player is offered the choice the core rules give (use the prayer now, or bank the roll as ritual points) exactly as printed, and banked points carry over and count toward later chants as printed. The NPC makes the choice deterministically. There are tests for answering, banking, and using banked points; the prompt is checked on phone and desktop; the reading is recorded in `docs/RULES-DECISIONS.md`; and old saves stay replayable.
 
