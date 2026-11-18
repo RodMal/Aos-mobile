@@ -16,6 +16,7 @@ import {
   LabelsLayer,
   OvergrowthLayer,
   FlaggedTerrainLayer,
+  OvergrowthReachLayer,
   ObjectivesLayer,
   RangeLayer,
   TableLayer,
@@ -358,6 +359,7 @@ export function Board() {
       <g ref={gRef}>
         <TableLayer human={human} />
         <ObjectivesLayer />
+        <OvergrowthReachLayer />
         <OvergrowthLayer />
         <RangeLayer />
         <UnitsLayer />

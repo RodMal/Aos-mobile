@@ -3,6 +3,7 @@ import { memo, useMemo } from 'react';
 import {
   aliveCount,
   overgrownTokenIds,
+  overgrowthReach,
   terrainFeatures,
   unitCentre,
   unitFootprints,
@@ -10,7 +11,7 @@ import {
   type GameState,
   type UnitState,
 } from '../../engine/index.js';
-import { boundingRadius, type Footprint } from '../../geom/index.js';
+import { boundingRadius, footprintPolygon, type Footprint } from '../../geom/index.js';
 import { engine, scenario } from '../game/engine.js';
 import { useDecision, useGameState, useHuman } from '../game/hooks.js';
 import { targetSummary } from '../game/attackPlan.js';
@@ -28,6 +29,9 @@ function points(poly: readonly (readonly [number, number])[]): string {
 export function Defs() {
   return (
     <defs>
+      <clipPath id="table-clip">
+        <rect x={0} y={0} width={battlefield.width} height={battlefield.height} />
+      </clipPath>
       <pattern
         id="hatch-enemy"
         width="0.45"
@@ -189,6 +193,48 @@ export function FlaggedTerrainLayer() {
             data-terrain-id={t.id}
           />
         ))}
+    </g>
+  );
+}
+
+/**
+ * Light shading of where each player's creeping overgrowth reaches: every feature with a token,
+ * grown outwards by the range (a thick round-joined stroke), clipped to the table. One group per
+ * player with a single opacity, so overlapping reaches do not darken.
+ */
+export function OvergrowthReachLayer() {
+  const state = useGameState();
+  const human = useHuman();
+  const show = useUi((s) => s.showOvergrowth);
+  if (!show) return null;
+  return (
+    <g className="layer-overgrowth-reach" pointerEvents="none" clipPath="url(#table-clip)">
+      {([0, 1] as const).map((owner) => {
+        const { range, features } = overgrowthReach(scenario, state, owner);
+        if (features.length === 0) return null;
+        const polys = features.flatMap((f) =>
+          f.polygon
+            ? [f.polygon]
+            : unitFootprints(scenario, f.unit!).map((fp) => footprintPolygon(fp)),
+        );
+        return (
+          <g
+            key={owner}
+            className={`overgrowth-reach ${owner === human ? 'friendly' : 'enemy'}`}
+            data-testid="overgrowth-reach"
+            data-owner={owner}
+            data-range={range === Infinity ? 'all' : range}
+          >
+            {range === Infinity ? (
+              <rect x={0} y={0} width={battlefield.width} height={battlefield.height} />
+            ) : (
+              polys.map((poly, i) => (
+                <polygon key={i} points={points(poly)} strokeWidth={range * 2} />
+              ))
+            )}
+          </g>
+        );
+      })}
     </g>
   );
 }

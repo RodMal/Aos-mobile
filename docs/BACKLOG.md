@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### U6 Overgrowth shading
-
-- **Tier**: sonnet
-- **Touches**: engine, ui/board
-- **Read**: `src/engine/overgrowth.ts`, `src/ui/board/layers.tsx`
-- **Done when**: a light, toggleable shading shows where the creeping overgrowth reaches, updating as it changes.
-
 ### X2 Split `src/rules/core/battleTactics.ts` per card, and `src/ui/prompts/Prompts.tsx` per prompt
 
 - **Tier**: sonnet

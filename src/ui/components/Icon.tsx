@@ -17,6 +17,7 @@ const PATHS: Record<string, string> = {
   adjust: 'M12 3v4M12 17v4M3 12h4M17 12h4M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
   reset: 'M4 4v6h6M20 20v-6h-6M5 15a8 8 0 0 0 14 2M19 9A8 8 0 0 0 5 7',
   book: 'M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4zM5 16a4 4 0 0 1 4-4h10',
+  leaf: 'M5 19C5 9 11 4 20 4c0 9-5 15-15 15zM5 19l9-9',
   ruler: 'M3 15L15 3l6 6L9 21zM7 11l3 3M10 8l2 2M13 5l2 2',
   chevron: 'M6 9l6 6 6-6',
 };

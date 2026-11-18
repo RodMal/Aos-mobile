@@ -85,6 +85,9 @@ interface UiStore {
   abilityPick: AbilityPick | null;
   confirm: { text: string; action: () => void; ok: string } | null;
   measure: MeasureState;
+  /** Shade where the creeping overgrowth reaches. */
+  showOvergrowth: boolean;
+  setShowOvergrowth(v: boolean): void;
   camera: (CameraRequest & { nonce: number }) | null;
   /** Height of the bottom sheet in px, so the board can keep the table above it. */
   sheetHeight: number;
@@ -126,6 +129,8 @@ export const useUi = create<UiStore>((set) => ({
   abilityPick: null,
   confirm: null,
   measure: { on: false, a: null, b: null },
+  showOvergrowth: true,
+  setShowOvergrowth: (v) => set({ showOvergrowth: v }),
   camera: null,
   sheetHeight: 0,
   zoomBucket: 10,
