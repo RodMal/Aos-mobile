@@ -77,6 +77,8 @@ test('stages', async ({ page }) => {
   const from = await boardPoint(page);
   await drag(page, from, await ahead(page, from, 3.5, 0.8));
   await shot(page, '07-mid-move-ghost');
+  await page.getByRole('button', { name: 'Show whole table' }).click();
+  await shot(page, '07b-enemy-zones-whole-table');
   await drag(page, from, await ahead(page, from, 5));
   await expect(page.getByTestId('place-confirm')).toBeDisabled();
   await shot(page, '08-violation-too-far');

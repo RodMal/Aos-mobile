@@ -21,13 +21,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: the battle tactics drawer in `src/ui/drawers/`, `src/rules/core/battleTactics.ts`
 - **Done when**: each tier whose condition can be evaluated on the current state shows a live met / not met indicator (for example Flanking Firestorm's "within 9 inches of a corner"), computed by pure functions in `src/rules/core/battleTactics.ts` with unit tests.
 
-### U5 3" enemy zones while moving
-
-- **Tier**: sonnet
-- **Touches**: ui/board
-- **Read**: `src/ui/board/GhostLayer.tsx`, `src/ui/board/layers.tsx`
-- **Done when**: during a normal move or run, the area within 3" of every enemy unit is shaded faintly; screenshot checked on phone and desktop.
-
 ### U6 Overgrowth shading
 
 - **Tier**: sonnet

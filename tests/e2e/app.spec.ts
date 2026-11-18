@@ -57,6 +57,8 @@ test('a full move: select, Move, drag the ghost, confirm', async ({ page }) => {
   const before = await modelTablePos(page, '[data-unit-id="0:6"] [data-model="0"]');
   await page.locator('[data-action="normal"]').click();
   await expect(page.getByTestId('place-panel')).toBeVisible();
+  await expect(page.getByTestId('enemy-zones')).toBeAttached();
+  expect(await page.getByTestId('enemy-zones').locator('> *').count()).toBeGreaterThan(0);
   const from = await boardPoint(page);
   // Player 0 sits at the bottom: screen up is towards the enemy (+x on the table).
   await drag(page, from, await ahead(page, from, 3));

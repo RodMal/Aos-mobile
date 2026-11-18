@@ -29,8 +29,10 @@ export function GhostLayer({ rot }: { rot: Rot }) {
   const tooFar = dist > allowance + 1e-6;
   const active = draft.adjust ? draft.activeModel : null;
   const activeFrom = active !== null ? unit.models[active] : undefined;
+  const showZones = decision.reason === 'normal' || decision.reason === 'run';
   return (
     <g className={`layer-ghost ${draft.violations.length > 0 ? 'has-violations' : ''}`}>
+      {showZones && <EnemyZones owner={unit.owner} />}
       <g className="allowance-area">
         {draft.placement.models.map((m) => {
           const from = unit.models[m.i]!;
@@ -81,6 +83,21 @@ export function GhostLayer({ rot }: { rot: Rot }) {
               : inches(Math.round(dist * 10) / 10)}
           </text>
         </g>
+      )}
+    </g>
+  );
+}
+
+/** The area within 3" of every enemy unit on the battlefield, shaded faintly. */
+function EnemyZones({ owner }: { owner: 0 | 1 }) {
+  const state = useGameState();
+  const enemies = Object.values(state.units).filter(
+    (u) => u.owner !== owner && u.status === 'battlefield',
+  );
+  return (
+    <g className="enemy-zones" data-testid="enemy-zones">
+      {enemies.flatMap((u) =>
+        unitFootprints(scenario, u).map((fp, k) => <Shape key={`${u.id}:${k}`} fp={fp} />),
       )}
     </g>
   );
