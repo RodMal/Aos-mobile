@@ -149,6 +149,31 @@ describe('session', () => {
     expect(replayed.state).toEqual(played!.state);
   });
 
+  it('replays a game saved before an answered prayer could be banked (no answer to it)', () => {
+    let old: ReturnType<typeof toRecord> | null = null;
+    let played: ReturnType<typeof newSession> | null = null;
+    for (let seed = 1; seed < 40 && !old; seed++) {
+      let s = newSession(engine, seed, 1);
+      let asked = 0;
+      for (let i = 0; i < 3000 && engine.decision(s.state); i++) {
+        if (engine.decision(s.state)?.kind === 'prayer') asked++;
+        s = applyToSession(engine, s, chooseAction(engine, s.state)).session;
+      }
+      if (asked === 0) continue;
+      const answers = s.history.filter((h) => engine.decision(h.before)?.kind === 'prayer');
+      const record = toRecord(s);
+      record.actions = s.history.filter((h) => !answers.includes(h)).map((h) => h.action);
+      old = record;
+      played = s;
+    }
+    expect(old).not.toBeNull();
+    let replayed = replay(engine, old!);
+    while (engine.decision(replayed.state)?.kind === 'prayer') {
+      replayed = applyToSession(engine, replayed, { t: 'choose', value: 'use' }).session;
+    }
+    expect(replayed.state).toEqual(played!.state);
+  });
+
   it('saves and replays a game where Further the Great Plan was answered with a key and a new Asterism', () => {
     let s = newSession(engine, 5, 1);
     let further = 0;

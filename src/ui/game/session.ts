@@ -140,18 +140,21 @@ export function parseRecord(json: string | null): GameRecord | null {
 /**
  * The answer a game saved before a question existed gets, when the game now waits on one and the
  * recorded action is not a legal answer to it: a pass to an Asterism, `none` to Vengeance of
- * Azyr (which does not accept a pass, so a recorded pass of the old game is never taken for it).
+ * Azyr (which does not accept a pass, so a recorded pass of the old game is never taken for it),
+ * `use` to an answered prayer (a game saved before the choice to bank it).
  * `engine.apply` is pure, so trying is safe.
  */
 function missingAnswer(engine: Engine, session: Session, action: Action): Action | null {
   const kind = engine.decision(session.state)?.kind;
-  if (kind !== 'asterism' && kind !== 'vengeance') return null;
+  if (kind !== 'asterism' && kind !== 'vengeance' && kind !== 'prayer') return null;
   try {
     engine.apply(session.state, action);
     return null;
   } catch (e) {
     if (e instanceof IllegalActionError) {
-      return kind === 'asterism' ? { t: 'pass' } : { t: 'choose', value: 'none' };
+      if (kind === 'asterism') return { t: 'pass' };
+      // A chanting roll that answered the prayer was always used at once.
+      return { t: 'choose', value: kind === 'prayer' ? 'use' : 'none' };
     }
     throw e;
   }

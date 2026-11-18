@@ -18,6 +18,8 @@ import {
   unitGrants,
   unitsWithin,
   IllegalActionError,
+  type Action,
+  type Engine,
   type GameEvent,
   type GameState,
   type StepResult,
@@ -25,7 +27,7 @@ import {
 } from '../index.js';
 import { chooseAction } from '../../ai/baseline.js';
 import {
-  applyUntil,
+  applyUntil as applyUntilRaw,
   editable,
   keepOnly,
   passTo,
@@ -33,6 +35,24 @@ import {
   weapon,
   startGame,
 } from '../test-helpers.js';
+
+/** Like `applyUntil`, but a chanting roll that answers the prayer is used at once (I90). */
+function applyUntil(
+  engine: Engine,
+  state: GameState,
+  action: Action,
+  accept: (r: StepResult) => boolean,
+): StepResult {
+  for (let rng = 1; rng < 2000; rng++) {
+    let r = engine.apply({ ...state, rng }, action);
+    if (engine.decision(r.state)?.kind === 'prayer') {
+      const used = engine.apply(r.state, { t: 'choose', value: 'use' });
+      r = { state: used.state, events: [...r.events, ...used.events] };
+    }
+    if (accept(r)) return r;
+  }
+  throw new Error('no RNG state gave the wanted outcome');
+}
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
 const engine = createEngine(scenario);
@@ -325,6 +345,95 @@ describe('Magic & Prayers Core Mechanics', () => {
     });
     expect(answered.state.units[WARSONG]!.ritualPoints).toBe(0);
     expect(answered.state.effects?.some((e) => e.id === SONG_OF_WAR)).toBe(true);
+  });
+
+  describe('an answered prayer: use it now or bank the points (I90)', () => {
+    const chant = (ritual: number, abilityId = SONG_OF_WAR) => {
+      const s = baseArena([WARSONG, DRYADS]);
+      s.units[WARSONG]!.ritualPoints = ritual;
+      return applyUntilRaw(
+        engine,
+        s,
+        { t: 'ability', unit: WARSONG, abilityId, target: DRYADS },
+        (r) => engine.decision(r.state)?.kind === 'prayer',
+      );
+    };
+
+    it('asks before answering: nothing is spent or resolved until the player chooses', () => {
+      const r = chant(2);
+      const d = engine.decision(r.state);
+      expect(d).toMatchObject({ kind: 'prayer', player: 0, unit: WARSONG, banked: 2 });
+      expect(r.state.units[WARSONG]!.ritualPoints).toBe(2);
+      expect(r.state.effects?.some((e) => e.id === SONG_OF_WAR)).toBeFalsy();
+      expect(r.events.some((e) => e.t === 'chant')).toBe(false);
+      expect(() => engine.apply(r.state, { t: 'pass' })).toThrow(IllegalActionError);
+    });
+
+    it('use: the prayer is answered and the ritual points are spent', () => {
+      const r = chant(2);
+      const used = engine.apply(r.state, { t: 'choose', value: 'use' });
+      expect(used.events.find((e) => e.t === 'chant')).toMatchObject({
+        answered: true,
+        ritualPoints: 0,
+      });
+      expect(used.state.units[WARSONG]!.ritualPoints).toBe(0);
+      expect(used.state.effects?.some((e) => e.id === SONG_OF_WAR)).toBe(true);
+    });
+
+    it('bank: the roll is kept as ritual points, the prayer is not answered', () => {
+      const r = chant(2);
+      const d = engine.decision(r.state);
+      const banked = engine.apply(r.state, { t: 'choose', value: 'bank' });
+      expect(banked.state.units[WARSONG]!.ritualPoints).toBe(d?.kind === 'prayer' ? d.points : -1);
+      expect(banked.events.find((e) => e.t === 'chant')).toMatchObject({ answered: false });
+      expect(banked.state.effects?.some((e) => e.id === SONG_OF_WAR)).toBeFalsy();
+    });
+
+    it('banked points count toward a later chant', () => {
+      const first = chant(0);
+      const banked = engine.apply(first.state, { t: 'choose', value: 'bank' }).state;
+      const points = banked.units[WARSONG]!.ritualPoints!;
+      expect(points).toBeGreaterThanOrEqual(5);
+      // The next chant (another prayer, a later turn) is answered by the banked points alone.
+      const later = editable(banked);
+      later.units[WARSONG]!.abilitiesUsed = [];
+      later.units[WARSONG]!.castsUsed = 0;
+      later.players[0]!.spellsAttempted = [];
+      const again = applyUntilRaw(
+        engine,
+        later,
+        { t: 'ability', unit: WARSONG, abilityId: SONG_OF_THE_LOST, target: DRYADS },
+        (r) => {
+          const d = engine.decision(r.state);
+          return d?.kind === 'prayer' && d.die === 2;
+        },
+      );
+      const d = engine.decision(again.state);
+      expect(d).toMatchObject({ kind: 'prayer', banked: points, points: points + 2 });
+    });
+
+    it('a pre-declared bank still banks without asking (old saves)', () => {
+      const s = baseArena([WARSONG, DRYADS]);
+      const r = applyUntilRaw(
+        engine,
+        s,
+        {
+          t: 'ability',
+          unit: WARSONG,
+          abilityId: SONG_OF_THE_LOST,
+          target: DRYADS,
+          choice: 'bank',
+        },
+        (res) => res.events.some((e) => e.t === 'chant' && e.die === 5),
+      );
+      expect(engine.decision(r.state)?.kind).toBe('main');
+    });
+
+    it('the NPC and the default action use the prayer', () => {
+      const r = chant(2);
+      expect(chooseAction(engine, r.state)).toEqual({ t: 'choose', value: 'use' });
+      expect(engine.defaultAction(r.state)).toEqual({ t: 'choose', value: 'use' });
+    });
   });
 
   it('Banish Manifestation: destroys enemy manifestation within 30" on 7+ and blocks re-summoning that turn', () => {

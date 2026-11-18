@@ -666,18 +666,7 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
       return;
     }
 
-    // Prayer is answered!
-    unit.ritualPoints = 0;
-    ctx.events.push({
-      t: 'chant',
-      unit: unit.id,
-      ability: def.name,
-      die,
-      total: currentPoints,
-      targetValue: cv,
-      answered: true,
-      ritualPoints: 0,
-    });
+    // The roll answers the prayer: the player chooses to use it now or to bank the points.
     let secondTarget: UnitState | undefined;
     if (action.secondTarget && opt.targets.includes(action.secondTarget)) {
       secondTarget = unitById(ctx.s, action.secondTarget);
@@ -689,18 +678,67 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
       const otherId = opt.targets.find((id) => id !== target?.id);
       if (otherId) secondTarget = unitById(ctx.s, otherId);
     }
-    def.resolve?.({
-      ctx,
-      unit,
-      target,
-      secondTarget,
-      roll: currentPoints,
-      choice: action.choice,
+    ctx.s.stack.push({
+      t: 'prayer',
+      unit: unit.id,
+      abilityId: def.id,
+      ...(target ? { target: target.id } : {}),
+      ...(secondTarget ? { secondTarget: secondTarget.id } : {}),
+      ...(action.choice ? { choice: action.choice } : {}),
+      die,
+      points: currentPoints,
     });
     return;
   }
 
   def.resolve?.({ ctx, unit, target, choice: action.choice });
+}
+
+/** The answer to a `prayer` decision: `use` answers the prayer now, `bank` keeps the points. */
+export function choosePrayer(ctx: StepCtx, action: Action): void {
+  const frame = ctx.s.stack[ctx.s.stack.length - 1];
+  if (frame?.t !== 'prayer') throw new IllegalActionError('There is no prayer to answer.');
+  if (action.t !== 'choose' || (action.value !== 'use' && action.value !== 'bank')) {
+    throw new IllegalActionError('Use the prayer now, or bank the ritual points.');
+  }
+  ctx.s.stack.pop();
+  const unit = unitById(ctx.s, frame.unit);
+  const def = getAbility(frame.abilityId);
+  if (!def) return;
+  const cv = def.chantingValue ?? 4;
+  if (action.value === 'bank') {
+    unit.ritualPoints = frame.points;
+    ctx.events.push({
+      t: 'chant',
+      unit: unit.id,
+      ability: def.name,
+      die: frame.die,
+      total: frame.points,
+      targetValue: cv,
+      answered: false,
+      ritualPoints: unit.ritualPoints,
+    });
+    return;
+  }
+  unit.ritualPoints = 0;
+  ctx.events.push({
+    t: 'chant',
+    unit: unit.id,
+    ability: def.name,
+    die: frame.die,
+    total: frame.points,
+    targetValue: cv,
+    answered: true,
+    ritualPoints: 0,
+  });
+  def.resolve?.({
+    ctx,
+    unit,
+    target: frame.target ? unitById(ctx.s, frame.target) : undefined,
+    secondTarget: frame.secondTarget ? unitById(ctx.s, frame.secondTarget) : undefined,
+    roll: frame.points,
+    choice: frame.choice,
+  });
 }
 
 export function resolvePendingSpell(
