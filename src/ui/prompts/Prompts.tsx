@@ -8,6 +8,7 @@ import { PrayerPrompt } from './PrayerPrompt.js';
 import { PainPrompt } from './PainPrompt.js';
 import { PlaceOfPowerPrompt } from './PlaceOfPowerPrompt.js';
 import { PriorityPrompt } from './PriorityPrompt.js';
+import { RerollPrompt } from './RerollPrompt.js';
 import { ReactionPrompt } from './ReactionPrompt.js';
 import { SeasonPrompt } from './SeasonPrompt.js';
 
@@ -30,6 +31,8 @@ export function DecisionPrompts() {
     return <VengeancePrompt key={`${d.stage}:${d.unit ?? ''}`} d={d} />;
   }
   if (d.kind === 'reaction') {
+    const glamour = d.options.find((o) => o.ability === 'glamourweave');
+    if (glamour?.reroll) return <RerollPrompt key={d.trigger} option={glamour} />;
     const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
     if (pain) {
       return (

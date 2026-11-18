@@ -163,6 +163,7 @@ export async function answerOpponentTurnPrompt(page: Page): Promise<boolean> {
   for (const l of [
     page.getByRole('button', { name: 'Skip', exact: true }),
     page.getByTestId('pain-skip'),
+    page.getByTestId('reroll-keep'),
   ]) {
     if (await usable(l)) {
       await l.click();
@@ -278,6 +279,7 @@ export async function minimalPlayerStep(page: Page): Promise<string | null> {
     ['pass creeping dread', page.getByTestId('dread-pass')],
     ['skip reaction', page.getByRole('button', { name: 'Skip', exact: true })],
     ['take the damage', page.getByTestId('pain-skip')],
+    ['keep the roll', page.getByTestId('reroll-keep')],
     [
       'pass place of power',
       page.getByTestId('place-of-power').getByRole('button', { name: 'Pass' }),

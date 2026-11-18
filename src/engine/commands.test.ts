@@ -7,7 +7,15 @@ import {
   type Action,
   type GameState,
 } from './index.js';
-import { applyUntil, editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
+import {
+  applyUntil,
+  editable,
+  keepOnly,
+  passTo,
+  placeUnit,
+  startGame,
+  takeRerolls,
+} from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
@@ -176,11 +184,13 @@ describe('All-out Defence', () => {
     const r = engine.apply(s, shoot);
     expect(engine.decision(r.state)).toMatchObject({ kind: 'reaction', player: 1 });
     expect(r.events.some((e) => e.t === 'attacks')).toBe(false);
-    const passed = engine.apply(r.state, { t: 'pass' });
+    const passed = takeRerolls(engine, engine.apply(r.state, { t: 'pass' }));
     expect(passed.events.some((e) => e.t === 'attacks')).toBe(true);
     expect(passed.state.stack).toEqual([]);
     const broke = editable(s);
     broke.players[1].cp = 0;
-    expect(engine.decision(engine.apply(broke, shoot).state)).toMatchObject({ kind: 'main' });
+    expect(engine.decision(takeRerolls(engine, engine.apply(broke, shoot)).state)).toMatchObject({
+      kind: 'main',
+    });
   });
 });

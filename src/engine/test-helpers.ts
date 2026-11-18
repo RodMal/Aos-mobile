@@ -111,3 +111,17 @@ export function startGame(engine: Engine, seed: number): GameState {
   }
   return s;
 }
+
+/**
+ * Answers any Glamourweave re-roll question the result stops at by re-rolling (the engine's
+ * default answer), so a test that does not care about the choice sees the attacks resolved.
+ */
+export function takeRerolls(engine: Engine, result: StepResult): StepResult {
+  let r = result;
+  for (let i = 0; i < 50; i++) {
+    const d = engine.decision(r.state);
+    if (d?.kind !== 'reaction' || !d.options.some((o) => o.ability === 'glamourweave')) break;
+    r = engine.apply(r.state, engine.defaultAction(r.state));
+  }
+  return r;
+}

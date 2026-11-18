@@ -6,6 +6,7 @@ import {
   allocatePending,
   resolveAttacks,
 } from './combat.js';
+import { GLAMOURWEAVE_REROLL_ID } from './abilities/sylvaneth.js';
 import { illegal, type Ctx } from './ctx.js';
 import { opponent, unitsOf } from './query.js';
 import { spendRageToNegateDamage } from '../rules/core/fury.js';
@@ -40,6 +41,18 @@ export function answerReaction(ctx: Ctx, action: Action): void {
   if (reaction?.t !== 'reaction') illegal('There is no reaction to answer.');
 
   const under = s.stack[s.stack.length - 2];
+
+  // 0. A Glamourweave re-roll: re-roll this failed roll, or keep it for a later one.
+  if (under?.t === 'resolve' && reaction.options.some((o) => o.ability === 'glamourweave')) {
+    let reroll: boolean;
+    if (action.t === 'pass') reroll = false;
+    else if (action.t === 'ability' && action.abilityId === GLAMOURWEAVE_REROLL_ID) reroll = true;
+    else illegal('Re-roll the failed roll or keep it.');
+    s.stack.pop(); // reaction
+    const frame = s.stack.pop() as Extract<Frame, { t: 'resolve' }>;
+    resolveAttacks(ctx, { ...frame, choices: [...(frame.choices ?? []), reroll] });
+    return;
+  }
 
   // 1. Unbind reaction to a pending spell
   if (under?.t === 'spell') {

@@ -11,6 +11,7 @@ import {
   unitGrants,
   wardRollModifier,
 } from './abilities/effects.js';
+import { RerollNeeded } from './attack.js';
 import { glamourRerolls, spendGlamourweave } from './abilities/sylvaneth.js';
 import { hasAbility, rollAttackCount, rollAttackSequence, rollWard } from './attack.js';
 import { illegal, type Ctx } from './ctx.js';
@@ -230,14 +231,23 @@ export function checkAllocations(options: WeaponTargets[], allocations: Allocati
   }
 }
 
-/** Rolls every allocated weapon's attacks, then allocates the damage to each target. */
+/**
+ * Rolls every allocated weapon's attacks, then allocates the damage to each target.
+ *
+ * A Glamourweave re-roll is the player's choice: at a failed roll the owner is asked (a
+ * `reaction` frame, the attacks waiting under it as a `resolve` frame that remembers its
+ * progress). The allocation is then rolled again from the same dice with the answers so far, so
+ * nothing is applied until it has run through.
+ */
 export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>): void {
   const { scenario, s } = ctx;
   const attacker = s.units[frame.unit]!;
   if (attacker.status !== 'battlefield') return;
   const profile = profileOf(scenario, attacker);
-  const pending = new Map<string, number>();
-  for (const alloc of frame.allocations) {
+  const pending = new Map<string, number>((frame.pending ?? []).map((p) => [p.target, p.amount]));
+  for (let at = frame.at ?? 0; at < frame.allocations.length; at++) {
+    const alloc = frame.allocations[at]!;
+    const choices = at === (frame.at ?? 0) ? (frame.choices ?? []) : [];
     const weapon = usedWeapon(
       scenario,
       s,
@@ -257,6 +267,7 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
     if (indices.length === 0) continue;
     const tp = profileOf(scenario, target);
     const targetWard = effectiveWard(scenario, s, target) ?? null;
+    const start = ctx.rng.state;
     const attacks = rollAttackCount(
       ctx.rng,
       weapon,
@@ -268,13 +279,46 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
       allOutDefence: frame.defended.includes(target.id),
       coveringFire: frame.coveringFire,
     });
-    const roll = rollAttackSequence(ctx.rng, {
-      weapon,
-      attacks,
-      mods,
-      target: { save: tp.save, ward: targetWard },
-      rerolls: glamourRerolls(scenario, s, attacker, target),
-    });
+    let answered = 0;
+    let roll: ReturnType<typeof rollAttackSequence>;
+    try {
+      roll = rollAttackSequence(ctx.rng, {
+        weapon,
+        attacks,
+        mods,
+        target: { save: tp.save, ward: targetWard },
+        rerolls: glamourRerolls(scenario, s, attacker, target),
+        chooseReroll: (kind, die) => {
+          if (answered < choices.length) return choices[answered++]!;
+          throw new RerollNeeded(kind, die);
+        },
+      });
+    } catch (e) {
+      if (!(e instanceof RerollNeeded)) throw e;
+      // Ask the owner of the re-roll; the allocation is rolled again from `start` afterwards.
+      ctx.rng.state = start;
+      const holder = e.kind === 'save' ? target : attacker;
+      s.stack.push({
+        ...frame,
+        at,
+        pending: [...pending].map(([t, amount]) => ({ target: t, amount })),
+        choices,
+      });
+      s.stack.push({
+        t: 'reaction',
+        player: holder.owner,
+        options: [
+          {
+            ability: 'glamourweave',
+            unit: holder.id,
+            cost: 0,
+            reroll: { kind: e.kind, die: e.die, weapon: weapon.name, target: target.id },
+          },
+        ],
+        trigger: `reroll:${holder.id}:${e.kind}`,
+      });
+      return;
+    }
     const spent = roll.rerolled;
     if (spent.hit || spent.wound || spent.save) {
       spendGlamourweave(s, attacker, target, spent);
