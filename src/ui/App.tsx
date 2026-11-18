@@ -12,6 +12,7 @@ import { engine } from './game/engine.js';
 import { useDecision, useGameState, useHuman } from './game/hooks.js';
 import { useGame } from './game/instance.js';
 import { useUi } from './game/uiStore.js';
+import { StartScreen } from './StartScreen.js';
 import { TopBar } from './hud/TopBar.js';
 import { TurnSummary } from './hud/TurnSummary.js';
 import { useKeyboard } from './hud/useKeyboard.js';
@@ -97,7 +98,7 @@ function useNpcCamera(): void {
   }, [focus]);
 }
 
-export function App() {
+function Game() {
   useDecisionSync();
   useNpc();
   useNpcCamera();
@@ -123,4 +124,9 @@ export function App() {
       {drawer === 'tactics' && <TacticsDrawer />}
     </main>
   );
+}
+
+export function App() {
+  const started = useGame((s) => s.started);
+  return started ? <Game /> : <StartScreen />;
 }
