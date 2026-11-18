@@ -1204,7 +1204,7 @@ describe('Six Remaining Commands', () => {
       phase: 'hero',
     });
 
-    // Cast Mystical Unforging (CV 6) via Magical Intervention: total = dice[0] + dice[1] - 1
+    // Cast Mystical Unforging (CV 6) via Magical Intervention: dice - 1, +2 for Kroak (Supreme Master of Order)
     const castRes = applyUntil(
       engine,
       intervened.state,
@@ -1215,7 +1215,7 @@ describe('Six Remaining Commands', () => {
     expect(castEv).toMatchObject({
       t: 'cast',
       unit: KROAK,
-      total: 6,
+      total: 8,
       targetValue: 6,
       success: true,
     });

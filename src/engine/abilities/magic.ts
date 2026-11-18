@@ -8,6 +8,15 @@ import {
 } from '../../geom/index.js';
 import { canStandOn } from '../../data/battlefield.js';
 import { reapingBonus } from '../../rules/factions/seasons.js';
+import {
+  ARCANE_VASSAL_ID,
+  arcaneVassalTargets,
+  hasSupremeMaster,
+  isWizard,
+  supremeCastBonus,
+  supremeUnbindBonus,
+  vassalOf,
+} from '../../rules/factions/kroak.js';
 import { tepokBonus } from '../../rules/factions/seraphon.js';
 import { applyMortalDamage, destroyUnit, type StepCtx } from '../damage.js';
 import { roll2D6, rollD3, rollD6 } from '../ctx.js';
@@ -35,7 +44,7 @@ import {
   type UnitOption,
   type UnitState,
 } from '../types.js';
-import { getAbility, legalTargetsForSpec } from './effects.js';
+import { addEffect, getAbility, legalTargetsForSpec } from './effects.js';
 import type { AbilityDefinition } from './types.js';
 
 export const UNBIND_RANGE = 30;
@@ -290,6 +299,8 @@ export function magicOptionsForUnit(
   const out: UnitOption[] = [];
   const usedByUnit = unit.abilitiesUsed ?? [];
   const usedByArmy = state.players[unit.owner].spellsAttempted ?? [];
+  // Arcane Vassal: the next Spell is measured from the picked Skink Wizard (I83).
+  const origin = vassalOf(state, unit) ?? unit;
 
   if (canCastSpells(scenario, unit) && !unit.miscast) {
     for (const id of knownSpellAndSummonIds(scenario, unit)) {
@@ -305,7 +316,7 @@ export function magicOptionsForUnit(
         const pos = findSummonPlacement(
           scenario,
           state,
-          unit,
+          origin,
           def.summonWarscrollId,
           def.summonRange ?? 12,
           def.summonMinEnemyGap ?? 9,
@@ -321,7 +332,7 @@ export function magicOptionsForUnit(
         });
       } else if (def.kind === 'spell') {
         const targets = def.target
-          ? legalTargetsForSpec(scenario, state, unit, def.target).map((u) => u.id)
+          ? legalTargetsForSpec(scenario, state, origin, def.target).map((u) => u.id)
           : [];
         if (def.target && targets.length === 0) continue;
         out.push({
@@ -360,6 +371,24 @@ export function magicOptionsForUnit(
     }
   }
 
+  // Arcane Vassal: once per turn, in your own hero phase (I83).
+  if (
+    (inHeroMain || inMagicalIntervention) &&
+    !usedByUnit.includes(ARCANE_VASSAL_ID) &&
+    !vassalOf(state, unit)
+  ) {
+    const vassals = arcaneVassalTargets(scenario, state, unit);
+    if (vassals.length > 0) {
+      out.push({
+        t: 'ability',
+        abilityId: ARCANE_VASSAL_ID,
+        name: 'Arcane Vassal',
+        kind: 'activated',
+        targets: vassals.map((u) => u.id),
+      });
+    }
+  }
+
   // Banish Manifestation: your hero phase, or the enemy hero phase through Magical
   // Intervention ("a Spell, Prayer or Banish ability"; owner's ruling, 2026-11-11).
   if (
@@ -368,7 +397,9 @@ export function magicOptionsForUnit(
     !usedByUnit.includes('banish')
   ) {
     const enemyManifestations = unitsOf(state, opponent(unit.owner)).filter(
-      (e) => profileOf(scenario, e).isManifestation && unitsWithin(scenario, unit, e, BANISH_RANGE),
+      (e) =>
+        profileOf(scenario, e).isManifestation &&
+        (hasSupremeMaster(scenario, unit) || unitsWithin(scenario, unit, e, BANISH_RANGE)),
     );
     if (enemyManifestations.length > 0) {
       out.push({
@@ -405,7 +436,9 @@ export function eligibleUnbinders(
   return unitsOf(state, opponent(caster.owner)).filter(
     (u) =>
       (canCastSpells(scenario, u) || hasDizzyingRage(state, u)) &&
-      unitsWithin(scenario, caster, u, UNBIND_RANGE),
+      // Supreme Master of Order: an enemy Wizard anywhere on the battlefield (I82).
+      ((hasSupremeMaster(scenario, u) && isWizard(scenario, caster)) ||
+        unitsWithin(scenario, caster, u, UNBIND_RANGE)),
   );
 }
 
@@ -429,6 +462,27 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
   const opt = options.find((o) => o.t === 'ability' && o.abilityId === action.abilityId);
   if (!opt || opt.t !== 'ability') {
     throw new IllegalActionError(`${unit.name} cannot use ability ${action.abilityId} now`);
+  }
+
+  if (action.abilityId === ARCANE_VASSAL_ID) {
+    const targetId = action.target ?? opt.targets[0];
+    if (!targetId || !opt.targets.includes(targetId)) {
+      throw new IllegalActionError('Arcane Vassal requires a friendly Skink Wizard within 18"');
+    }
+    unit.abilitiesUsed = [...(unit.abilitiesUsed ?? []), ARCANE_VASSAL_ID];
+    addEffect(ctx.s, {
+      id: ARCANE_VASSAL_ID,
+      name: 'Arcane Vassal',
+      sourceUnit: unit.id,
+      targetUnit: targetId,
+      owner: unit.owner,
+      expires: 'phase',
+    });
+    ctx.events.push({
+      t: 'note',
+      text: `Arcane Vassal: ${unit.name}'s next Spell is measured from ${unitById(ctx.s, targetId).name}.`,
+    });
+    return;
   }
 
   // Pop magicalIntervention frame if we were inside one
@@ -457,7 +511,7 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
       markAbilityAttempted(ctx.s, unit, 'banish', true);
     }
     const dice = roll2D6(ctx);
-    const total = dice[0] + dice[1];
+    const total = dice[0] + dice[1] + supremeUnbindBonus(ctx.scenario, unit);
     const banished = total >= targetValue;
     ctx.events.push({
       t: 'banish',
@@ -505,6 +559,15 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
 
   if (def.kind === 'spell' || def.kind === 'summon') {
     const cv = def.castingValue ?? 6;
+    // Arcane Vassal: the picked Skink Wizard counts as the caster (spell or summon) for range,
+    // visibility, set-up, Unbind and the effects; the casting roll and a miscast stay with `unit` (I83).
+    const vassal = vassalOf(ctx.s, unit);
+    const origin = vassal ?? unit;
+    if (vassal) {
+      ctx.s.effects = (ctx.s.effects ?? []).filter(
+        (e) => !(e.id === ARCANE_VASSAL_ID && e.sourceUnit === unit.id),
+      );
+    }
     markAbilityAttempted(ctx.s, unit, def.id, def.unlimited);
     const dice = roll2D6(ctx);
     const miscast = dice[0] === 1 && dice[1] === 1;
@@ -515,7 +578,8 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
         penalty +
         channelledWrathBonus(ctx.s, unit) +
         reapingBonus(ctx.scenario, ctx.s, unit) +
-        tepokBonus(ctx.scenario, ctx.s, unit),
+        tepokBonus(ctx.scenario, ctx.s, unit) +
+        supremeCastBonus(ctx.scenario, unit),
     );
     const success = !miscast && total >= cv;
     ctx.events.push({
@@ -538,11 +602,11 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
     }
     if (!success) return;
 
-    const unbinders = eligibleUnbinders(ctx.scenario, ctx.s, unit);
+    const unbinders = eligibleUnbinders(ctx.scenario, ctx.s, origin);
     if (unbinders.length > 0) {
       ctx.s.stack.push({
         t: 'spell',
-        unit: unit.id,
+        unit: origin.id,
         abilityId: def.id,
         target: target?.id,
         ...(targets ? { targets: targets.map((u) => u.id) } : {}),
@@ -552,12 +616,12 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
         t: 'reaction',
         player: opponent(unit.owner),
         options: unbinders.map((u) => ({ ability: 'unbind', unit: u.id, cost: 0 })),
-        trigger: `spell:${unit.id}:${def.name}`,
+        trigger: `spell:${origin.id}:${def.name}`,
       });
       return;
     }
 
-    resolveSpellOrSummon(ctx, unit, def, target, total, targets);
+    resolveSpellOrSummon(ctx, origin, def, target, total, targets);
     return;
   }
 
@@ -654,7 +718,7 @@ export function resolvePendingSpell(
     else unbinder.castsUsed = (unbinder.castsUsed ?? 0) + 1;
     unbinder.abilitiesUsed = [...(unbinder.abilitiesUsed ?? []), 'unbind'];
     const dice = roll2D6(ctx);
-    const total = dice[0] + dice[1];
+    const total = dice[0] + dice[1] + supremeUnbindBonus(ctx.scenario, unbinder);
     const unbound = total > frame.roll;
     ctx.events.push({
       t: 'unbind',

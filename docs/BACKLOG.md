@@ -14,12 +14,12 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4c Lord Kroak and Vengeance of Azyr
+### S1 Version saved games so a rules change offers a fresh game instead of silently diverging
 
-- **Tier**: sonnet+review
-- **Touches**: engine, rules, ai
-- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/seraphon.json` (Lord Kroak warscroll: Arcane Vassal `6bfc-5f30-ec02-307`, Supreme Master of Order `244b-f6f2-322d-5345`, Dead for Innumerable Ages `c5a7-920c-9ff8-652`; formation Sunclaw Starhost: Vengeance of Azyr `7c7e-3757-9881-5bd7`); `src/engine/abilities/magic.ts` (casting, `unbindersFor`, banish, `UNBIND_RANGE`), `src/engine/abilities/unbind.test.ts`, `src/engine/turns.ts` (start and end of turn steps), RULES-DECISIONS I21, I22, I58
-- **Done when**: one test per ability: Supreme Master of Order (+2 to Kroak's casting rolls, +1 to his unbinding and banishment rolls, he may unbind a spell by an enemy Wizard anywhere and banish a manifestation anywhere), Arcane Vassal (the next spell is measured from the picked unit), Dead for Innumerable Ages (forced each turn while damaged: 3D6 plus damage points, 20+ destroys, otherwise Heal (18)), Vengeance of Azyr (pile-in, then D3 mortal damage on 2+ to an enemy in combat with the target). Record each reading in `docs/RULES-DECISIONS.md` and update `docs/ABILITIES.md`.
+- **Tier**: sonnet
+- **Touches**: ui/game, engine
+- **Read**: `src/ui/game/session.ts` (`toRecord`, `replay`), `src/ui/game/store.ts`, I70 and I84 in `docs/RULES-DECISIONS.md`
+- **Done when**: `GameRecord` carries a rules version that is bumped whenever a change alters how recorded actions replay. On load, a record with an older version, or one whose replay throws, shows a short notice ("This saved game is from an older version — start a new game?") instead of silently starting fresh or diverging. There are tests for both paths, and the version bump is documented in `docs/HANDOVER.md`.
 
 ### M4d Sylvaneth passives: wards, movement, Battle Damaged, Glamourweave
 

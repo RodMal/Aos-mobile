@@ -120,6 +120,17 @@ export function chooseAction(engine: Engine, state: GameState): Action {
         ? { t: 'choose', value: pick.key ? `${pick.key},${pick.id}` : pick.id }
         : { t: 'pass' };
     }
+    case 'vengeance': {
+      // Always worth it (a free pile-in and mortal damage): every unit offered, up to the
+      // maximum, in list order; against the enemy worth the most points (the first on a tie).
+      if (d.stage === 'pick') {
+        return d.units.length > 0
+          ? { t: 'choose', value: `vengeance:${d.units.slice(0, d.max).join(',')}` }
+          : { t: 'choose', value: 'none' };
+      }
+      const foe = maxBy(d.units, (id) => points(engine, state, id));
+      return { t: 'choose', value: foe ?? d.units[0]! };
+    }
     case 'fugitive':
       // The engine's default is the sensible pick: the enemy Hero easiest to slay.
       return engine.defaultAction(state);

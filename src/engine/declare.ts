@@ -6,7 +6,9 @@ import { opponent } from './query.js';
 import { canUsePlaceOfPower } from './terrain.js';
 import { type Action, type PlayerId, type UnitId } from './types.js';
 import { currentFightTier, eligibleFighters } from './eligibility.js';
-import { advancePhase } from './turns.js';
+import { advancePhase, finishTurn } from './turns.js';
+import { vengeanceCandidates } from '../rules/factions/kroak.js';
+import { advanceVengeance } from './vengeance.js';
 import { unitOptions } from './decisions.js';
 import { startAttacks } from './placing.js';
 import { offerEndOfPhaseReaction } from './reactions.js';
@@ -88,6 +90,26 @@ export function settle(ctx: Ctx): void {
         s.stack.pop();
         continue;
       }
+    }
+    if (top.t === 'turnEnd') {
+      // Mortal damage held for Fight Through the Pain is allocated first (the caller loops).
+      if ((s.pendingMortal?.length ?? 0) > 0) break;
+      s.stack.pop();
+      finishTurn(ctx);
+      continue;
+    }
+    if (
+      top.t === 'vengeance' &&
+      top.stage === 'pick' &&
+      vengeanceCandidates(ctx.scenario, s, top.player).length === 0
+    ) {
+      // Asked before the other player's Vengeance resolved; nothing is left in combat now.
+      s.stack.pop();
+      continue;
+    }
+    if (top.t === 'vengeance' && top.stage !== 'pick') {
+      if (advanceVengeance(ctx, top)) continue;
+      break;
     }
     if (top.t === 'endPhase') {
       if (offerEndOfPhaseReaction(ctx)) {

@@ -23,6 +23,12 @@ import {
   seasonsUnit,
 } from '../rules/factions/seasons.js';
 import { asterismOptions, nextAsterismFrame, recordAsterism } from '../rules/factions/seraphon.js';
+import {
+  DEAD_FOR_AGES_ID,
+  hasWarscrollAbility,
+  vengeanceCandidates,
+} from '../rules/factions/kroak.js';
+import { healUnit, destroyUnit } from './damage.js';
 import { PHASES, type Action, type PlayerId } from './types.js';
 
 // ─── Turn sequence ──────────────────────────────────────────────────────────────
@@ -283,6 +289,7 @@ export function endTurn(ctx: Ctx): void {
   // Endless Growth is used at the end of any turn by each army that has it.
   resolveEndlessGrowth(ctx, s.active);
   resolveEndlessGrowth(ctx, opponent(s.active));
+  deadForInnumerableAges(ctx);
   clearExpiredEffects(s, 'turn');
   for (const change of resolveControl(scenario, s)) {
     s.objectives.find((o) => o.id === change.id)!.controller = change.controller;
@@ -309,8 +316,37 @@ export function endTurn(ctx: Ctx): void {
   }
 }
 
-export function advancePhase(ctx: Ctx): void {
+/**
+ * Dead for Innumerable Ages (c5a7-920c-9ff8-652): at the end of any turn each damaged unit with
+ * it rolls 3D6 and adds its damage points; 20+ destroys it, otherwise it heals 18.
+ */
+function deadForInnumerableAges(ctx: Ctx): void {
   const { s, scenario } = ctx;
+  for (const id of s.unitOrder) {
+    const unit = s.units[id]!;
+    if (unit.status !== 'battlefield' || unit.damage <= 0) continue;
+    if (!hasWarscrollAbility(scenario, unit, DEAD_FOR_AGES_ID)) continue;
+    const dice = [d6(ctx), d6(ctx), d6(ctx)];
+    const total = dice[0]! + dice[1]! + dice[2]! + unit.damage;
+    ctx.events.push({ t: 'roll', player: unit.owner, label: 'Dead for Innumerable Ages', dice });
+    if (total >= 20) {
+      ctx.events.push({
+        t: 'note',
+        text: `Dead for Innumerable Ages: ${unit.name} rolls ${total} (${dice.join('+')} plus ${unit.damage} damage points) and is destroyed.`,
+      });
+      destroyUnit(ctx, unit, 'Dead for Innumerable Ages');
+    } else {
+      ctx.events.push({
+        t: 'note',
+        text: `Dead for Innumerable Ages: ${unit.name} rolls ${total} (${dice.join('+')} plus ${unit.damage} damage points).`,
+      });
+      healUnit(ctx, unit, 18, 'Dead for Innumerable Ages');
+    }
+  }
+}
+
+export function advancePhase(ctx: Ctx): void {
+  const { s } = ctx;
   clearPhaseCommands(s);
   clearExpiredEffects(s, 'phase');
   s.reactionsOffered = [];
@@ -327,6 +363,26 @@ export function advancePhase(ctx: Ctx): void {
     ctx.events.push({ t: 'phaseStart', phase: next, player: s.active });
     return;
   }
+  beginTurnEnd(ctx);
+}
+
+/**
+ * The end of a turn. End-of-turn abilities that need an answer come first (Vengeance of Azyr,
+ * the active player first); `settle` then calls `finishTurn` once none is waiting.
+ */
+function beginTurnEnd(ctx: Ctx): void {
+  const { s, scenario } = ctx;
+  s.stack.push({ t: 'turnEnd' });
+  for (const player of [opponent(s.active), s.active]) {
+    if (vengeanceCandidates(scenario, s, player).length > 0) {
+      s.stack.push({ t: 'vengeance', player, stage: 'pick', queue: [] });
+    }
+  }
+}
+
+/** Scores the turn that has ended and begins the next turn, round or the end of the game. */
+export function finishTurn(ctx: Ctx): void {
+  const { s, scenario } = ctx;
   endTurn(ctx);
   if (s.turnIndex === 0) {
     s.turnIndex = 1;

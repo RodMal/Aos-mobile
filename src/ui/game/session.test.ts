@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { chooseAction } from '../../ai/baseline.js';
 import { SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from '../../data/lists.js';
 import {
   createEngine,
@@ -116,6 +117,36 @@ describe('session', () => {
     old.actions = s.history.filter((h) => !asks.includes(h)).map((h) => h.action);
     expect(old.actions.length).toBe(s.history.length - asks.length);
     expect(replay(engine, old).state).toEqual(s.state);
+  });
+
+  it('replays a game saved before Vengeance of Azyr existed (no answer to it)', () => {
+    let old: ReturnType<typeof toRecord> | null = null;
+    let played: ReturnType<typeof newSession> | null = null;
+    for (let seed = 1; seed < 40 && !old; seed++) {
+      let s = newSession(engine, seed, 1);
+      let asked = 0;
+      for (let i = 0; i < 3000 && engine.decision(s.state); i++) {
+        const d = engine.decision(s.state)!;
+        // The NPC plays both sides; Vengeance of Azyr is declined, as the old game never used it.
+        const action =
+          d.kind === 'vengeance' ? engine.defaultAction(s.state) : chooseAction(engine, s.state);
+        if (d.kind === 'vengeance') asked++;
+        s = applyToSession(engine, s, action).session;
+      }
+      if (asked === 0) continue;
+      const answers = s.history.filter((h) => engine.decision(h.before)?.kind === 'vengeance');
+      const record = toRecord(s);
+      record.actions = s.history.filter((h) => !answers.includes(h)).map((h) => h.action);
+      old = record;
+      played = s;
+    }
+    expect(old).not.toBeNull();
+    // A question asked after the last recorded action (the game's final turn end) is still open.
+    let replayed = replay(engine, old!);
+    while (engine.decision(replayed.state)?.kind === 'vengeance') {
+      replayed = applyToSession(engine, replayed, { t: 'choose', value: 'none' }).session;
+    }
+    expect(replayed.state).toEqual(played!.state);
   });
 
   it('saves and replays a game where Further the Great Plan was answered with a key and a new Asterism', () => {

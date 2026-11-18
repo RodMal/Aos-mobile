@@ -9,6 +9,7 @@ import {
   eruptionOfFuryTargets,
   MAX_ERUPTION_RAGE_DICE,
 } from '../rules/core/fury.js';
+import { VENGEANCE_MAX, vengeanceCandidates, vengeanceFoes } from '../rules/factions/kroak.js';
 import { asterismOptions } from '../rules/factions/seraphon.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import { friendlyWyldwoods, isAwakenedWyldwood } from './overgrowth.js';
@@ -134,6 +135,28 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
         };
       case 'fugitive':
         return { kind: 'fugitive', player: top.player, units: top.units };
+      case 'vengeance': {
+        if (top.stage === 'pick') {
+          return {
+            kind: 'vengeance',
+            player: top.player,
+            stage: 'pick',
+            units: vengeanceCandidates(scenario, state, top.player).map((u) => u.id),
+            max: VENGEANCE_MAX,
+          };
+        }
+        const unit = unitById(state, top.queue[0]!);
+        return {
+          kind: 'vengeance',
+          player: top.player,
+          stage: 'enemy',
+          units: vengeanceFoes(scenario, state, unit).map((u) => u.id),
+          max: 1,
+          unit: unit.id,
+        };
+      }
+      case 'turnEnd':
+        throw new Error('internal: unresolved turnEnd frame on top of the stack');
       case 'resolve':
       case 'allocate':
       case 'spell':
