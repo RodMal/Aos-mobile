@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### V1 Apply the visibility ruling to spells, prayers and abilities
-
-- **Tier**: sonnet+review
-- **Touches**: engine, rules
-- **Read**: `docs/RULES-DECISIONS.md` (the 2026-11-18 visibility ruling), `src/engine/abilities/magic.ts`, `src/engine/abilities/lores.ts`, printed text in `data/factions/sylvaneth.json`, `data/factions/seraphon.json` and `data/lores.json`
-- **Done when**: every targeted spell, prayer and ability follows the visibility ruling: visibility is required as the ruling says, except Sylvaneth spells and prayers whose printed text measures range from the creeping overgrowth. The targeting code and the UI's target highlighting agree. One test per spell or prayer whose behaviour changes, plus a test for one overgrowth-measured exception. Any spell that already matched is listed in the PR. `docs/ABILITIES.md` is updated if a status changes.
-
 ### M4c Lord Kroak and Vengeance of Azyr
 
 - **Tier**: sonnet+review
