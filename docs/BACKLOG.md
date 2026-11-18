@@ -14,6 +14,13 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
+### R6 Owner rulings on Asterisms and Dizzying Rage
+
+- **Tier**: sonnet+review
+- **Touches**: rules, engine, ai
+- **Read**: `docs/RULES-DECISIONS.md` (the 2026-11-18 rulings on I78 and Dizzying Rage), `src/rules/factions/seraphon.ts`, the Dizzying Rage implementation (search `src/` for it) and its printed text in `data/`, `src/engine/abilities/magic.ts`
+- **Done when**: (a) Itzl's destroyed-units count and Quetzl's condition exclude manifestations and faction terrain, with tests. (b) Dizzying Rage grants only unbinding and banishing, never casting: a non-Wizard with Dizzying Rage is offered Unbind and Banish but no spells, the NPC never casts through it, and there are tests. Saved games stay replayable, or the impact is stated in RULES-DECISIONS as with I84. `docs/ABILITIES.md` is updated if a status changes.
+
 ### S1 Version saved games so a rules change offers a fresh game instead of silently diverging
 
 - **Tier**: sonnet
