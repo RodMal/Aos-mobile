@@ -133,6 +133,18 @@ describe('Seasons Of War (owner, 2026-11-11)', () => {
     expect(() => engine.apply(s, { t: 'choose', value: `reaping:0:terrain=${a.id}` })).toThrow();
   });
 
+  it('replays a saved game’s old `burgeoning:<feature>` answer: that feature gets the token', () => {
+    const s = twoWyldwoods();
+    const d = engine.decision(s)!;
+    if (d.kind !== 'alarielleSeason') throw new Error('expected the season decision');
+    const feature = d.features.at(-1)!;
+    const r = engine.apply(s, { t: 'choose', value: `burgeoning:${feature.id}` });
+    expect(r.state.burgeoningChoice).toBe(feature.id);
+    expect(r.state.burgeoningChoices).toBeUndefined();
+    expect(r.state.overgrown?.[0]).toContain(feature.id);
+    expect(() => engine.apply(s, { t: 'choose', value: 'burgeoning:nowhere' })).toThrow();
+  });
+
   it('The Burgeoning without picks: each Wyldwood takes the next feature closest to the centre', () => {
     const s = twoWyldwoods();
     const r = engine.apply(s, { t: 'choose', value: 'burgeoning' });

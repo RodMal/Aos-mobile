@@ -108,7 +108,7 @@ export function burgeoningPick(
 ): string | undefined {
   if (seasonFor(scenario, state, player) !== 'burgeoning') return undefined;
   const options = burgeoningOptions(scenario, state, player);
-  const named = state.burgeoningChoices?.[wyldwoodId];
+  const named = state.burgeoningChoices?.[wyldwoodId] ?? state.burgeoningChoice;
   if (named && options.some((f) => f.id === named)) return named;
   const cx = scenario.battlefield.width / 2;
   const cy = scenario.battlefield.height / 2;

@@ -270,7 +270,17 @@ export function createEngine(scenario: Scenario): Engine {
           illegal('Pick a season of war other than the one picked last battle round.');
         }
         delete s.burgeoningChoices;
-        if (picks !== undefined) {
+        delete s.burgeoningChoice;
+        if (picks !== undefined && !picks.includes('=')) {
+          // The old format of saved games: one feature for every Wyldwood.
+          if (
+            season !== 'burgeoning' ||
+            !burgeoningOptions(scenario, state, frame.player).some((f) => f.id === picks)
+          ) {
+            illegal('The Burgeoning cannot name that terrain feature.');
+          }
+          s.burgeoningChoice = picks;
+        } else if (picks !== undefined) {
           // `<wyldwood id>=<feature id>`, one per Awakened Wyldwood, joined by commas.
           if (season !== 'burgeoning') illegal('Only The Burgeoning names terrain features.');
           const wyldwoods = friendlyWyldwoods(scenario, state, frame.player).map((w) => w.id);

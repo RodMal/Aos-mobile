@@ -43,8 +43,10 @@ export function SeasonPrompt({ d }: { d: Extract<Decision, { kind: 'alarielleSea
       candidates,
       onPick: (id) => {
         const next: [string, string][] = [...picks, [current.id, id]];
-        if (next.length >= d.wyldwoods.length) answer(next);
-        else setPicks(next);
+        if (next.length >= d.wyldwoods.length) {
+          setTerrainPick(null); // a quick second tap must not send a second answer
+          answer(next);
+        } else setPicks(next);
       },
     });
     return () => {

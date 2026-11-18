@@ -368,6 +368,11 @@ export interface GameState {
    * Growing.
    */
   burgeoningChoices?: Record<UnitId, string>;
+  /**
+   * @deprecated The single feature picked before each Wyldwood had its own pick; kept so saved
+   * games replay. Used for a Wyldwood with no entry in `burgeoningChoices`.
+   */
+  burgeoningChoice?: string;
   /** The player whose Alarielle picked the seasons. */
   alarielleSeasonPlayer?: PlayerId;
   /**
