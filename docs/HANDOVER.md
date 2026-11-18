@@ -55,7 +55,7 @@ pnpm dev                    # http://localhost:5173
 
 Things that cost time before:
 
-- **Stale preview server.** Playwright reuses whatever is listening on port 4173. Stop it first with `pkill -f "vite.js preview"` (the pattern `vite preview` does not match the process), or the tests run against an old build.
+- **Preview port.** Playwright serves the build on its own port: `E2E_PORT` if set, else 4200-5199 derived from the worktree path, so concurrent agents never share a server. It never reuses an existing server (`reuseExistingServer: false`); if a killed run left one behind the next run fails with "port in use". Stop only yours: `pkill -f "vite.js preview --port $(pnpm -s e2e:port)"`. Never `pkill -f "vite.js preview"` alone: it kills other agents' servers.
 - **Desktop UI.** From 820px wide the sheet sits beside the board; when the board is wider than tall the table is shown flat (enemy to the right) instead of turned bottom-up as on a phone. Escape closes the topmost panel, drawer or dialog; Enter confirms a placement, an ability or a roll (never a phase). The `desktop` project reuses the phone specs through `drag`/`tapAt`/`ahead` in `tests/e2e/helpers.ts`; touch-only specs skip themselves and `tests/e2e/desktop.spec.ts` holds the mouse-only ones.
 - **Screenshots.** `SHOTS=docs/screenshots SHOTS_DSF=1 pnpm exec playwright test screenshots --project=pixel-7 --project=desktop` writes `phone/` and `desktop/` (add `SHOTS_VIEWPORT=1920x1080` to look at a bigger window). `--project` takes the file filter first, not after.
 - **Formatting is checked in CI.** Run `pnpm format` before committing.

@@ -27,4 +27,4 @@ A web app for playing Warhammer Age of Sigmar 4 against a computer opponent, on 
 
 `pnpm check` (lint, typecheck, unit tests) · `pnpm test:sim` · `pnpm test:e2e` · `pnpm format` · `pnpm build` · `pnpm game-hashes`
 
-pnpm only. Conventional commits (`feat(engine): ...`). Before any local e2e run: `pkill -f "vite.js preview"`.
+pnpm only. Conventional commits (`feat(engine): ...`). Local e2e runs on a port of their own (`E2E_PORT`, else derived from the worktree path) and always start their own server, so concurrent agents never share one; if a run of yours was killed and left a server behind, stop only that one (see HANDOVER).

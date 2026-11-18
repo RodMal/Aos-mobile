@@ -22,7 +22,7 @@ You implement exactly one task from `docs/BACKLOG.md` in this repository (a web 
 
 ## Finish
 
-- Run `pnpm format`, `pnpm check`, and only the tests your change touches (`pnpm exec vitest run <files>`, `pnpm exec playwright test <spec> --trace off` after `pkill -f "vite.js preview"`). Do not run the full simulation or e2e suites: CI does that on the PR.
+- Run `pnpm format`, `pnpm check`, and only the tests your change touches (`pnpm exec vitest run <files>`, `pnpm exec playwright test <spec> --trace off`; each worktree has its own e2e port, so never `pkill` broadly; if your own earlier run left a server, `pkill -f "vite.js preview --port $(pnpm -s e2e:port)"`). Do not run the full simulation or e2e suites: CI does that on the PR.
 - Commit. Do not push, merge or open a PR; the loop does that.
 
 ## Report (under 15 lines)
