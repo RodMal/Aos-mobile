@@ -17,6 +17,7 @@ import { type AlarielleSeason } from '../rules/factions/sylvaneth.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import { friendlyWyldwoods } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID } from './wyldwood.js';
+import { chooseVengeance } from './vengeance.js';
 import {
   type Action,
   type Engine,
@@ -310,6 +311,9 @@ export function createEngine(scenario: Scenario): Engine {
       case 'asterism':
         chooseAsterism(ctx, action);
         break;
+      case 'vengeance':
+        chooseVengeance(ctx, action);
+        break;
       case 'creepingDread':
         if (action.t === 'pass') s.stack.pop();
         else if (action.t === 'choose') chooseCreepingDread(ctx, action.value);
@@ -398,6 +402,9 @@ export function createEngine(scenario: Scenario): Engine {
         return { t: 'pass' };
       case 'creepingDread':
         return { t: 'pass' };
+      case 'vengeance':
+        // Optional, like the others: the default declines (`pass` is not an answer to it).
+        return { t: 'choose', value: d.stage === 'pick' ? 'none' : d.units[0]! };
       case 'fightPick':
         if (d.canPass) return { t: 'pass' };
         return { t: 'fight', unit: eligibleFighters(scenario, state, d.player)[0]!.id };

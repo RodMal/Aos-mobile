@@ -3,6 +3,7 @@ import { useGameState, useHuman, useHumanDecision } from '../game/hooks.js';
 import { AsterismPrompt } from './AsterismPrompt.js';
 import { CreepingDreadPrompt } from './CreepingDreadPrompt.js';
 import { FugitivePrompt } from './FugitivePrompt.js';
+import { VengeancePrompt } from './VengeancePrompt.js';
 import { PainPrompt } from './PainPrompt.js';
 import { PlaceOfPowerPrompt } from './PlaceOfPowerPrompt.js';
 import { PriorityPrompt } from './PriorityPrompt.js';
@@ -23,6 +24,9 @@ export function DecisionPrompts() {
     return <FugitivePrompt key="fugitive" d={d} />;
   }
   if (d.kind === 'asterism') return <AsterismPrompt key={`${state.round}`} d={d} />;
+  if (d.kind === 'vengeance') {
+    return <VengeancePrompt key={`${d.stage}:${d.unit ?? ''}`} d={d} />;
+  }
   if (d.kind === 'reaction') {
     const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
     if (pain) {

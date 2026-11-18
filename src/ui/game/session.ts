@@ -138,16 +138,21 @@ export function parseRecord(json: string | null): GameRecord | null {
 }
 
 /**
- * True when the game waits on an Asterism question and the recorded action is not a legal answer
- * to it (a game saved before Asterisms existed). `engine.apply` is pure, so trying is safe.
+ * The answer a game saved before a question existed gets, when the game now waits on one and the
+ * recorded action is not a legal answer to it: a pass to an Asterism, `none` to Vengeance of
+ * Azyr (which does not accept a pass, so a recorded pass of the old game is never taken for it).
+ * `engine.apply` is pure, so trying is safe.
  */
-function isUnansweredAsterism(engine: Engine, session: Session, action: Action): boolean {
-  if (engine.decision(session.state)?.kind !== 'asterism') return false;
+function missingAnswer(engine: Engine, session: Session, action: Action): Action | null {
+  const kind = engine.decision(session.state)?.kind;
+  if (kind !== 'asterism' && kind !== 'vengeance') return null;
   try {
     engine.apply(session.state, action);
-    return false;
+    return null;
   } catch (e) {
-    if (e instanceof IllegalActionError) return true;
+    if (e instanceof IllegalActionError) {
+      return kind === 'asterism' ? { t: 'pass' } : { t: 'choose', value: 'none' };
+    }
     throw e;
   }
 }
@@ -158,9 +163,9 @@ export function replay(engine: Engine, record: GameRecord): Session {
   for (const action of record.actions) {
     // A game saved before Seraphon Asterisms existed has no answer to The Great Plan or Further
     // the Great Plan: it replays as a pass (nothing prophesied), as it was played.
-    if (isUnansweredAsterism(engine, session, action)) {
-      session = applyToSession(engine, session, { t: 'pass' }).session;
-    }
+    // Likewise Vengeance of Azyr, answered as none.
+    const missing = missingAnswer(engine, session, action);
+    if (missing) session = applyToSession(engine, session, missing).session;
     session = applyToSession(engine, session, action).session;
   }
   return session;

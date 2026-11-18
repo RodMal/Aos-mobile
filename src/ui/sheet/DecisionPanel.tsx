@@ -67,6 +67,16 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
             hint: 'Prophesy an Asterism.',
           }
         : { title: `${who} prophesies`, hint: 'The opponent is choosing…' };
+    case 'vengeance':
+      return mine
+        ? {
+            title: 'Vengeance of Azyr',
+            hint:
+              d.stage === 'pick'
+                ? 'Pick up to 3 Saurus or Kroxigor units in combat, or skip.'
+                : 'Pick the enemy unit to strike.',
+          }
+        : { title: `${who} Vengeance of Azyr`, hint: 'The opponent is choosing…' };
     case 'fugitive':
       return mine
         ? { title: 'Pick the fugitive', hint: 'Burning for Vengeance: pick an enemy Hero.' }

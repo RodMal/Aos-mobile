@@ -257,6 +257,18 @@ export type Frame =
   /** Seraphon: The Great Plan (round 1) or Further the Great Plan (later rounds). */
   | { t: 'asterism'; player: PlayerId; stage: 'great' | 'further' }
   /**
+   * End of a turn: the marker under the end-of-turn abilities (Vengeance of Azyr). Once they are
+   * answered and the held mortal damage is allocated, the turn is scored and the next begins.
+   * Never the top frame when a decision is asked for.
+   */
+  | { t: 'turnEnd' }
+  /**
+   * Vengeance of Azyr. `pick`: `player` picks up to 3 units. Then for each unit in `queue` (the
+   * first is current): `pile` is its pile-in (a `place` frame is pushed on top), `strike` its
+   * D3 mortal damage on an enemy unit in combat with it, picked when there are several.
+   */
+  | { t: 'vengeance'; player: PlayerId; stage: 'pick' | 'pile' | 'strike'; queue: UnitId[] }
+  /**
    * Start of the battle, before the first turn is decided: a player with Burning for Vengeance
    * picks an enemy Hero (on the battlefield or in reserve) to be the fugitive.
    */
@@ -472,7 +484,21 @@ export type Decision =
       keys: { id: string; name: string; text: string; condition: string; met: boolean }[];
     }
   /** Burning for Vengeance: pick the enemy fugitive (answer with `choose` and a unit ID). */
-  | { kind: 'fugitive'; player: PlayerId; units: UnitId[] };
+  | { kind: 'fugitive'; player: PlayerId; units: UnitId[] }
+  /**
+   * Vengeance of Azyr at the end of a turn. `pick`: answer `choose` with `vengeance:` and up to
+   * `max` unit IDs from `units` joined by commas, or `choose` `none` (`pass` is not an answer, so a game saved
+   * before this existed replays by inserting `none`). `enemy`: answer `choose` with one of
+   * `units`, the enemy units in combat with `unit`.
+   */
+  | {
+      kind: 'vengeance';
+      player: PlayerId;
+      stage: 'pick' | 'enemy';
+      units: UnitId[];
+      max: number;
+      unit?: UnitId;
+    };
 
 export type DecisionKind = Decision['kind'];
 
