@@ -55,16 +55,21 @@ test('Burning for Vengeance asks the player to pick the fugitive, and the tracke
   await expect(page.getByTestId('tactics-panel')).toContainText(`Fugitive: ${name}`);
 });
 
-test('The Burgeoning lets the player pick the terrain feature, outlined on the board', async ({
+test('The Burgeoning: the player taps the outlined terrain on the board to pick it', async ({
   page,
 }, info) => {
   await page.goto('./?seed=5&side=0&fast=1&new=1');
   await page.locator('[data-season="burgeoning"]').click();
-  const prompt = page.getByTestId('burgeoning');
-  await expect(prompt).toBeVisible();
-  await expect(page.locator('.unit.flagged, [data-testid="terrain-flag"]').first()).toBeAttached();
+  const bar = page.getByTestId('burgeoning');
+  await expect(bar).toBeVisible();
+  await expect(bar).toContainText('tap the outlined feature');
+  const flags = page.getByTestId('terrain-flag');
+  await expect(flags.first()).toBeAttached();
   await page.screenshot({ path: info.outputPath(`burgeoning-${info.project.name}.png`) });
-  await prompt.locator('[data-feature]').last().click();
-  await expect(prompt).toBeHidden();
+  // Tap the middle of one outlined feature; there is no list to pick from.
+  await expect(bar.locator('[data-feature]')).toHaveCount(0);
+  const box = (await flags.last().boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(bar).toBeHidden();
   await expect(page.getByTestId('overgrown-mark').first()).toBeAttached();
 });

@@ -237,6 +237,31 @@ export function featureController(
 }
 
 /**
+ * Owner's ruling I73 (2026-11-18, awaiting confirmation of its scope): faction terrain set up by
+ * the opponent is as valid a target to spread overgrowth to as any other feature, the usual rule
+ * that the opponent must not control it still applying. `use` says where the target is being
+ * picked: Ever Growing's closest feature, or The Burgeoning's named one. To narrow the ruling to
+ * The Burgeoning only, return `use === 'burgeoning'`.
+ */
+export function enemyFactionTerrainIsTarget(_use: 'everGrowing' | 'burgeoning'): boolean {
+  return true;
+}
+
+/** True when `feature` is faction terrain that `player`'s opponent set up. */
+function isEnemyFactionTerrain(feature: OvergrowthFeature, player: PlayerId): boolean {
+  return feature.unit !== undefined && feature.unit.owner !== player;
+}
+
+/** True when `player` may name `feature` as the target of overgrowth for `use` (see I73). */
+export function mayTargetForOvergrowth(
+  player: PlayerId,
+  feature: OvergrowthFeature,
+  use: 'everGrowing' | 'burgeoning',
+): boolean {
+  return !isEnemyFactionTerrain(feature, player) || enemyFactionTerrainIsTarget(use);
+}
+
+/**
  * The terrain feature closest to `fps` that has no friendly overgrown token for `player`
  * (ties go to the first in battlefield order), or null when every feature has one.
  * `excludeId` leaves out the feature measured from.
@@ -253,6 +278,7 @@ export function closestFeatureWithoutToken(
   let bestD = Infinity;
   for (const f of terrainFeatures(scenario, state)) {
     if (f.id === excludeId || tokens.includes(f.id)) continue;
+    if (!mayTargetForOvergrowth(player, f, 'everGrowing')) continue;
     const d = featureDistance(scenario, f, fps);
     if (d < bestD - DIST_EPS) {
       best = f;

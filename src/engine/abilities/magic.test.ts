@@ -20,6 +20,7 @@ import {
   IllegalActionError,
   type GameEvent,
   type GameState,
+  type StepResult,
   type UnitId,
 } from '../index.js';
 import { chooseAction } from '../../ai/baseline.js';
@@ -1378,6 +1379,107 @@ describe('Warscroll Spells (Wizard-Specific)', () => {
     );
     expect(res.state.units[SAURUS_GUARD]!.status).toBe('destroyed');
     expect(res.state.overgrown?.[0]).toHaveLength(tokensBefore + 1);
+  });
+
+  it('Metamorphosis: its main hit offers Fight Through the Pain, and the overgrowth follows the outcome (owner, 2026-11-18)', () => {
+    const s = baseArena([ALARIELLE, SAURUS_GUARD]);
+    placeUnit(scenario, s, ALARIELLE, 20, 22);
+    placeUnit(scenario, s, SAURUS_GUARD, 28, 22);
+    for (let i = 1; i < s.units[SAURUS_GUARD]!.models.length; i++) {
+      s.units[SAURUS_GUARD]!.models[i]!.alive = false;
+    }
+    s.units[SAURUS_GUARD]!.damage = 1;
+    s.players[1].rageDice = 3;
+    s.players[1].furyLevel = 3;
+    s.players[1].cp = 0;
+    const tokensBefore = s.overgrown?.[0]?.length ?? 0;
+    const res = applyUntil(
+      engine,
+      s,
+      { t: 'ability', unit: ALARIELLE, abilityId: METAMORPHOSIS, target: SAURUS_GUARD },
+      (r) => r.events.some((e) => e.t === 'cast' && e.success),
+    );
+    // The damage is held for the target's owner; the target stands and no token yet.
+    const d = engine.decision(res.state);
+    expect(d).toMatchObject({ kind: 'reaction', player: 1 });
+    if (d?.kind !== 'reaction') return;
+    expect(d.options[0]).toMatchObject({ ability: 'fightThroughThePain', unit: SAURUS_GUARD });
+    expect(res.state.units[SAURUS_GUARD]!.status).toBe('battlefield');
+    expect(res.state.overgrown?.[0]?.length ?? 0).toBe(tokensBefore);
+    // Taking it destroys the unit and then the closest feature gets its token.
+    const taken = engine.apply(res.state, { t: 'pass' });
+    expect(taken.state.units[SAURUS_GUARD]!.status).toBe('destroyed');
+    expect(taken.state.overgrown?.[0]).toHaveLength(tokensBefore + 1);
+  });
+
+  /** Metamorphosis on a nearly dead Saurus Guard whose owner holds rage dice; hit held, unresolved. */
+  function heldMetamorphosis(extra: UnitId[] = [], maxDamage = 6) {
+    const s = baseArena([ALARIELLE, SAURUS_GUARD, ...extra]);
+    placeUnit(scenario, s, ALARIELLE, 20, 22);
+    placeUnit(scenario, s, SAURUS_GUARD, 28, 22);
+    const guard = s.units[SAURUS_GUARD]!;
+    for (let i = 1; i < guard.models.length; i++) guard.models[i]!.alive = false;
+    guard.damage = profileOf(scenario, guard).health - 1;
+    s.players[1].rageDice = 3;
+    s.players[1].furyLevel = 3;
+    s.players[1].cp = 0;
+    return { s, accept: (r: StepResult) => accepted(r, maxDamage) };
+  }
+  function accepted(r: StepResult, maxDamage: number): boolean {
+    const d = engine.decision(r.state);
+    return (
+      r.events.some((e) => e.t === 'cast' && e.success) &&
+      d?.kind === 'reaction' &&
+      (d.options[0]?.damage ?? 99) <= maxDamage
+    );
+  }
+
+  it('Metamorphosis: when Fight Through the Pain saves the target, there is no token and no splash', () => {
+    const { s, accept } = heldMetamorphosis([HUNTERS], 3);
+    placeUnit(scenario, s, HUNTERS, 30, 22);
+    const tokens = s.overgrown?.[0]?.length ?? 0;
+    const held = applyUntil(
+      engine,
+      s,
+      { t: 'ability', unit: ALARIELLE, abilityId: METAMORPHOSIS, target: SAURUS_GUARD },
+      accept,
+    );
+    const saved = applyUntil(
+      engine,
+      held.state,
+      { t: 'ability', unit: SAURUS_GUARD, abilityId: 'fight-through-the-pain', rageDice: 3 },
+      (r) => r.state.units[SAURUS_GUARD]!.status === 'battlefield',
+    );
+    expect(saved.state.overgrown?.[0]?.length ?? 0).toBe(tokens);
+    expect(saved.events.some((e) => e.t === 'damage' && e.unit === HUNTERS)).toBe(false);
+    expect(engine.decision(saved.state)?.kind).not.toBe('reaction');
+  });
+
+  it('Metamorphosis: with no feature left, a destroyed target splashes the enemies near it, held for their Fight Through the Pain', () => {
+    const { s, accept } = heldMetamorphosis([HUNTERS]);
+    placeUnit(scenario, s, HUNTERS, 30, 22);
+    s.overgrown = [scenario.battlefield.terrain.map((t) => t.id), []];
+    const held = applyUntil(
+      engine,
+      s,
+      { t: 'ability', unit: ALARIELLE, abilityId: METAMORPHOSIS, target: SAURUS_GUARD },
+      accept,
+    );
+    const taken = engine.apply(held.state, { t: 'pass' });
+    expect(taken.state.units[SAURUS_GUARD]!.status).toBe('destroyed');
+    // The splash is queued, then flushed as its own prompt for the Hunters' owner.
+    const d = engine.decision(taken.state);
+    expect(d).toMatchObject({ kind: 'reaction', player: 1 });
+    if (d?.kind !== 'reaction') return;
+    expect(d.options[0]).toMatchObject({ ability: 'fightThroughThePain', unit: HUNTERS });
+    expect(d.options[0]!.damage).toBeGreaterThanOrEqual(1);
+    expect(d.options[0]!.damage).toBeLessThanOrEqual(3);
+    const done = engine.apply(taken.state, { t: 'pass' });
+    expect(
+      done.events.some(
+        (e) => e.t === 'damage' && e.unit === HUNTERS && e.source === 'Metamorphosis',
+      ),
+    ).toBe(true);
   });
 
   it('Enrage The Spites (Drycha only): hits up to 3 enemies within 12" or in creeping overgrowth with D3 mortal damage each', () => {

@@ -18,6 +18,7 @@ import {
   inCreepingOvergrowth,
   featureController,
   hasOvergrownToken,
+  mayTargetForOvergrowth,
   terrainFeatures,
   type OvergrowthFeature,
 } from '../../engine/overgrowth.js';
@@ -88,25 +89,27 @@ export function burgeoningOptions(
   return terrainFeatures(scenario, state).filter(
     (f) =>
       !hasOvergrownToken(scenario, state, player, f.id) &&
+      mayTargetForOvergrowth(player, f, 'burgeoning') &&
       featureController(scenario, state, f) !== opponent(player),
   );
 }
 
 /**
- * The Burgeoning's pick for Ever Growing: the feature the player named (`burgeoningChoice`) while
- * it is still allowed, otherwise (the NPC, or a pick left to the engine) the one closest to the
- * centre of the battlefield, so the overgrowth reaches the middle of the table.
+ * The Burgeoning's pick for one Awakened Wyldwood's Ever Growing: the feature the player named
+ * for it (`burgeoningChoices`) while it is still allowed, otherwise (the NPC, or a pick left to
+ * the engine) the one closest to the centre of the battlefield, so the overgrowth reaches the
+ * middle of the table. Wyldwoods act in turn, so a later one never repeats an earlier pick.
  */
 export function burgeoningPick(
   scenario: Scenario,
   state: GameState,
   player: PlayerId,
+  wyldwoodId: UnitId,
 ): string | undefined {
   if (seasonFor(scenario, state, player) !== 'burgeoning') return undefined;
   const options = burgeoningOptions(scenario, state, player);
-  if (state.burgeoningChoice && options.some((f) => f.id === state.burgeoningChoice)) {
-    return state.burgeoningChoice;
-  }
+  const named = state.burgeoningChoices?.[wyldwoodId] ?? state.burgeoningChoice;
+  if (named && options.some((f) => f.id === named)) return named;
   const cx = scenario.battlefield.width / 2;
   const cy = scenario.battlefield.height / 2;
   let best: { id: string; d: number } | undefined;

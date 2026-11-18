@@ -8,11 +8,7 @@ import {
   unitsOf,
   unitsWithin,
 } from '../query.js';
-import {
-  closestFeatureWithoutToken,
-  giveOvergrownToken,
-  inCreepingOvergrowth,
-} from '../overgrowth.js';
+import { inCreepingOvergrowth } from '../overgrowth.js';
 import { addEffect, legalTargetsForSpec, registerAbility } from './effects.js';
 import type { AbilityDefinition, AbilityTargetSpec } from './types.js';
 import type { Scenario, GameState, UnitState } from '../types.js';
@@ -450,24 +446,16 @@ export const LORE_ABILITIES: AbilityDefinition[] = [
         label: 'Metamorphosis damage',
         dice,
       });
-      // Its follow-up needs to know whether the target fell, so no Fight Through the Pain here.
-      const res = applyMortalDamage(ctx, target, dmg, 'Metamorphosis', { immediate: true });
-      if (!res.destroyed) return;
-
-      const closest = closestFeatureWithoutToken(ctx.scenario, ctx.s, unit.owner, targetFps);
-      if (closest) {
-        giveOvergrownToken(ctx.s, unit.owner, closest.id);
-        ctx.events.push({
-          t: 'note',
-          text: `${closest.name} gained an overgrown token from Metamorphosis.`,
-        });
-      } else {
-        for (const enemy of nearbyEnemies) {
-          if (enemy.status !== 'battlefield') continue;
-          const splash = rollD3(ctx, unit.owner, 'Metamorphosis splash damage');
-          applyMortalDamage(ctx, enemy, splash, 'Metamorphosis');
-        }
-      }
+      // Fight Through the Pain applies to the main hit (owner, 2026-11-18); the follow-up runs
+      // once the damage has been allocated and the target is known to be destroyed.
+      applyMortalDamage(ctx, target, dmg, 'Metamorphosis', {
+        followUp: {
+          kind: 'metamorphosis',
+          caster: unit.owner,
+          anchor: targetFps,
+          nearby: nearbyEnemies.map((e) => e.id),
+        },
+      });
     },
   },
   {

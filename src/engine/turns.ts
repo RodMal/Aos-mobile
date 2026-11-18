@@ -156,7 +156,9 @@ export function startRound(ctx: Ctx): void {
 /** The rest of the start of the battle round: Ever Growing, then who takes the first turn. */
 export function continueRound(ctx: Ctx): void {
   const { s, scenario } = ctx;
-  for (const text of applyEverGrowing(scenario, s, (w) => burgeoningPick(scenario, s, w.owner))) {
+  for (const text of applyEverGrowing(scenario, s, (w) =>
+    burgeoningPick(scenario, s, w.owner, w.id),
+  )) {
     ctx.events.push({ t: 'note', text });
   }
   if (s.round === 1) {

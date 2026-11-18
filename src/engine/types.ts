@@ -13,6 +13,7 @@
  * - Dice and placement are separate steps: a charge is declared and rolled, then placed.
  * - `apply` never mutates its input and throws `IllegalActionError` for illegal actions.
  */
+import type { Footprint } from '../geom/index.js';
 import type { Battlefield } from '../data/battlefield.js';
 import type { Army } from '../data/lists.js';
 import type { Side } from '../data/map-schema.js';
@@ -207,7 +208,7 @@ export type Frame =
       attacker: UnitId;
       mode: AttackMode;
       /** `source` names where mortal damage came from (attack damage leaves it unset). */
-      pending: { target: UnitId; amount: number; source?: string }[];
+      pending: { target: UnitId; amount: number; source?: string; followUp?: MortalFollowUp }[];
     }
   /**
    * A spell that met its casting value and is waiting under an Unbind `reaction` frame.
@@ -274,6 +275,18 @@ export type PlaceReason =
   | 'setUp';
 export type AttackMode = 'shoot' | 'fight';
 export type FightTier = 'strikeFirst' | 'normal' | 'strikeLast';
+
+/**
+ * What follows mortal damage once it is allocated (it can be held for Fight Through the Pain):
+ * Metamorphosis overgrows the terrain closest to where the target stood, or splashes the enemy
+ * units that were within 6" of it, if the target was destroyed.
+ */
+export interface MortalFollowUp {
+  kind: 'metamorphosis';
+  caster: PlayerId;
+  anchor: Footprint[];
+  nearby: UnitId[];
+}
 
 export interface GameState {
   /** The seed the game started from; `rng` is the current generator state. */
@@ -344,8 +357,21 @@ export interface GameState {
    * Mortal damage (ward already rolled) waiting to be allocated at the end of the current
    * action, so its target's owner can first use Fight Through the Pain. Empty between actions.
    */
-  pendingMortal?: { target: UnitId; amount: number; source: string }[];
-  /** The terrain feature picked with The Burgeoning this round, for Ever Growing. */
+  pendingMortal?: {
+    target: UnitId;
+    amount: number;
+    source: string;
+    followUp?: MortalFollowUp;
+  }[];
+  /**
+   * The terrain features picked with The Burgeoning this round, by Awakened Wyldwood, for Ever
+   * Growing.
+   */
+  burgeoningChoices?: Record<UnitId, string>;
+  /**
+   * @deprecated The single feature picked before each Wyldwood had its own pick; kept so saved
+   * games replay. Used for a Wyldwood with no entry in `burgeoningChoices`.
+   */
   burgeoningChoice?: string;
   /** The player whose Alarielle picked the seasons. */
   alarielleSeasonPlayer?: PlayerId;
@@ -406,10 +432,13 @@ export type Decision =
       unit: UnitId;
       seasons: ('burgeoning' | 'reaping' | 'dwindling' | 'everdusk')[];
       /**
-       * The terrain features The Burgeoning may name for Ever Growing. Answer with `choose`
-       * and `burgeoning:<feature id>`; plain `burgeoning` lets the closest-to-centre one be used.
+       * The terrain features The Burgeoning may name for Ever Growing, and the Awakened Wyldwoods
+       * that each name one. Answer with `choose` and `burgeoning:<wyldwood id>=<feature id>`,
+       * several joined by commas (a Wyldwood left out takes the feature closest to the centre);
+       * plain `burgeoning` leaves every pick to the engine.
        */
       features: { id: string; name: string }[];
+      wyldwoods: { id: UnitId; name: string }[];
     }
   /**
    * Creeping Dread at the start of a turn: answer with `choose` and up to `max` unit IDs

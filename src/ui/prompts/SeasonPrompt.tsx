@@ -5,67 +5,84 @@ import { dispatch } from '../game/actions.js';
 import { scenario } from '../game/engine.js';
 import { useGameState } from '../game/hooks.js';
 import { useUi } from '../game/uiStore.js';
-import { Modal, PeekBar } from './Modal.js';
+import { Modal } from './Modal.js';
 
 /**
- * The Burgeoning: Ever Growing may name any terrain feature the opponent does not control. The
- * features are outlined on the board; a choice is answered as `burgeoning:<feature id>`.
+ * The Burgeoning: each of the player's Awakened Wyldwoods names a terrain feature for Ever
+ * Growing (any the opponent does not control, enemy faction terrain included). The player taps
+ * the feature on the board, one Wyldwood after the other, with the candidates outlined; the
+ * choices are answered as `burgeoning:<wyldwood id>=<feature id>,...`.
  */
 export function SeasonPrompt({ d }: { d: Extract<Decision, { kind: 'alarielleSeason' }> }) {
   const state = useGameState();
   const [stage, setStage] = useState<'season' | 'terrain'>('season');
-  const [peek, setPeek] = useState(false);
+  const [picks, setPicks] = useState<[string, string][]>([]);
   const setFlagged = useUi((s) => s.setFlagged);
   const setFlaggedTerrain = useUi((s) => s.setFlaggedTerrain);
+  const setTerrainPick = useUi((s) => s.setTerrainPick);
   const last = state.alarielleSeason?.[state.round - 1];
+  const current = d.wyldwoods[picks.length];
+  const taken = new Set(picks.map((p) => p[1]));
+  const candidates = d.features.map((f) => f.id).filter((id) => !taken.has(id));
+
+  const answer = (chosen: [string, string][]) =>
+    dispatch({
+      t: 'choose',
+      value:
+        chosen.length === 0
+          ? 'burgeoning'
+          : `burgeoning:${chosen.map(([w, f]) => `${w}=${f}`).join(',')}`,
+    });
+
   useEffect(() => {
-    if (stage !== 'terrain') return;
+    if (stage !== 'terrain' || !current) return;
     const onTable = new Set(scenario.battlefield.terrain.map((t) => t.id));
-    setFlaggedTerrain(d.features.map((f) => f.id).filter((id) => onTable.has(id)));
-    setFlagged(d.features.map((f) => f.id).filter((id) => state.units[id]));
+    setFlaggedTerrain(candidates.filter((id) => onTable.has(id)));
+    setFlagged(candidates.filter((id) => state.units[id]));
+    setTerrainPick({
+      candidates,
+      onPick: (id) => {
+        const next: [string, string][] = [...picks, [current.id, id]];
+        if (next.length >= d.wyldwoods.length) {
+          setTerrainPick(null); // a quick second tap must not send a second answer
+          answer(next);
+        } else setPicks(next);
+      },
+    });
     return () => {
       setFlaggedTerrain([]);
       setFlagged([]);
+      setTerrainPick(null);
     };
-  }, [stage, d.features, state, setFlagged, setFlaggedTerrain]);
-  if (stage === 'terrain') {
-    if (peek) return <PeekBar label="Terrain pick" onReopen={() => setPeek(false)} />;
+    // `answer` and `candidates` follow from `picks` and `d`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, d, picks, state, current?.id]);
+
+  if (stage === 'terrain' && current) {
     return (
-      <Modal title="The Burgeoning" testId="burgeoning">
-        <p>
-          Ever Growing may name any terrain feature the opponent does not control. Pick the one that
-          gets an overgrown token (the others that could be picked are outlined).
-        </p>
-        <div className="stack">
-          <button
-            className="btn wide"
-            data-testid="burgeoning-see-map"
-            onClick={() => setPeek(true)}
-          >
-            See the map
-          </button>
-          {d.features.map((f) => (
-            <button
-              key={f.id}
-              className="btn wide"
-              data-feature={f.id}
-              onClick={() => dispatch({ t: 'choose', value: `burgeoning:${f.id}` })}
-            >
-              {f.name}
-            </button>
-          ))}
-          <button
-            className="btn wide"
-            data-testid="burgeoning-auto"
-            onClick={() => dispatch({ t: 'choose', value: 'burgeoning' })}
-          >
-            Closest to the centre
-          </button>
-          <button className="btn wide" onClick={() => setStage('season')}>
-            Back
-          </button>
-        </div>
-      </Modal>
+      <div className="peek-bar terrain-bar" data-testid="burgeoning" role="region">
+        <span className="small">
+          The Burgeoning: tap the outlined feature for <strong>{current.name}</strong> (
+          {picks.length + 1} of {d.wyldwoods.length})
+        </span>
+        <button
+          className="btn"
+          data-testid="burgeoning-auto"
+          onClick={() => answer(picks)}
+          title="Every Wyldwood still to pick takes the feature closest to the centre"
+        >
+          Closest to the centre
+        </button>
+        <button
+          className="btn"
+          onClick={() => {
+            setPicks([]);
+            setStage('season');
+          }}
+        >
+          Back
+        </button>
+      </div>
     );
   }
   return (
@@ -79,7 +96,7 @@ export function SeasonPrompt({ d }: { d: Extract<Decision, { kind: 'alarielleSea
             data-season={x.id}
             disabled={!d.seasons.includes(x.id)}
             onClick={() =>
-              x.id === 'burgeoning' && d.features.length > 0
+              x.id === 'burgeoning' && d.features.length > 0 && d.wyldwoods.length > 0
                 ? setStage('terrain')
                 : dispatch({ t: 'choose', value: x.id })
             }
@@ -99,7 +116,7 @@ const SEASONS = [
   {
     id: 'burgeoning',
     name: 'The Burgeoning',
-    text: 'Ever Growing may target any terrain feature the opponent does not control',
+    text: 'Each of your Awakened Wyldwoods may target any terrain feature the opponent does not control',
   },
   {
     id: 'reaping',

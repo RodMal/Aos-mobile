@@ -74,6 +74,24 @@ describe('Ever Growing (Awakened Wyldwood)', () => {
     expect(notes.join(' ')).toMatch(/controlled by the opponent/);
   });
 
+  it('spreads to the enemy faction terrain when it is the closest and no enemy unit controls it (I73)', () => {
+    const s = arena([WYLDWOOD, REALMSHAPER]);
+    placeUnit(scenario, s, WYLDWOOD, 22, 23.5);
+    placeUnit(scenario, s, REALMSHAPER, 22, 28);
+    applyEverGrowing(scenario, s);
+    expect(s.overgrown![0]).toEqual([REALMSHAPER]);
+  });
+
+  it('does not spread to enemy faction terrain an enemy unit controls (I73)', () => {
+    const s = arena([WYLDWOOD, REALMSHAPER, '1:1']);
+    placeUnit(scenario, s, WYLDWOOD, 22, 23.5);
+    placeUnit(scenario, s, REALMSHAPER, 22, 28);
+    placeUnit(scenario, s, '1:1', 22, 31);
+    const notes = applyEverGrowing(scenario, s);
+    expect(s.overgrown![0]).toEqual([]);
+    expect(notes.join(' ')).toMatch(/controlled by the opponent/);
+  });
+
   it('only Awakened Wyldwoods use it: the Seraphon Realmshaper Engine spreads nothing', () => {
     const s = arena([REALMSHAPER]);
     placeUnit(scenario, s, REALMSHAPER, 50, 30);

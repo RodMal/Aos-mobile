@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R5 Owner rulings: Fight Through the Pain, per-Wyldwood Burgeoning, tap-to-pick terrain
-
-- **Tier**: sonnet+review
-- **Touches**: rules, engine, ui/prompts, ui/board
-- **Read**: `docs/RULES-DECISIONS.md` (I66, I67 and the 2026-11-18 rulings), `src/rules/factions/seasons.ts`, `src/rules/factions/sylvaneth.ts`, `src/engine/damage.ts`, `src/engine/combat.ts`, the season prompt in `src/ui/prompts/`
-- **Done when**: (a) Fight Through the Pain is offered for Eruption of Fury's self-damage on 1s and for Metamorphosis's main hit, with tests. (b) Under The Burgeoning, the player picks a terrain feature for each of their Wyldwoods, and the NPC still picks the one closest to the centre, with tests. (c) Terrain picks are made by tapping or clicking the feature on the board, with the candidates highlighted, instead of from a list, on both phone and desktop. (d) Enemy faction terrain not controlled by an enemy unit is a valid overgrowth target for Ever Growing and for the Burgeoning pick, with tests. Everything is recorded in RULES-DECISIONS.
-
 ### M4a Audit of the abilities on both lists
 
 - **Tier**: sonnet
