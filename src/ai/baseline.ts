@@ -116,7 +116,9 @@ export function chooseAction(engine: Engine, state: GameState): Action {
     }
     case 'asterism': {
       const pick = npcAsterism(engine.scenario, state, d.player, d.stage);
-      return pick ? { t: 'choose', value: pick } : { t: 'pass' };
+      return pick
+        ? { t: 'choose', value: pick.key ? `${pick.key},${pick.id}` : pick.id }
+        : { t: 'pass' };
     }
     case 'fugitive':
       // The engine's default is the sensible pick: the enemy Hero easiest to slay.

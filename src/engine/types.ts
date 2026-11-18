@@ -376,7 +376,7 @@ export interface GameState {
    */
   burgeoningChoice?: string;
   /**
-   * Seraphon Asterisms by player: every one picked (none twice), those prophesied (in force),
+   * Seraphon Asterisms by player: the keys already used by Further the Great Plan, those prophesied (in force),
    * and the last battle round the player was asked.
    */
   asterisms?: Partial<
@@ -455,15 +455,21 @@ export type Decision =
    */
   | { kind: 'creepingDread'; player: PlayerId; units: UnitId[]; max: number }
   /**
-   * Seraphon Asterisms. Answer with `choose` and the Asterism's ability ID. `pass` prophesies
-   * nothing (Further the Great Plan; also how a game saved before Asterisms existed replays).
-   * An option with `met: false` may be picked but has no effect (its condition is not met).
+   * Seraphon Asterisms. The Great Plan: `choose` and the Asterism's ability ID. Further the
+   * Great Plan: `choose` and `<key>,<Asterism>` (see `keys`). `pass` prophesies nothing (also how
+   * a game saved before Asterisms existed replays).
    */
   | {
       kind: 'asterism';
       player: PlayerId;
       stage: 'great' | 'further';
+      /** The Asterisms that may be prophesied. */
       options: { id: string; name: string; text: string; condition: string; met: boolean }[];
+      /**
+       * Further the Great Plan: the prophesied Asterisms not yet used as the key, `met` telling
+       * whether its condition holds. Answer `<key id>,<option id>`; an unmet key is illegal.
+       */
+      keys: { id: string; name: string; text: string; condition: string; met: boolean }[];
     }
   /** Burning for Vengeance: pick the enemy fugitive (answer with `choose` and a unit ID). */
   | { kind: 'fugitive'; player: PlayerId; units: UnitId[] };

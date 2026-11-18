@@ -3,8 +3,9 @@
  *
  * - The Great Plan (9db2-50c6-6181-fc51), Once Per Battle, Deployment Phase, "You must use this
  *   ability": pick an Asterism to be prophesied. Only prophesied Asterisms apply.
- * - Further the Great Plan (4d17-ddf6-7d2a-9889), Start of Battle Round, not in round 1: pick an
- *   Asterism not picked before this battle; it is prophesied only if its condition is met.
+ * - Further the Great Plan (4d17-ddf6-7d2a-9889), Start of Battle Round, not in round 1: pick a
+ *   prophesied Asterism (the key) not picked this way before; if ITS condition is met, pick
+ *   another Asterism to be prophesied.
  * - Itzl the Tamer (360d-...): Companion weapons of friendly SERAPHON have Crit (2 Hits).
  * - Quetzl the Preserver (5089-...): -1 Rend on melee weapons against friendly SERAPHON units
  *   wholly within friendly territory.
@@ -76,10 +77,19 @@ export function isProphesied(state: GameState, player: PlayerId, id: string): bo
   return prophesied(state, player).includes(id);
 }
 
-/** The Asterisms `player` may still pick (not picked before this battle). */
-export function asterismsAvailable(state: GameState, player: PlayerId): AsterismInfo[] {
-  const picked = state.asterisms?.[player]?.picked ?? [];
-  return ASTERISMS.filter((a) => !picked.includes(a.id));
+/** The Asterisms not yet prophesied: what The Great Plan and Further the Great Plan may add. */
+export function unprophesied(state: GameState, player: PlayerId): AsterismInfo[] {
+  const have = prophesied(state, player);
+  return ASTERISMS.filter((a) => !have.includes(a.id));
+}
+
+/**
+ * The keys of Further the Great Plan: prophesied Asterisms not yet picked by it this battle
+ * (`picked` holds the keys used; The Great Plan's pick is not one).
+ */
+export function usableKeys(state: GameState, player: PlayerId): AsterismInfo[] {
+  const used = state.asterisms?.[player]?.picked ?? [];
+  return ASTERISMS.filter((a) => isProphesied(state, player, a.id) && !used.includes(a.id));
 }
 
 /** True when the army's general is `unit`. */
@@ -101,10 +111,7 @@ export function asterismConditionMet(
     case QUETZL_ID: {
       const territory = friendlyTerritories(scenario, player);
       return !foes.some(
-        (u) =>
-          u.status === 'battlefield' &&
-          !profileOf(scenario, u).isFactionTerrain &&
-          unitWhollyWithinPolygons(scenario, u, territory),
+        (u) => u.status === 'battlefield' && unitWhollyWithinPolygons(scenario, u, territory),
       );
     }
     case SOTEK_ID: {
@@ -133,23 +140,33 @@ export function asterismConditionMet(
   }
 }
 
-/** The options of the decision: the unpicked Asterisms and whether each one's condition is met. */
+/**
+ * The decision's lists: `options` are the Asterisms that may be prophesied (all four for The
+ * Great Plan, the unprophesied ones for Further the Great Plan); `keys` (Further the Great Plan)
+ * are the prophesied Asterisms whose condition is checked, `met` telling whether it holds now.
+ */
 export function asterismOptions(
   scenario: Scenario,
   state: GameState,
   player: PlayerId,
   stage: 'great' | 'further',
-): (AsterismInfo & { met: boolean })[] {
-  return asterismsAvailable(state, player).map((a) => ({
-    ...a,
-    met: stage === 'great' || asterismConditionMet(scenario, state, player, a.id),
-  }));
+): { options: (AsterismInfo & { met: boolean })[]; keys: (AsterismInfo & { met: boolean })[] } {
+  return {
+    options: unprophesied(state, player).map((a) => ({ ...a, met: true })),
+    keys:
+      stage === 'great'
+        ? []
+        : usableKeys(state, player).map((a) => ({
+            ...a,
+            met: asterismConditionMet(scenario, state, player, a.id),
+          })),
+  };
 }
 
 /**
  * The next Asterism question: for each Seraphon player, The Great Plan in round 1 (not yet
- * answered) or Further the Great Plan in a later round (not yet answered this round and an
- * Asterism left to pick).
+ * answered) or Further the Great Plan in a later round (not yet answered this round, a key
+ * whose condition is met and an Asterism left to prophesy).
  */
 export function nextAsterismFrame(
   scenario: Scenario,
@@ -163,7 +180,8 @@ export function nextAsterismFrame(
     } else if (
       mine &&
       mine.askedRound !== state.round &&
-      asterismsAvailable(state, player).length
+      unprophesied(state, player).length > 0 &&
+      asterismOptions(scenario, state, player, 'further').keys.some((k) => k.met)
     ) {
       return { player, stage: 'further' };
     }
@@ -171,12 +189,15 @@ export function nextAsterismFrame(
   return null;
 }
 
-/** Records the answer. `id` null is a pass (Further the Great Plan, or an old saved game). */
+/**
+ * Records the answer: The Great Plan prophesies `id`; Further the Great Plan uses `key` (its
+ * condition is checked by the caller) and prophesies `id`. A null `id` is a pass (Further the
+ * Great Plan, or an old saved game).
+ */
 export function recordAsterism(
-  scenario: Scenario,
   state: GameState,
   player: PlayerId,
-  stage: 'great' | 'further',
+  key: string | null,
   id: string | null,
 ): string {
   const mine = state.asterisms?.[player] ?? { picked: [], prophesied: [], askedRound: 0 };
@@ -184,23 +205,29 @@ export function recordAsterism(
   mine.askedRound = state.round;
   if (id === null) return `Player ${player + 1} does not prophesy an Asterism.`;
   const info = ASTERISMS.find((a) => a.id === id)!;
-  const met = stage === 'great' || asterismConditionMet(scenario, state, player, id);
-  mine.picked.push(id);
-  if (met) {
-    mine.prophesied.push(id);
-    return `Player ${player + 1} prophesies ${info.name}.`;
-  }
-  return `Player ${player + 1} picks ${info.name}, but its condition is not met: no effect.`;
+  mine.prophesied.push(id);
+  if (key === null) return `Player ${player + 1} prophesies ${info.name}.`;
+  mine.picked.push(key);
+  const keyInfo = ASTERISMS.find((a) => a.id === key)!;
+  return `Player ${player + 1} picks ${keyInfo.name} and prophesies ${info.name}.`;
 }
 
-/** The NPC's pick: the first Asterism in its order that may be prophesied, or null to pass. */
+/**
+ * The NPC's answer: The Great Plan, the first Asterism in its order; Further the Great Plan,
+ * the first key whose condition is met and the first unprophesied Asterism. Null to pass.
+ */
 export function npcAsterism(
   scenario: Scenario,
   state: GameState,
   player: PlayerId,
   stage: 'great' | 'further',
-): string | null {
-  return asterismOptions(scenario, state, player, stage).find((o) => o.met)?.id ?? null;
+): { key: string | null; id: string } | null {
+  const { options, keys } = asterismOptions(scenario, state, player, stage);
+  const id = options[0]?.id;
+  if (!id) return null;
+  if (stage === 'great') return { key: null, id };
+  const key = keys.find((k) => k.met)?.id;
+  return key ? { key, id } : null;
 }
 
 // ─── Effects ────────────────────────────────────────────────────────────────────

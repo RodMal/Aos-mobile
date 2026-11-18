@@ -130,7 +130,7 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
           kind: 'asterism',
           player: top.player,
           stage: top.stage,
-          options: asterismOptions(scenario, state, top.player, top.stage),
+          ...asterismOptions(scenario, state, top.player, top.stage),
         };
       case 'fugitive':
         return { kind: 'fugitive', player: top.player, units: top.units };

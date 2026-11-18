@@ -35,7 +35,7 @@ const DRYADS = '0:6';
 /** The game at its first main decision, with `ids` prophesied for the Seraphon player. */
 function game(ids: string[] = []): GameState {
   const s = editable(startGame(engine, 1));
-  s.asterisms = { 1: { picked: [...ids], prophesied: [...ids], askedRound: 1 } };
+  s.asterisms = { 1: { picked: [], prophesied: [...ids], askedRound: 1 } };
   return s;
 }
 
@@ -63,7 +63,7 @@ describe('The Great Plan (9db2-50c6-6181-fc51)', () => {
     expect(d.options.map((o) => o.id)).toEqual(ASTERISMS.map((a) => a.id));
     expect(d.options.every((o) => o.met)).toBe(true);
     const next = engine.apply(s, { t: 'choose', value: TEPOK_ID }).state;
-    expect(next.asterisms?.[1]).toMatchObject({ picked: [TEPOK_ID], prophesied: [TEPOK_ID] });
+    expect(next.asterisms?.[1]).toMatchObject({ picked: [], prophesied: [TEPOK_ID] });
     // The Great Plan is used once: it is not asked again this round.
     expect(engine.decision(next)?.kind).not.toBe('asterism');
   });
@@ -89,48 +89,82 @@ describe('The Great Plan (9db2-50c6-6181-fc51)', () => {
 });
 
 describe('Further the Great Plan (4d17-ddf6-7d2a-9889)', () => {
-  it('is asked at the start of round 2, not round 1, with each condition shown', () => {
-    const s = toFurther(game());
+  /** Round 2's question with Tepok (Kroak alive, out of combat) and Sotek prophesied. */
+  const atRound2 = (ids: string[] = [TEPOK_ID]) => toFurther(game(ids));
+
+  it('is asked at the start of round 2, with the prophesied Asterisms as keys', () => {
+    const s = atRound2([TEPOK_ID, ITZL_ID]);
     expect(s.round).toBe(2);
     const d = engine.decision(s)!;
     if (d.kind !== 'asterism') throw new Error('expected asterism');
     expect(d.player).toBe(1);
-    expect(d.options).toHaveLength(4);
-    // Nothing destroyed, nobody in combat, no enemy in the Seraphon territory, Kroak is alive.
-    expect(Object.fromEntries(d.options.map((o) => [o.id, o.met]))).toEqual({
-      [SOTEK_ID]: false,
+    // The keys are the prophesied ones; the condition of each is shown (Tepok met, Itzl not).
+    expect(Object.fromEntries(d.keys.map((k) => [k.id, k.met]))).toEqual({
       [ITZL_ID]: false,
-      [QUETZL_ID]: true,
       [TEPOK_ID]: true,
+    });
+    // The Asterisms to prophesy are the ones not prophesied yet.
+    expect(d.options.map((o) => o.id)).toEqual([SOTEK_ID, QUETZL_ID]);
+  });
+
+  it('is not asked while no key has its condition met, or nothing is left to prophesy', () => {
+    // Itzl is the only key and 0 enemy units are destroyed.
+    let s = game([ITZL_ID]);
+    for (let i = 0; i < 400 && s.round < 3; i++) {
+      expect(engine.decision(s)?.kind === 'asterism' && s.round > 1).toBe(false);
+      s = engine.apply(s, engine.defaultAction(s)).state;
+    }
+    expect(s.round).toBe(3);
+    // All four prophesied: nothing left.
+    s = game([SOTEK_ID, ITZL_ID, QUETZL_ID, TEPOK_ID]);
+    for (let i = 0; i < 400 && s.round < 3; i++) {
+      expect(engine.decision(s)?.kind === 'asterism' && s.round > 1).toBe(false);
+      s = engine.apply(s, engine.defaultAction(s)).state;
+    }
+    expect(s.round).toBe(3);
+  });
+
+  it("checks the KEY's condition: an unmet key is rejected, a met key prophesies the new Asterism", () => {
+    const s = atRound2([TEPOK_ID, ITZL_ID]);
+    // Itzl as the key: 0 enemy units destroyed.
+    expect(() => engine.apply(s, { t: 'choose', value: `${ITZL_ID},${SOTEK_ID}` })).toThrow(
+      /condition is not met/,
+    );
+    // The new Asterism must be an unprophesied one; a bare id is not an answer.
+    expect(() => engine.apply(s, { t: 'choose', value: `${TEPOK_ID},${ITZL_ID}` })).toThrow(
+      /not prophesied/,
+    );
+    expect(() => engine.apply(s, { t: 'choose', value: SOTEK_ID })).toThrow();
+    const t = engine.apply(s, { t: 'choose', value: `${TEPOK_ID},${SOTEK_ID}` }).state;
+    expect(t.asterisms?.[1]).toMatchObject({
+      picked: [TEPOK_ID],
+      prophesied: [TEPOK_ID, ITZL_ID, SOTEK_ID],
     });
   });
 
-  it('a met condition prophesies; an unmet one is picked for nothing and cannot be picked again', () => {
-    let s = toFurther(game());
-    s = engine.apply(s, { t: 'choose', value: ITZL_ID }).state; // 0 enemy units destroyed
-    expect(s.asterisms?.[1]).toMatchObject({ picked: [ITZL_ID], prophesied: [] });
+  it('a key cannot be used twice, and the Great Plan pick is not a used key', () => {
+    let s = atRound2([TEPOK_ID]);
+    s = engine.apply(s, { t: 'choose', value: `${TEPOK_ID},${QUETZL_ID}` }).state;
+    expect(s.asterisms?.[1]?.picked).toEqual([TEPOK_ID]);
+    // Round 3: Tepok is used; Quetzl (no enemy wholly in the Seraphon territory) is the key.
     s = engine.apply(s, engine.defaultAction(s)).state;
-    s = editable(toFurther(s));
+    s = toFurther(s);
     expect(s.round).toBe(3);
     const d = engine.decision(s)!;
     if (d.kind !== 'asterism') throw new Error('expected asterism');
-    expect(d.options.map((o) => o.id)).not.toContain(ITZL_ID);
-    expect(() => engine.apply(s, { t: 'choose', value: ITZL_ID })).toThrow(/not been picked/);
-    const t = engine.apply(s, { t: 'choose', value: TEPOK_ID }).state;
-    expect(t.asterisms?.[1]?.prophesied).toEqual([TEPOK_ID]);
+    expect(d.keys.map((k) => k.id)).toEqual([QUETZL_ID]);
+    expect(() => engine.apply(s, { t: 'choose', value: `${TEPOK_ID},${SOTEK_ID}` })).toThrow(/key/);
   });
 
-  it('may be passed, and the NPC passes when no condition is met', () => {
-    const s = toFurther(game());
-    const d = engine.decision(s)!;
-    if (d.kind !== 'asterism') throw new Error('expected asterism');
-    // The NPC takes the first met Asterism in its order (Quetzl: nothing in its territory).
-    expect(chooseAction(engine, s)).toEqual({ t: 'choose', value: QUETZL_ID });
-    const none = editable(s);
-    none.units[KROAK]!.status = 'reserve'; // no Slann on the battlefield: Tepok is not met
-    none.asterisms = { 1: { picked: [QUETZL_ID], prophesied: [], askedRound: 1 } };
-    expect(chooseAction(engine, none)).toEqual({ t: 'pass' });
-    expect(engine.apply(none, { t: 'pass' }).state.asterisms?.[1]?.askedRound).toBe(2);
+  it('may be passed; the NPC takes the first met key, then Sotek > Itzl > Quetzl > Tepok', () => {
+    const s = atRound2([TEPOK_ID]);
+    expect(chooseAction(engine, s)).toEqual({ t: 'choose', value: `${TEPOK_ID},${SOTEK_ID}` });
+    expect(engine.apply(s, { t: 'pass' }).state.asterisms?.[1]?.askedRound).toBe(2);
+    const some = atRound2([QUETZL_ID, TEPOK_ID]);
+    expect(chooseAction(engine, some)).toEqual({
+      t: 'choose',
+      value: `${QUETZL_ID},${SOTEK_ID}`,
+    });
   });
 
   it('Itzl the Tamer needs 3 or more enemy units destroyed', () => {

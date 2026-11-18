@@ -209,18 +209,32 @@ export function chooseAsterism(ctx: Ctx, action: Action): void {
   const { s, scenario } = ctx;
   const frame = s.stack[s.stack.length - 1];
   if (frame?.t !== 'asterism') illegal('There is no Asterism to pick.');
+  let key: string | null = null;
   let id: string | null = null;
   if (action.t === 'choose') {
-    const option = asterismOptions(scenario, s, frame.player, frame.stage).find(
-      (o) => o.id === action.value,
-    );
-    if (!option) illegal('Pick an Asterism that has not been picked before this battle.');
-    id = option.id;
+    // The Great Plan: the Asterism. Further the Great Plan: `<key>,<Asterism to prophesy>`.
+    const lists = asterismOptions(scenario, s, frame.player, frame.stage);
+    const parts = action.value.split(',');
+    if (frame.stage === 'great') {
+      id = parts.length === 1 ? parts[0]! : null;
+    } else {
+      key = parts.length === 2 ? parts[0]! : null;
+      id = parts.length === 2 ? parts[1]! : null;
+      const keyOption = lists.keys.find((k) => k.id === key);
+      if (!keyOption) illegal('Pick a prophesied Asterism you have not picked before as the key.');
+      if (!keyOption.met)
+        illegal(
+          'That Asterism’s condition is not met: Further the Great Plan would have no effect.',
+        );
+    }
+    if (!lists.options.some((o) => o.id === id)) {
+      illegal('Pick an Asterism that is not prophesied yet.');
+    }
   } else if (action.t !== 'pass') {
     illegal('Pick an Asterism to prophesy.');
   }
   s.stack.pop();
-  ctx.events.push({ t: 'note', text: recordAsterism(scenario, s, frame.player, frame.stage, id) });
+  ctx.events.push({ t: 'note', text: recordAsterism(s, frame.player, key, id) });
   finishRound(ctx);
 }
 

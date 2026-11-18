@@ -82,7 +82,7 @@ The four Asterism abilities (Itzl, Quetzl, Sotek, Tepok) can be used only once p
 | Ability                               | BSData id           | Status      | Gap                                                        | Task |
 | ------------------------------------- | ------------------- | ----------- | ---------------------------------------------------------- | ---- |
 | The Great Plan                        | 9db2-50c6-6181-fc51 | Implemented | `seraphon.test.ts`, `session.test.ts` (old saves); I76     |      |
-| Further the Great Plan                | 4d17-ddf6-7d2a-9889 | Implemented | `seraphon.test.ts`; I77, I78                               |      |
+| Further the Great Plan                | 4d17-ddf6-7d2a-9889 | Implemented | `seraphon.test.ts`, `asterism.spec.ts`; I77, I78           |      |
 | Itzl the Tamer                        | 360d-fd80-f153-269f | Implemented | `seraphon.test.ts`; I80                                    |      |
 | Quetzl the Preserver                  | 5089-fe1e-4dd7-5eb4 | Implemented | `seraphon.test.ts`; I80                                    |      |
 | Sotek the Deliverer                   | 6960-effd-2a46-d7d4 | Implemented | `seraphon.test.ts`, `asterism.spec.ts`; I79                |      |
