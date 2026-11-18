@@ -6,6 +6,7 @@ import {
   evaluateBattleTactic,
   evaluateEndOfTurnTactics,
   initBattleTactics,
+  liveTacticCheck,
   recordTurnStartForTactics,
   BLAZING_ONSLAUGHT_ID,
   BURNING_FOR_VENGEANCE_ID,
@@ -87,6 +88,38 @@ describe('Battle Tactics (GHB 2026-27)', () => {
     expect(evaluateBattleTactic(scenario, state, 0, FLANKING_FIRESTORM_ID, 'domination')).toBe(
       true,
     );
+  });
+
+  it('liveTacticCheck reports the current tier and whether it is met now', () => {
+    const state = cloneState(startGame(engine, 1));
+    initBattleTactics(scenario, state);
+    for (const id of state.unitOrder) {
+      for (const m of state.units[id]!.models) {
+        m.x = 50;
+        m.y = 5;
+      }
+    }
+    const spites = unitsOf(state, 0).find((u) => u.name === 'Spite-Revenants')!;
+    const dryads = unitsOf(state, 0).find((u) => u.name === 'Dryads')!;
+    state.players[0].tacticProgress![FLANKING_FIRESTORM_ID] = 'strike';
+    expect(liveTacticCheck(scenario, state, 0, FLANKING_FIRESTORM_ID)).toEqual({
+      tier: 'strike',
+      met: false,
+    });
+    spites.models.forEach((m) => {
+      m.x = 56;
+      m.y = 4;
+    });
+    dryads.models.forEach((m) => {
+      m.x = 56;
+      m.y = 40;
+    });
+    expect(liveTacticCheck(scenario, state, 0, FLANKING_FIRESTORM_ID)).toEqual({
+      tier: 'strike',
+      met: true,
+    });
+    state.players[0].tacticProgress![FLANKING_FIRESTORM_ID] = 'completed';
+    expect(liveTacticCheck(scenario, state, 0, FLANKING_FIRESTORM_ID)).toBeNull();
   });
 
   it('evaluates Burning for Vengeance (Strike: Quick Pursuit, Domination: Bring Them In)', () => {

@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### U4 Live checks for battle tactic conditions
-
-- **Tier**: sonnet
-- **Touches**: ui/drawers, rules
-- **Read**: the battle tactics drawer in `src/ui/drawers/`, `src/rules/core/battleTactics.ts`
-- **Done when**: each tier whose condition can be evaluated on the current state shows a live met / not met indicator (for example Flanking Firestorm's "within 9 inches of a corner"), computed by pure functions in `src/rules/core/battleTactics.ts` with unit tests.
-
 ### U5 3" enemy zones while moving
 
 - **Tier**: sonnet
