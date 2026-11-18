@@ -122,6 +122,7 @@ export function resolveEruptionOfFury(
   pState.furyUsedThisTurn = [...(pState.furyUsedThisTurn ?? []), ERUPTION_OF_FURY_ID];
 
   // Attack sequence: critical hits disabled
+  // Eruption of Fury has no crits, so Itzl the Tamer's Crit (2 Hits) never applies here.
   const weaponWithoutCrits: Weapon = {
     ...weapon,
     abilities: weapon.abilities.filter(

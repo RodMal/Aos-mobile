@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4b Seraphon Asterisms: The Great Plan, Further the Great Plan, and the four traits
-
-- **Tier**: sonnet+review
-- **Touches**: engine, rules, ai, ui/prompts
-- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/seraphon.json` (battle traits, ids `9db2-50c6-6181-fc51`, `4d17-ddf6-7d2a-9889`, `360d-fd80-f153-269f`, `5089-fe1e-4dd7-5eb4`, `6960-effd-2a46-d7d4`, `90ae-3432-b3f3-4727`; the conditions per Asterism are in the declare text of Further the Great Plan); `src/rules/factions/seasons.ts` and `src/engine/decisions.ts` (a start-of-round decision, as Seasons Of War); `src/engine/abilities/effects.ts` (`unitGrants`, `abilityAttackModifiers`); `src/engine/movement.ts` and `src/engine/abilities/magic.ts` (Move and casting rolls)
-- **Done when**: the Great Plan is asked at deployment (the NPC picks one) and Further the Great Plan at the start of rounds 2 and later, with the printed conditions and "not one picked before"; only prophesied Asterisms apply; one test per ability: Itzl the Tamer (Companion weapons of Seraphon have Crit (2 Hits)), Quetzl the Preserver (-1 Rend against melee attacks on Seraphon wholly in friendly territory), Sotek the Deliverer (+2 Move for Seraphon), Tepok the Seer (+1 to casting rolls for Seraphon), The Great Plan, Further the Great Plan. The Move bonus shows in the movement allowance on screen. Update `docs/ABILITIES.md`.
-
 ### V1 Apply the visibility ruling to spells, prayers and abilities
 
 - **Tier**: sonnet+review

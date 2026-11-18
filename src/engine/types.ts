@@ -254,6 +254,8 @@ export type Frame =
     }
   /** Start of any turn: the Sylvaneth player may use Creeping Dread on up to `max` targets. */
   | { t: 'creepingDread'; player: PlayerId; units: UnitId[]; max: number }
+  /** Seraphon: The Great Plan (round 1) or Further the Great Plan (later rounds). */
+  | { t: 'asterism'; player: PlayerId; stage: 'great' | 'further' }
   /**
    * Start of the battle, before the first turn is decided: a player with Burning for Vengeance
    * picks an enemy Hero (on the battlefield or in reserve) to be the fugitive.
@@ -373,6 +375,13 @@ export interface GameState {
    * games replay. Used for a Wyldwood with no entry in `burgeoningChoices`.
    */
   burgeoningChoice?: string;
+  /**
+   * Seraphon Asterisms by player: the keys already used by Further the Great Plan, those prophesied (in force),
+   * and the last battle round the player was asked.
+   */
+  asterisms?: Partial<
+    Record<PlayerId, { picked: string[]; prophesied: string[]; askedRound: number }>
+  >;
   /** The player whose Alarielle picked the seasons. */
   alarielleSeasonPlayer?: PlayerId;
   /**
@@ -445,6 +454,23 @@ export type Decision =
    * separated by commas, or `pass`.
    */
   | { kind: 'creepingDread'; player: PlayerId; units: UnitId[]; max: number }
+  /**
+   * Seraphon Asterisms. The Great Plan: `choose` and the Asterism's ability ID. Further the
+   * Great Plan: `choose` and `<key>,<Asterism>` (see `keys`). `pass` prophesies nothing (also how
+   * a game saved before Asterisms existed replays).
+   */
+  | {
+      kind: 'asterism';
+      player: PlayerId;
+      stage: 'great' | 'further';
+      /** The Asterisms that may be prophesied. */
+      options: { id: string; name: string; text: string; condition: string; met: boolean }[];
+      /**
+       * Further the Great Plan: the prophesied Asterisms not yet used as the key, `met` telling
+       * whether its condition holds. Answer `<key id>,<option id>`; an unmet key is illegal.
+       */
+      keys: { id: string; name: string; text: string; condition: string; met: boolean }[];
+    }
   /** Burning for Vengeance: pick the enemy fugitive (answer with `choose` and a unit ID). */
   | { kind: 'fugitive'; player: PlayerId; units: UnitId[] };
 

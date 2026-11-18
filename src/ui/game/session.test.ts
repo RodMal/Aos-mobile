@@ -108,6 +108,37 @@ describe('session', () => {
     expect(replay(engine, record).state).toEqual(s.state);
   });
 
+  it('replays a game saved before Seraphon Asterisms existed (no answer to The Great Plan)', () => {
+    const s = toMovement();
+    const asks = s.history.filter((h) => engine.decision(h.before)?.kind === 'asterism');
+    expect(asks.length).toBeGreaterThan(0);
+    const old = toRecord(s);
+    old.actions = s.history.filter((h) => !asks.includes(h)).map((h) => h.action);
+    expect(old.actions.length).toBe(s.history.length - asks.length);
+    expect(replay(engine, old).state).toEqual(s.state);
+  });
+
+  it('saves and replays a game where Further the Great Plan was answered with a key and a new Asterism', () => {
+    let s = newSession(engine, 5, 1);
+    let further = 0;
+    for (let i = 0; i < 600 && further < 2; i++) {
+      const d = engine.decision(s.state);
+      if (!d) break;
+      let action = engine.defaultAction(s.state);
+      if (d.kind === 'asterism' && d.stage === 'great') {
+        action = { t: 'choose', value: d.options[3]!.id };
+      } else if (d.kind === 'asterism') {
+        const key = d.keys.find((k) => k.met)!;
+        action = { t: 'choose', value: `${key.id},${d.options[0]!.id}` };
+        further++;
+      }
+      s = applyToSession(engine, s, action).session;
+    }
+    expect(further).toBeGreaterThan(0);
+    const record = parseRecord(JSON.stringify(toRecord(s)))!;
+    expect(replay(engine, record).state).toEqual(s.state);
+  });
+
   it('rejects malformed records', () => {
     expect(parseRecord(null)).toBeNull();
     expect(parseRecord('{nope')).toBeNull();

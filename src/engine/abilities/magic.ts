@@ -8,6 +8,7 @@ import {
 } from '../../geom/index.js';
 import { canStandOn } from '../../data/battlefield.js';
 import { reapingBonus } from '../../rules/factions/seasons.js';
+import { tepokBonus } from '../../rules/factions/seraphon.js';
 import { applyMortalDamage, destroyUnit, type StepCtx } from '../damage.js';
 import { roll2D6, rollD3, rollD6 } from '../ctx.js';
 import { boardPolygon } from '../movement.js';
@@ -513,7 +514,8 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
         dice[1] +
         penalty +
         channelledWrathBonus(ctx.s, unit) +
-        reapingBonus(ctx.scenario, ctx.s, unit),
+        reapingBonus(ctx.scenario, ctx.s, unit) +
+        tepokBonus(ctx.scenario, ctx.s, unit),
     );
     const success = !miscast && total >= cv;
     ctx.events.push({

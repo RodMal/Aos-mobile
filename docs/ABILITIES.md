@@ -77,19 +77,19 @@ The "Task" column names the backlog task that closes each gap.
 
 ### Battle traits, formation and faction terrain
 
-The four Asterism abilities (Itzl, Quetzl, Sotek, Tepok) can be used only once prophesied by The Great Plan (deployment) and Further the Great Plan (start of each round after the first); nothing of this exists.
+The four Asterism abilities (Itzl, Quetzl, Sotek, Tepok) can be used only once prophesied by The Great Plan (deployment) and Further the Great Plan (start of each round after the first); both are implemented (M4b).
 
-| Ability                               | BSData id           | Status  | Gap                                                                    | Task |
-| ------------------------------------- | ------------------- | ------- | ---------------------------------------------------------------------- | ---- |
-| The Great Plan                        | 9db2-50c6-6181-fc51 | Missing | Choose the first prophesied Asterism at deployment                     | M4b  |
-| Further the Great Plan                | 4d17-ddf6-7d2a-9889 | Missing | Start of rounds 2+: prophesy another, conditions per Asterism          | M4b  |
-| Itzl the Tamer                        | 360d-fd80-f153-269f | Missing | Companion weapons of Seraphon get Crit (2 Hits)                        | M4b  |
-| Quetzl the Preserver                  | 5089-fe1e-4dd7-5eb4 | Missing | -1 Rend on melee attacks against Seraphon wholly in friendly territory | M4b  |
-| Sotek the Deliverer                   | 6960-effd-2a46-d7d4 | Missing | +2 Move for Seraphon                                                   | M4b  |
-| Tepok the Seer                        | 90ae-3432-b3f3-4727 | Missing | +1 to casting rolls for Seraphon                                       | M4b  |
-| Vengeance of Azyr (Sunclaw Starhost)  | 7c7e-3757-9881-5bd7 | Missing | Pile-in then D3 mortal damage on 2+                                    | M4c  |
-| Fierce Guardians (Realmshaper Engine) | bf4d-2061-b8d1-193  | Missing | +1 to hit for Saurus and Kroxigor within 9" of the terrain             | M4m  |
-| Power Unleashed (Realmshaper Engine)  | aa75-204a-4256-8c68 | Missing | Faction terrain never acts (I39)                                       | M4m  |
+| Ability                               | BSData id           | Status      | Gap                                                        | Task |
+| ------------------------------------- | ------------------- | ----------- | ---------------------------------------------------------- | ---- |
+| The Great Plan                        | 9db2-50c6-6181-fc51 | Implemented | `seraphon.test.ts`, `session.test.ts` (old saves); I76     |      |
+| Further the Great Plan                | 4d17-ddf6-7d2a-9889 | Implemented | `seraphon.test.ts`, `asterism.spec.ts`; I77, I78           |      |
+| Itzl the Tamer                        | 360d-fd80-f153-269f | Implemented | `seraphon.test.ts`; I80                                    |      |
+| Quetzl the Preserver                  | 5089-fe1e-4dd7-5eb4 | Implemented | `seraphon.test.ts`; I80                                    |      |
+| Sotek the Deliverer                   | 6960-effd-2a46-d7d4 | Implemented | `seraphon.test.ts`, `asterism.spec.ts`; I79                |      |
+| Tepok the Seer                        | 90ae-3432-b3f3-4727 | Implemented | `seraphon.test.ts`; I79                                    |      |
+| Vengeance of Azyr (Sunclaw Starhost)  | 7c7e-3757-9881-5bd7 | Missing     | Pile-in then D3 mortal damage on 2+                        | M4c  |
+| Fierce Guardians (Realmshaper Engine) | bf4d-2061-b8d1-193  | Missing     | +1 to hit for Saurus and Kroxigor within 9" of the terrain | M4m  |
+| Power Unleashed (Realmshaper Engine)  | aa75-204a-4256-8c68 | Missing     | Faction terrain never acts (I39)                           | M4m  |
 
 ### Warscrolls
 

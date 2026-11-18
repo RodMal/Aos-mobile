@@ -36,6 +36,7 @@ import { diceMean } from '../data/profile.js';
 import { npcDeployPlacement } from '../engine/deployment.js';
 import { contestedObjective } from '../rules/core/objectives.js';
 import { chargePlacement, moveTowards, pileInPlacement } from './placement.js';
+import { npcAsterism } from '../rules/factions/seraphon.js';
 import { npcCreepingDreadTargets, npcSeason } from '../rules/factions/seasons.js';
 
 /** CP the NPC keeps in hand before it spends on optional commands. */
@@ -112,6 +113,12 @@ export function chooseAction(engine: Engine, state: GameState): Action {
     case 'creepingDread': {
       const ids = npcCreepingDreadTargets(engine.scenario, state, d.units, d.max);
       return ids.length > 0 ? { t: 'choose', value: ids.join(',') } : { t: 'pass' };
+    }
+    case 'asterism': {
+      const pick = npcAsterism(engine.scenario, state, d.player, d.stage);
+      return pick
+        ? { t: 'choose', value: pick.key ? `${pick.key},${pick.id}` : pick.id }
+        : { t: 'pass' };
     }
     case 'fugitive':
       // The engine's default is the sensible pick: the enemy Hero easiest to slay.

@@ -21,6 +21,7 @@ import {
 } from './query.js';
 import { effectiveWeaponRange, isGuardedHero, isUnitVisible } from './terrain.js';
 import type { Weapon } from '../data/profile.js';
+import { asterismWeapon } from '../rules/factions/seraphon.js';
 import type {
   Allocation,
   AttackMode,
@@ -150,9 +151,9 @@ export function weaponTargets(
     const grants = unitGrants(scenario, state, unit);
     if (!mayShoot(unit, grants.runAndShoot)) return [];
     const engaged = inCombat(scenario, state, unit);
-    weapons = profile.weapons.filter(
-      (w) => w.kind === 'ranged' && (!engaged || hasAbility(w, 'shootInCombat')),
-    );
+    weapons = profile.weapons
+      .filter((w) => w.kind === 'ranged' && (!engaged || hasAbility(w, 'shootInCombat')))
+      .map((w) => asterismWeapon(scenario, state, unit, w));
     if (weapons.length === 0) return [];
     const maxRange = Math.max(
       ...weapons.map((w) => effectiveWeaponRange(scenario, state, unit, w.range)),
@@ -166,7 +167,9 @@ export function weaponTargets(
       return Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r <= maxRange + 1e-6;
     });
   } else {
-    weapons = profile.weapons.filter((w) => w.kind === 'melee');
+    weapons = profile.weapons
+      .filter((w) => w.kind === 'melee')
+      .map((w) => asterismWeapon(scenario, state, unit, w));
     if (weapons.length === 0) return [];
     // Units within 3" of enemy faction terrain may attack it.
     candidates = enemiesWithin(scenario, state, unit, COMBAT_RANGE, true);
@@ -218,7 +221,12 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
   const profile = profileOf(scenario, attacker);
   const pending = new Map<string, number>();
   for (const alloc of frame.allocations) {
-    const weapon = profile.weapons.find((w) => w.id === alloc.weaponId)!;
+    const weapon = asterismWeapon(
+      scenario,
+      s,
+      attacker,
+      profile.weapons.find((w) => w.id === alloc.weaponId)!,
+    );
     const target = s.units[alloc.target]!;
     if (target.status !== 'battlefield') continue;
     let allowedRange = frame.mode === 'shoot' ? weapon.range : COMBAT_RANGE;

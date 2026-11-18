@@ -1,5 +1,6 @@
 /** Prompt router: picks the component for the human's pending decision. */
 import { useGameState, useHuman, useHumanDecision } from '../game/hooks.js';
+import { AsterismPrompt } from './AsterismPrompt.js';
 import { CreepingDreadPrompt } from './CreepingDreadPrompt.js';
 import { FugitivePrompt } from './FugitivePrompt.js';
 import { PainPrompt } from './PainPrompt.js';
@@ -21,6 +22,7 @@ export function DecisionPrompts() {
   if (d.kind === 'fugitive') {
     return <FugitivePrompt key="fugitive" d={d} />;
   }
+  if (d.kind === 'asterism') return <AsterismPrompt key={`${state.round}`} d={d} />;
   if (d.kind === 'reaction') {
     const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
     if (pain) {

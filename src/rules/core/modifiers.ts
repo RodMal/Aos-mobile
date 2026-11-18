@@ -11,6 +11,7 @@ import type { AttackMods } from '../../engine/expected.js';
 import { hasKeyword } from '../../engine/query.js';
 import { isGuardedHero, unitHasCover } from '../../engine/terrain.js';
 import type { AttackMode, GameState, Scenario, UnitState } from '../../engine/types.js';
+import { quetzlModifiers } from '../factions/seraphon.js';
 import { battleplanRules } from '../battleplans/index.js';
 
 export type ModifierStat = 'hit' | 'wound' | 'save' | 'rend' | 'damage';
@@ -74,6 +75,7 @@ export function attackModifiers(
     out.push({ stat: 'damage', value: charge, source: 'Charge', appliesToCompanion: true });
   }
   out.push(...abilityAttackModifiers(scenario, state, a));
+  out.push(...quetzlModifiers(scenario, state, a.weapon, a.target));
 
   if (unitHasCover(scenario, state, a.attacker, a.target, a.mode)) {
     out.push({ stat: 'hit', value: -1, source: 'Cover' });

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
-import { createEngine, createScenario, IllegalActionError, type GameState } from './index.js';
+import {
+  createEngine,
+  createScenario,
+  IllegalActionError,
+  type Action,
+  type GameState,
+} from './index.js';
 import { applyUntil, editable, keepOnly, placeUnit, startGame } from './test-helpers.js';
 import {
   BURNING_FOR_VENGEANCE_ID,
@@ -104,12 +110,16 @@ describe('priority', () => {
     while (!(end.round === 1 && end.turnIndex === 1 && end.phase === 'end')) {
       end = engine.apply(end, engine.defaultAction(end)).state;
     }
-    // Seasons Of War is chosen at the start of the round, before the priority roll.
-    const next = engine.apply(end, { t: 'pass' }).state;
-    const [from, action] =
-      engine.decision(next)?.kind === 'alarielleSeason'
-        ? [next, engine.defaultAction(next)]
-        : [end, { t: 'pass' as const }];
+    // Seasons Of War and the Seraphon prophecy are answered at the start of the round, before
+    // the priority roll: find the step that rolls it.
+    let from = end;
+    let action: Action = { t: 'pass' };
+    let next = engine.apply(from, action).state;
+    while (['alarielleSeason', 'asterism'].includes(engine.decision(next)?.kind ?? '')) {
+      from = next;
+      action = engine.defaultAction(next);
+      next = engine.apply(from, action).state;
+    }
     const tied = applyUntil(engine, from, action, (r) =>
       r.events.some((e) => e.t === 'priority' && e.rolls[0] === e.rolls[1]),
     );

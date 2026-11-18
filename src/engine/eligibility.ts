@@ -18,6 +18,7 @@ import {
   unitDistance,
   unitsOf,
 } from './query.js';
+import { moveOf } from '../rules/factions/seraphon.js';
 import { creepingDreadSurcharge, dwindling } from '../rules/factions/seasons.js';
 import {
   type Allocation,
@@ -77,12 +78,13 @@ export function moveOptions(scenario: Scenario, state: GameState, unit: UnitStat
   if (profile.move <= 0 && !profile.moveDice) return [];
   if (inCombat(scenario, state, unit)) {
     if (unit.isManifestation) return [];
-    return [{ t: 'move', kind: 'retreat', allowance: profile.move }];
+    return [{ t: 'move', kind: 'retreat', allowance: moveOf(scenario, state, unit) }];
   }
   const grants = unitGrants(scenario, state, unit);
-  const out: UnitOption[] = [{ t: 'move', kind: 'normal', allowance: profile.move }];
+  const move = moveOf(scenario, state, unit);
+  const out: UnitOption[] = [{ t: 'move', kind: 'normal', allowance: move }];
   if (!grants.cannotRun && !unit.isManifestation) {
-    out.push({ t: 'move', kind: 'run', allowance: profile.move });
+    out.push({ t: 'move', kind: 'run', allowance: move });
   }
   return out;
 }
