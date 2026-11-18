@@ -120,8 +120,12 @@ export function ObjectivesLayer() {
   );
 }
 
-/** A marker on every terrain feature that has an overgrown token (either player's). */
-export function OvergrowthLayer() {
+/**
+ * A marker on every terrain feature that has an overgrown token (either player's). Drawn twice:
+ * under the units for battlefield terrain, and over them (`onUnits`) for faction terrain, whose
+ * badge would otherwise be covered by the piece.
+ */
+export function OvergrowthLayer({ onUnits = false }: { onUnits?: boolean }) {
   const state = useGameState();
   const human = useHuman();
   const marks: { key: string; owner: 0 | 1; x: number; y: number; outline: string[] }[] = [];
@@ -130,7 +134,7 @@ export function OvergrowthLayer() {
     if (ids.size === 0) continue;
     for (const f of terrainFeatures(scenario, state)) {
       if (!ids.has(f.id)) continue;
-      if (f.polygon) {
+      if (f.polygon && !onUnits) {
         const n = f.polygon.length;
         marks.push({
           key: `${owner}-${f.id}`,
@@ -139,7 +143,7 @@ export function OvergrowthLayer() {
           y: f.polygon.reduce((a, p) => a + p[1], 0) / n,
           outline: [points(f.polygon)],
         });
-      } else if (f.unit) {
+      } else if (f.unit && onUnits) {
         const c = unitCentre(f.unit);
         marks.push({ key: `${owner}-${f.id}`, owner, x: c.x, y: c.y, outline: [] });
       }

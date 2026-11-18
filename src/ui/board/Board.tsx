@@ -360,6 +360,7 @@ export function Board() {
         <OvergrowthLayer />
         <RangeLayer />
         <UnitsLayer />
+        <OvergrowthLayer onUnits />
         <GhostLayer rot={rot} />
         <LabelsLayer rot={rot} />
         <MeasureLayer rot={rot} />

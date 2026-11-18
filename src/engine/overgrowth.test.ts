@@ -50,6 +50,19 @@ describe('Ever Growing (Awakened Wyldwood)', () => {
     expect(s.overgrown![0]).toContain('outcrop-w');
   });
 
+  it('stays blocked every round while the opponent holds the closest feature', () => {
+    const s = arena([WYLDWOOD, '1:1']);
+    placeUnit(scenario, s, WYLDWOOD, 22, 23.5);
+    const o = terrain('outcrop-w');
+    placeUnit(scenario, s, '1:1', o.centre[0], o.centre[1] - 4);
+    for (let round = 0; round < 3; round++) {
+      const notes = applyEverGrowing(scenario, s);
+      expect(notes.join(' ')).toMatch(/outcrop-w|Outcrop.*controlled by the opponent/);
+    }
+    // No fall back to the next-closest feature: nothing ever gets a token.
+    expect(s.overgrown![0]).toEqual([]);
+  });
+
   it('gives no token when the opponent controls the closest feature', () => {
     const s = arena([WYLDWOOD, '1:1']);
     placeUnit(scenario, s, WYLDWOOD, 22, 23.5);
