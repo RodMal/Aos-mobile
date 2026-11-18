@@ -4,7 +4,14 @@
  * store.ts wraps it.
  */
 import { z } from 'zod';
-import type { Action, Engine, GameEvent, GameState, PlayerId } from '../../engine/index.js';
+import {
+  IllegalActionError,
+  type Action,
+  type Engine,
+  type GameEvent,
+  type GameState,
+  type PlayerId,
+} from '../../engine/index.js';
 
 export interface HistoryEntry {
   action: Action;
@@ -130,11 +137,19 @@ export function parseRecord(json: string | null): GameRecord | null {
   }
 }
 
+/**
+ * True when the game waits on an Asterism question and the recorded action is not a legal answer
+ * to it (a game saved before Asterisms existed). `engine.apply` is pure, so trying is safe.
+ */
 function isUnansweredAsterism(engine: Engine, session: Session, action: Action): boolean {
-  const d = engine.decision(session.state);
-  if (d?.kind !== 'asterism') return false;
-  if (action.t === 'pass') return false;
-  return !(action.t === 'choose' && d.options.some((o) => o.id === action.value));
+  if (engine.decision(session.state)?.kind !== 'asterism') return false;
+  try {
+    engine.apply(session.state, action);
+    return false;
+  } catch (e) {
+    if (e instanceof IllegalActionError) return true;
+    throw e;
+  }
 }
 
 /** Rebuilds a game by replaying its actions. Throws if an action is no longer legal. */

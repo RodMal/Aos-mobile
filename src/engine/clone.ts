@@ -34,6 +34,16 @@ export function cloneState(state: GameState): GameState {
           })),
         }
       : {}),
+    ...(state.asterisms
+      ? {
+          asterisms: Object.fromEntries(
+            Object.entries(state.asterisms).map(([k, v]) => [
+              k,
+              { ...v, picked: [...v.picked], prophesied: [...v.prophesied] },
+            ]),
+          ),
+        }
+      : {}),
     ...(state.banishedThisTurn ? { banishedThisTurn: [...state.banishedThisTurn] } : {}),
     ...(state.reactionsOffered ? { reactionsOffered: [...state.reactionsOffered] } : {}),
     ...(state.overgrownTerrain ? { overgrownTerrain: [...state.overgrownTerrain] } : {}),
