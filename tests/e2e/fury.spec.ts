@@ -46,6 +46,14 @@ test('Fight Through the Pain: the prompt shows the incoming damage and spends ra
   await expect(prompt).toContainText('Fight Through the Pain');
   await expect(page.getByTestId('pain-damage')).toContainText(`${position.note} damage`);
   await page.screenshot({ path: info.outputPath(`pain-${info.project.name}.png`) });
+  // The prompt collapses to a bar to look at the map, the unit stays flagged, and it reopens.
+  await expect(page.locator('[data-unit-id].flagged')).toHaveCount(1);
+  await page.getByTestId('reaction-see-map').click();
+  await expect(prompt).toBeHidden();
+  await expect(page.getByTestId('reaction-bar')).toBeVisible();
+  await expect(page.locator('[data-unit-id].flagged')).toHaveCount(1);
+  await page.getByTestId('reaction-reopen').click();
+  await expect(prompt).toBeVisible();
   const dice = Number(await page.getByTestId('pain-dice').textContent());
   await page.getByTestId('pain-spend').click();
   await expect(page.getByTestId('fury-you')).toContainText(`${rageBefore - dice}R`);

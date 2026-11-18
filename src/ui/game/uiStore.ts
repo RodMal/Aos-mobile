@@ -93,6 +93,9 @@ interface UiStore {
    * a step, so label decluttering can re-render rarely instead of on every pinch frame.
    */
   zoomBucket: number;
+  /** Units a prompt wants pointed out on the board (the trigger of a reaction, a tapped unit). */
+  flagged: UnitId[];
+  setFlagged(ids: UnitId[]): void;
   select(id: UnitId | null): void;
   setSheetExpanded(v: boolean): void;
   openDrawer(d: Drawer): void;
@@ -123,6 +126,8 @@ export const useUi = create<UiStore>((set) => ({
   camera: null,
   sheetHeight: 0,
   zoomBucket: 10,
+  flagged: [],
+  setFlagged: (ids) => set({ flagged: ids }),
   select: (id) => set({ selected: id, chooser: null, sheetExpanded: false, abilityPick: null }),
   setSheetExpanded: (v) => set({ sheetExpanded: v }),
   openDrawer: (d) => set({ drawer: d, chooser: null }),

@@ -4,6 +4,7 @@ import {
   objectiveLabel,
   reactionText,
   toastLine,
+  triggerUnit,
   type LogContext,
 } from './eventText.js';
 
@@ -100,5 +101,14 @@ describe('eventLine', () => {
   it('describes reaction triggers', () => {
     expect(reactionText('shoot:b', ctx)).toBe('Saurus Warriors is about to shoot.');
     expect(reactionText('something else', ctx)).toBe('something else');
+    expect(reactionText('move:a', ctx)).toBe('Dryads finished a move nearby.');
+    expect(reactionText('phase:movement', ctx)).toContain('Movement phase');
+  });
+
+  it('finds the unit that triggered a reaction', () => {
+    expect(triggerUnit('shoot:b')).toBe('b');
+    expect(triggerUnit('spell:a:Smite')).toBe('a');
+    expect(triggerUnit('pain:b:3')).toBe('b');
+    expect(triggerUnit('phase:hero')).toBeNull();
   });
 });

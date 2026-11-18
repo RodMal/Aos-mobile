@@ -570,6 +570,10 @@ button {
   stroke-dasharray: 4 3;
   animation: pulse 1.2s ease-in-out infinite;
 }
+.unit.flagged .halo {
+  stroke: #ffd24a;
+  stroke-width: 4px;
+}
 .unit.assigned .halo {
   stroke: var(--bad);
   stroke-dasharray: none;
@@ -1857,4 +1861,28 @@ button {
 .turn-scores-list h3 {
   margin: 10px 0 4px;
   font-size: 14px;
+}
+
+/* Reaction prompt collapsed to a bar so the board can be used. */
+.peek-bar {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 92px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 94vw;
+  padding: 6px 8px 6px 14px;
+  background: #13171b;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+.modal .row-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
 }
