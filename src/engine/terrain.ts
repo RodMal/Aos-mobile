@@ -269,7 +269,8 @@ export function isModelVisibleToModel(
   // Obscuring (owner's ruling, 2026-11-11, from the printed wording): a unit with every model
   // within 1" of an Obscuring feature is visible only to enemy units within its combat range.
   // The feature does not block sight lines drawn through it otherwise.
-  if (isUnitObscured(scenario, state, target)) return false;
+  // It hides a unit only from enemies: a friendly unit beside Obscuring terrain stays visible.
+  if (target.owner !== attacker.owner && isUnitObscured(scenario, state, target)) return false;
   return true;
 }
 

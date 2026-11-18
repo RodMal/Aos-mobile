@@ -33,31 +33,31 @@ The "Task" column names the backlog task that closes each gap.
 
 ### Warscrolls
 
-| Ability                     | Unit                    | BSData id           | Status      | Evidence and gaps                                                                                            | Task |
-| --------------------------- | ----------------------- | ------------------- | ----------- | ------------------------------------------------------------------------------------------------------------ | ---- |
-| Metamorphosis (spell)       | Alarielle the Everqueen | b4bf-ef71-9dfe-e837 | Implemented | `magic.test.ts` (token, splash, Fight Through the Pain); I29. Visibility is not checked (awaiting the owner) |      |
-| Seasons Of War              | Alarielle the Everqueen | d584-62b7-8083-8f63 | Implemented | `seasons.test.ts` (never last round's, Reaping, Dwindling, Burgeoning per Wyldwood, Everdusk); I54, I71      |      |
-| Battle Damaged              | Alarielle the Everqueen | 135b-afc5-4fd9-3460 | Missing     | Attacks of the Antlers should be 4 from 10 damage points                                                     | M4d  |
-| Lifebloom                   | Alarielle the Everqueen | e4b4-8e4d-5f0-eb6a  | Missing     | Heal (2D6) this unit                                                                                         | M4i  |
-| Living Battering Ram        | Alarielle the Everqueen | 5abd-6507-dbee-ed76 | Missing     | D6 roll, on 3+ mortal damage equal to the roll                                                               | M4i  |
-| The Goddess Of Life         | Alarielle the Everqueen | 4f7c-2ca1-ae3f-d2d3 | Missing     | Command: replacement unit with 8 damage, no wards on them                                                    | M4e  |
-| Huntmaster's Strike         | Belthanos               | 61d2-55e1-7873-e100 | Missing     | After a charge, re-set up more than 6" from enemies within the overgrowth                                    | M4g  |
-| Kurnothi War-horn           | Belthanos               | 59e8-f376-a5df-144c | Missing     | +2" Move to Kurnothi wholly within 12"                                                                       | M4d  |
-| Rhythm of the Chase         | Belthanos               | b29c-dd1a-502d-27c4 | Missing     | D3 mortal damage on 2+, then re-set up within 1" of the target                                               | M4g  |
-| Battle Damaged              | Belthanos               | c6b8-a8fd-b2-59fa   | Missing     | Mandibles Attacks 3 from 10 damage points                                                                    | M4d  |
-| Groundshaker                | Spirit of Durthu        | 7124-769a-aafd-7b38 | Missing     | 3+: target has Strike-last for the turn                                                                      | M4i  |
-| Battle Damaged              | Spirit of Durthu        | 2eb1-9bd5-1544-36d9 | Missing     | Guardian Sword Attacks 3 from 10 damage points                                                               | M4d  |
-| Guardian Of The Glades      | Spirit of Durthu        | ea9f-5c5b-8b97-78aa | Missing     | +2 to a charge roll with an end-of-charge condition                                                          | M4g  |
-| Glamourweave (artefact)     | Spirit of Durthu        | cafd-9cf1-871c-f47e | Missing     | One re-roll each of hit, wound and save per phase                                                            | M4d  |
-| Terror Of The Deep Woods    | Drycha Hamadreth        | a1f-39fd-6570-f3d5  | Missing     | Enemies within 9" cannot Run or Retreat                                                                      | M4d  |
-| Enrage The Spites (spell)   | Drycha Hamadreth        | a924-fd6e-9278-4d4c | Implemented | `magic.test.ts` (up to 3 picked targets, overgrowth, NPC); I62                                               |      |
-| Merciless Ambush            | Drycha Hamadreth        | 77b2-7e2-ba0c-83a1  | Missing     | Command: re-set up within 1/2" of an enemy as a charge                                                       | M4g  |
-| Shadowcreep                 | Spite-Revenants         | 76b2-ce61-8aec-f6c1 | Missing     | Re-set up within 3" of terrain, then +1 to charge rolls                                                      | M4g  |
-| Wyldwood Revenants          | Warsong Revenant        | dc61-1f39-51f9-52da | Missing     | Re-roll a chanting roll                                                                                      | M4i  |
-| Alarielle's Song            | Warsong Revenant        | 3f73-3ee4-8f6b-b16b | Missing     | Ward (6+) for Sylvaneth within 12"; -1 to enemy ward rolls within 12"                                        | M4d  |
-| Realmroot Guide (trait)     | Warsong Revenant        | c133-8f0c-936d-30d3 | Missing     | Re-set up targets within the overgrowth, more than 9" from enemies                                           | M4g  |
-| One With The Forest         | Dryads                  | f62f-75b0-48cd-101e | Missing     | -1 to hit and wound against the unit while wholly within the overgrowth                                      | M4d  |
-| Aspect of Heartwood (trait) | Dryads                  | 0770-09a1-99c6-1a99 | Missing     | Changes Endless Growth: D6 or Heal 6, or return a model to Kurnothi (needs the player's choice)              | M4i  |
+| Ability                     | Unit                    | BSData id           | Status      | Evidence and gaps                                                                                               | Task |
+| --------------------------- | ----------------------- | ------------------- | ----------- | --------------------------------------------------------------------------------------------------------------- | ---- |
+| Metamorphosis (spell)       | Alarielle the Everqueen | b4bf-ef71-9dfe-e837 | Implemented | `magic.test.ts` (token, splash, Fight Through the Pain); I29. Visible target needed (I75, `visibility.test.ts`) |      |
+| Seasons Of War              | Alarielle the Everqueen | d584-62b7-8083-8f63 | Implemented | `seasons.test.ts` (never last round's, Reaping, Dwindling, Burgeoning per Wyldwood, Everdusk); I54, I71         |      |
+| Battle Damaged              | Alarielle the Everqueen | 135b-afc5-4fd9-3460 | Missing     | Attacks of the Antlers should be 4 from 10 damage points                                                        | M4d  |
+| Lifebloom                   | Alarielle the Everqueen | e4b4-8e4d-5f0-eb6a  | Missing     | Heal (2D6) this unit                                                                                            | M4i  |
+| Living Battering Ram        | Alarielle the Everqueen | 5abd-6507-dbee-ed76 | Missing     | D6 roll, on 3+ mortal damage equal to the roll                                                                  | M4i  |
+| The Goddess Of Life         | Alarielle the Everqueen | 4f7c-2ca1-ae3f-d2d3 | Missing     | Command: replacement unit with 8 damage, no wards on them                                                       | M4e  |
+| Huntmaster's Strike         | Belthanos               | 61d2-55e1-7873-e100 | Missing     | After a charge, re-set up more than 6" from enemies within the overgrowth                                       | M4g  |
+| Kurnothi War-horn           | Belthanos               | 59e8-f376-a5df-144c | Missing     | +2" Move to Kurnothi wholly within 12"                                                                          | M4d  |
+| Rhythm of the Chase         | Belthanos               | b29c-dd1a-502d-27c4 | Missing     | D3 mortal damage on 2+, then re-set up within 1" of the target                                                  | M4g  |
+| Battle Damaged              | Belthanos               | c6b8-a8fd-b2-59fa   | Missing     | Mandibles Attacks 3 from 10 damage points                                                                       | M4d  |
+| Groundshaker                | Spirit of Durthu        | 7124-769a-aafd-7b38 | Missing     | 3+: target has Strike-last for the turn                                                                         | M4i  |
+| Battle Damaged              | Spirit of Durthu        | 2eb1-9bd5-1544-36d9 | Missing     | Guardian Sword Attacks 3 from 10 damage points                                                                  | M4d  |
+| Guardian Of The Glades      | Spirit of Durthu        | ea9f-5c5b-8b97-78aa | Missing     | +2 to a charge roll with an end-of-charge condition                                                             | M4g  |
+| Glamourweave (artefact)     | Spirit of Durthu        | cafd-9cf1-871c-f47e | Missing     | One re-roll each of hit, wound and save per phase                                                               | M4d  |
+| Terror Of The Deep Woods    | Drycha Hamadreth        | a1f-39fd-6570-f3d5  | Missing     | Enemies within 9" cannot Run or Retreat                                                                         | M4d  |
+| Enrage The Spites (spell)   | Drycha Hamadreth        | a924-fd6e-9278-4d4c | Implemented | `magic.test.ts` (up to 3 picked targets, overgrowth, NPC); I62                                                  |      |
+| Merciless Ambush            | Drycha Hamadreth        | 77b2-7e2-ba0c-83a1  | Missing     | Command: re-set up within 1/2" of an enemy as a charge                                                          | M4g  |
+| Shadowcreep                 | Spite-Revenants         | 76b2-ce61-8aec-f6c1 | Missing     | Re-set up within 3" of terrain, then +1 to charge rolls                                                         | M4g  |
+| Wyldwood Revenants          | Warsong Revenant        | dc61-1f39-51f9-52da | Missing     | Re-roll a chanting roll                                                                                         | M4i  |
+| Alarielle's Song            | Warsong Revenant        | 3f73-3ee4-8f6b-b16b | Missing     | Ward (6+) for Sylvaneth within 12"; -1 to enemy ward rolls within 12"                                           | M4d  |
+| Realmroot Guide (trait)     | Warsong Revenant        | c133-8f0c-936d-30d3 | Missing     | Re-set up targets within the overgrowth, more than 9" from enemies                                              | M4g  |
+| One With The Forest         | Dryads                  | f62f-75b0-48cd-101e | Missing     | -1 to hit and wound against the unit while wholly within the overgrowth                                         | M4d  |
+| Aspect of Heartwood (trait) | Dryads                  | 0770-09a1-99c6-1a99 | Missing     | Changes Endless Growth: D6 or Heal 6, or return a model to Kurnothi (needs the player's choice)                 | M4i  |
 
 ### Spell, prayer and manifestation lores
 
@@ -163,4 +163,4 @@ Not BSData abilities, listed because the lists name them. Rules in `src/rules/co
 - Weapon abilities (Crit, Companion, Anti-X and so on) are core rules, in `src/data/profile.ts` and `src/rules/core/modifiers.ts`. The weapon choice per model is S8.
 - Core commands (Rally, At the Double and the rest) and Fight Through the Pain, Eruption of Fury, Place of Power: core rules, tested (`commands.test.ts`, `magic.test.ts`, `fury-pain.test.ts`, `eruption.test.ts`).
 - Enhancements and abilities of units only on the Seraphon placeholder list (Skink Starpriest, Spawn of Chotec, Aggradon Lancers, Saurus Scar-Veteran, Realmshaper Engine apart from its terrain abilities).
-- Visibility for spells and abilities needs an owner ruling (RULES-DECISIONS, "Awaiting the owner's ruling"); it affects every targeted spell above.
+- Visibility is ruled (I75): every targeted spell above needs a visible target except through the creeping overgrowth. Enrage The Spites' overgrowth branch is awaiting the owner.

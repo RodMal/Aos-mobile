@@ -1,6 +1,7 @@
 import type { AttackSituation, Modifier } from '../../rules/core/modifiers.js';
 import type { StepCtx } from '../damage.js';
 import { inCreepingOvergrowth } from '../overgrowth.js';
+import { isUnitVisible } from '../terrain.js';
 import {
   enemiesWithin,
   hasKeyword,
@@ -93,22 +94,54 @@ export function legalTargetsForSpec(
     }
     if (spec.filter && !spec.filter(scenario, state, source, target)) return false;
 
-    const inRange = spec.whollyWithin
-      ? unitWhollyWithin(scenario, source, target, spec.range)
-      : unitsWithin(scenario, source, target, spec.range);
-    if (inRange) return true;
+    if (reachedByRange(scenario, state, source, target, spec)) return true;
 
     if (spec.allowCreepingOvergrowth) {
-      return inCreepingOvergrowth(
-        scenario,
-        state,
-        target,
-        source.owner,
-        spec.creepingOvergrowthWholly ?? Boolean(spec.whollyWithin),
-      );
+      return reachedThroughOvergrowth(scenario, state, source, target, spec);
     }
     return false;
   });
+}
+
+/**
+ * The range branch of a targeted spell, prayer or ability: within (or wholly within) the printed
+ * range of the caster, and visible to it (every such printed text says "visible"; owner's
+ * ruling I75, 2026-11-18).
+ */
+function reachedByRange(
+  scenario: Scenario,
+  state: GameState,
+  source: UnitState,
+  target: UnitState,
+  spec: AbilityTargetSpec,
+): boolean {
+  const inRange = spec.whollyWithin
+    ? unitWhollyWithin(scenario, source, target, spec.range)
+    : unitsWithin(scenario, source, target, spec.range);
+  return inRange && isUnitVisible(scenario, state, source, target);
+}
+
+/**
+ * The creeping overgrowth branch ("... or that is wholly within the creeping overgrowth"):
+ * it is measured from the overgrowth, not the caster, so it needs no visibility (owner's
+ * ruling I75, 2026-11-18, for Sylvaneth spells and prayers measured from the overgrowth).
+ *
+ * Enrage The Spites has the same structure and is covered by the same ruling (I75).
+ */
+export function reachedThroughOvergrowth(
+  scenario: Scenario,
+  state: GameState,
+  source: UnitState,
+  target: UnitState,
+  spec: AbilityTargetSpec,
+): boolean {
+  return inCreepingOvergrowth(
+    scenario,
+    state,
+    target,
+    source.owner,
+    spec.creepingOvergrowthWholly ?? Boolean(spec.whollyWithin),
+  );
 }
 
 export function unitGrants(scenario: Scenario, state: GameState, unit: UnitState): UnitGrants {
