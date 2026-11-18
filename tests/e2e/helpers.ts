@@ -207,13 +207,10 @@ export async function startDeploy(
 
 /** Ends the human's phases until the given phase (current phase label) shows. */
 export async function endPhaseUntil(page: Page, phase: RegExp): Promise<void> {
+  const current = page.getByTestId('phase').locator('[aria-current="step"]');
   for (let i = 0; i < 20; i++) {
-    if (
-      phase.test(
-        (await page.getByTestId('phase').locator('[aria-current="step"]').textContent()) ?? '',
-      )
-    )
-      return;
+    const now = (await current.textContent()) ?? '';
+    if (phase.test(now)) return;
     const card = page.getByTestId('unit-panel');
     if (await card.isVisible()) await card.getByRole('button', { name: 'Close' }).click();
     // A start-of-turn or reaction prompt, or the opponent deciding, may stand in the way:
@@ -226,6 +223,12 @@ export async function endPhaseUntil(page: Page, phase: RegExp): Promise<void> {
     await page.getByTestId('end-phase').click();
     const ok = page.getByTestId('confirm-ok');
     if (await ok.isVisible()) await ok.click();
+    // Wait for the phase to change before looking again. Reading it straight away can still
+    // show the old phase (the engine answers asynchronously), and the next iteration would then
+    // end the new phase as well and run past the one asked for.
+    await expect(current)
+      .not.toHaveText(now, { timeout: 5000 })
+      .catch(() => {});
   }
   throw new Error(`never reached ${phase}`);
 }

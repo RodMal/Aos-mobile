@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 
@@ -9,6 +10,14 @@ import { defineConfig, devices } from '@playwright/test';
 const prebuilt =
   process.env.PW_PREBUILT === '1' || (!!process.env.CI && existsSync('dist/index.html'));
 
+// Each checkout gets its own preview port so two agents or worktrees running the suite at once
+// never test each other's build: E2E_PORT if set, else 4200-5199 derived from this directory.
+// (The config is loaded again in every worker, so the port must be stable, not random.)
+const port =
+  Number(process.env.E2E_PORT) ||
+  4200 + (createHash('sha1').update(process.cwd()).digest().readUInt16BE(0) % 1000);
+const origin = `http://localhost:${port}`;
+
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
@@ -16,7 +25,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: origin,
     trace: 'off',
   },
   projects: [
@@ -36,9 +45,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: prebuilt ? 'pnpm preview' : 'pnpm build && pnpm preview',
-    url: 'http://localhost:4173',
-    reuseExistingServer: !process.env.CI,
+    command: `${prebuilt ? '' : 'pnpm build && '}pnpm exec vite preview --port ${port} --strictPort`,
+    url: origin,
+    // Never adopt a server we did not start: it could serve another checkout's build.
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });
