@@ -45,7 +45,7 @@ export function Roster() {
                 return (
                   <li key={u.id}>
                     <button
-                      className={`roster-item ${u.status !== 'battlefield' ? 'gone' : ''}`}
+                      className={`roster-item ${u.status !== 'battlefield' ? 'gone' : ''} ${state.phase === 'combat' && u.fought ? 'fought' : ''}`}
                       onClick={() => choose(u.id)}
                       disabled={u.status !== 'battlefield'}
                       data-roster-unit={u.id}

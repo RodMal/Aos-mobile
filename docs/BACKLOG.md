@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### U2 Show which units have fought this combat phase
-
-- **Tier**: sonnet
-- **Touches**: ui/board, ui/drawers
-- **Read**: `src/ui/board/layers.tsx`, `src/ui/drawers/Roster.tsx`, `UnitState.fought` in `src/engine/types.ts`
-- **Done when**: in the combat phase, units of both sides that have fought are dimmed with a "fought" badge on the board and marked in the roster; e2e check.
-
 ### U4 Live checks for battle tactic conditions
 
 - **Tier**: sonnet
