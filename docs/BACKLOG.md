@@ -20,12 +20,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Ruling** (owner, 2026-11-12): a unit not in combat can fight, and pile in, only if it charged this turn. "If I charged, and the unit I was in combat with died, whenever I do my pile in, if I am no longer in combat with another unit, I can pile in the 3 inches whichever direction I want."
 - **Done when**: tests for charged-and-in-combat (must not end further from the nearest enemy), charged-and-not-in-combat (free 3" any direction), neither (no fight offered); the pile-in hint says when it is free; NPC uses it towards the nearest enemy or objective.
 
-### U1 Reaction prompt: see the map, and unit names
-
-- **Tier**: sonnet
-- **Read**: `src/ui/prompts/Prompts.tsx`, `src/ui/game/eventText.ts`, `src/ui/board/layers.tsx`
-- **Done when**: a "See the map" button collapses the prompt to a small bar so the board can be panned, zoomed and units inspected, and one tap reopens it; the unit that triggered it is highlighted; a listed unit is highlighted when tapped or hovered. Bug: the trigger text says "1 finished a move nearby" (an id): every trigger text uses unit names. e2e on a phone project and desktop.
-
 ### U2 Show which units have fought this combat phase
 
 - **Tier**: sonnet
@@ -102,3 +96,5 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 History before the loop is in git and in `docs/RULES-DECISIONS.md`. One line per task from here on: `id — title — PR #n`.
 
 R1 — Redeploy timing, and Redeploy counts as a run
+
+U1 — Reaction prompt: see the map, and unit names

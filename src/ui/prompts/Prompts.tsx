@@ -1,8 +1,8 @@
 /** Modal prompts: priority, reactions, confirmations, the unit chooser and the result screen. */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { Decision, ReactionOption } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
-import { COMMAND_NAMES, reactionText } from '../game/eventText.js';
+import { COMMAND_NAMES, reactionText, triggerUnit } from '../game/eventText.js';
 import { logContext, playerName } from '../game/engine.js';
 import { useGame } from '../game/instance.js';
 import { useGameState, useHuman, useHumanDecision } from '../game/hooks.js';
@@ -170,6 +170,101 @@ function CreepingDreadPrompt({ d }: { d: Extract<Decision, { kind: 'creepingDrea
   );
 }
 
+/** A reaction: the choices, plus a way to look at the board (and the units named) first. */
+function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' }> }) {
+  const state = useGameState();
+  const human = useHuman();
+  const [peek, setPeek] = useState(false);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [hot, setHot] = useState<string | null>(null);
+  const cp = state.players[human].cp;
+  const trigger = triggerUnit(d.trigger);
+  const listed = [...new Set(d.options.map((o) => o.unit))];
+  const setFlagged = useUi((s) => s.setFlagged);
+  useEffect(() => {
+    setFlagged([trigger, picked, hot].filter((x): x is string => !!x && !!state.units[x]));
+    return () => setFlagged([]);
+  }, [trigger, picked, hot, state, setFlagged]);
+  const show = (id: string) => {
+    setPicked(id);
+    useUi.getState().moveCamera({ kind: 'unit', unit: id, zoom: false, onlyIfHidden: true });
+  };
+  if (peek) {
+    return (
+      <div className="peek-bar" data-testid="reaction-bar" role="region" aria-label="Reaction">
+        <span className="small">Reaction waiting</span>
+        <button
+          className="btn primary"
+          data-testid="reaction-reopen"
+          onClick={() => setPeek(false)}
+        >
+          Back to reaction
+        </button>
+      </div>
+    );
+  }
+  return (
+    <Modal title="Reaction" testId="reaction">
+      <p data-testid="reaction-text">{reactionText(d.trigger, logContext(state.units))}</p>
+      <div className="row-chips" role="group" aria-label="Units">
+        {[...(trigger ? [trigger] : []), ...listed.filter((id) => id !== trigger)].map((id) => (
+          <button
+            key={id}
+            className={`chip ${state.units[id]?.owner === human ? '' : 'enemy'} ${picked === id ? 'chosen' : ''}`}
+            data-reaction-unit={id}
+            aria-pressed={picked === id}
+            onClick={() => show(id)}
+            onPointerEnter={(e) => e.pointerType === 'mouse' && setHot(id)}
+            onPointerLeave={(e) => e.pointerType === 'mouse' && setHot(null)}
+          >
+            {state.units[id]?.name ?? id}
+          </button>
+        ))}
+      </div>
+      <div className="stack">
+        <button className="btn wide" data-testid="reaction-see-map" onClick={() => setPeek(true)}>
+          See the map
+        </button>
+        {d.options.map((o, i) => {
+          const unitName = state.units[o.unit]?.name ?? o.unit;
+          const hover = {
+            onPointerEnter: () => setHot(o.unit),
+            onPointerLeave: () => setHot(null),
+          };
+          if (o.ability === 'unbind') {
+            return (
+              <button
+                key={i}
+                className="btn wide"
+                {...hover}
+                onClick={() => dispatch({ t: 'ability', unit: o.unit, abilityId: 'unbind' })}
+              >
+                Unbind · {unitName} · Free
+              </button>
+            );
+          }
+          if (!o.command) return null;
+          const command = o.command;
+          return (
+            <button
+              key={i}
+              className="btn wide"
+              disabled={o.cost > cp}
+              {...hover}
+              onClick={() => dispatch({ t: 'command', command, unit: o.unit })}
+            >
+              {COMMAND_NAMES[command]} · {unitName} · {o.cost} CP
+            </button>
+          );
+        })}
+        <button className="btn primary wide" onClick={() => dispatch({ t: 'pass' })}>
+          Skip
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 export function DecisionPrompts() {
   const d = useHumanDecision();
   const state = useGameState();
@@ -244,43 +339,7 @@ export function DecisionPrompts() {
         <PainPrompt key={d.trigger} option={pain} fury={state.players[human].furyLevel ?? 0} />
       );
     }
-    const cp = state.players[human].cp;
-    return (
-      <Modal title="Reaction" testId="reaction">
-        <p>{reactionText(d.trigger, logContext(state.units))}</p>
-        <div className="stack">
-          {d.options.map((o, i) => {
-            const unitName = state.units[o.unit]?.name ?? o.unit;
-            if (o.ability === 'unbind') {
-              return (
-                <button
-                  key={i}
-                  className="btn wide"
-                  onClick={() => dispatch({ t: 'ability', unit: o.unit, abilityId: 'unbind' })}
-                >
-                  Unbind · {unitName} · Free
-                </button>
-              );
-            }
-            if (!o.command) return null;
-            const command = o.command;
-            return (
-              <button
-                key={i}
-                className="btn wide"
-                disabled={o.cost > cp}
-                onClick={() => dispatch({ t: 'command', command, unit: o.unit })}
-              >
-                {COMMAND_NAMES[command]} · {unitName} · {o.cost} CP
-              </button>
-            );
-          })}
-          <button className="btn primary wide" onClick={() => dispatch({ t: 'pass' })}>
-            Skip
-          </button>
-        </div>
-      </Modal>
-    );
+    return <ReactionPrompt key={d.trigger} d={d} />;
   }
   if (d.kind === 'placeOfPower') {
     const heroName = state.units[d.hero]?.name ?? 'Hero';
