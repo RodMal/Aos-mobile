@@ -105,4 +105,31 @@ describe('Endless Growth', () => {
     while (engine.decision(s)?.kind === 'reaction') s = engine.apply(s, { t: 'pass' }).state;
     expect(s.units[durthu.id]!.damage).toBe(2);
   });
+
+  it('needs the unit wholly within the overgrowth (not just touching it) and logs each heal', () => {
+    const outcrop = scenario.battlefield.terrain.find((t) => t.id === 'outcrop-w')!;
+    // Standing on the feature: wholly within 6". Heals D3 and logs it.
+    const s = editable(startGame(engine, 1));
+    const bel = named(s, 'Belthanos, First Thorn of Kurnoth');
+    keepOnly(s, [bel.id]);
+    grownAround(s, bel.id);
+    bel.damage = 4;
+    const ctx = ctxWith(s, [3]);
+    resolveEndlessGrowth(ctx, 0);
+    expect(bel.damage).toBeLessThan(4);
+    expect(ctx.events.some((e) => e.t === 'note' && /^Endless Growth/.test(e.text))).toBe(true);
+
+    // Straddling the edge: within 6" but not wholly within, so not a target.
+    const s2 = editable(startGame(engine, 1));
+    const bel2 = named(s2, 'Belthanos, First Thorn of Kurnoth');
+    keepOnly(s2, [bel2.id]);
+    s2.overgrown = [[outcrop.id], []];
+    const right = Math.max(...outcrop.polygon.map((p) => p[0]));
+    placeUnit(scenario, s2, bel2.id, right + 6, outcrop.centre[1]);
+    bel2.damage = 4;
+    const ctx2 = ctxWith(s2, [3]);
+    resolveEndlessGrowth(ctx2, 0);
+    expect(bel2.damage).toBe(4);
+    expect(ctx2.events).toEqual([]);
+  });
 });
