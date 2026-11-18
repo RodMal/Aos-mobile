@@ -1804,6 +1804,7 @@ describe('Once-Per-Phase Command Restrictions (Per Unit & Per Army)', () => {
     s.phase = 'combat';
     s.fightPicker = 0;
     s.fightTier = null;
+    s.rng = 2; // a dice outcome in which Saurus Guard survives Durthu's attacks
     placeUnit(scenario, s, DURTHU, 20, 18);
     placeUnit(scenario, s, SAURUS_GUARD, 22, 18);
     placeUnit(scenario, s, DRYCHA, 20, 28);

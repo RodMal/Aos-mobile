@@ -15,7 +15,7 @@ import {
   COHERENCY_RANGE_IN,
   type Footprint,
 } from '../geom/index.js';
-import { effectiveWard } from './abilities/effects.js';
+import { effectiveWard, wardRollModifier } from './abilities/effects.js';
 import { rollWard } from './attack.js';
 import { rollD3, type Ctx } from './ctx.js';
 import { closestFeatureWithoutToken, giveOvergrownToken } from './overgrowth.js';
@@ -89,7 +89,7 @@ export function inflictMortalDamage(
   let taken = amount;
   if (!opts.noWard) {
     const wardVal = effectiveWard(ctx.scenario, ctx.s, unit) ?? null;
-    const ward = rollWard(ctx.rng, amount, wardVal);
+    const ward = rollWard(ctx.rng, amount, wardVal, wardRollModifier(ctx.scenario, ctx.s, unit));
     if (ward.dice.length > 0) {
       ctx.events.push({ t: 'roll', player: unit.owner, label: 'Ward', dice: ward.dice });
     }

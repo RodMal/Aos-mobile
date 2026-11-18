@@ -1,4 +1,5 @@
 import './abilities/lores.js';
+import './abilities/sylvaneth.js';
 import { declareAbility } from './abilities/magic.js';
 import { illegal, type Ctx } from './ctx.js';
 import { attackerOf, isFactionTerrainUnit, profileOf, unitById } from './query.js';

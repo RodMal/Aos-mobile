@@ -23,7 +23,7 @@ import { rollAttackSequence, rollWard } from '../../engine/attack.js';
 import { enemiesInCombat, inCombat, opponent, profileOf } from '../../engine/query.js';
 import type { GameState, PlayerId, Scenario, UnitState } from '../../engine/types.js';
 import { attackModifiers, sumModifiers } from './modifiers.js';
-import { effectiveWard } from '../../engine/abilities/effects.js';
+import { effectiveWard, wardRollModifier } from '../../engine/abilities/effects.js';
 
 export const MIN_FURY_LEVEL = 0;
 export const MAX_FURY_LEVEL = 7;
@@ -155,7 +155,12 @@ export function resolveEruptionOfFury(
   const ones = hitRolls.filter((d) => d === 1).length;
 
   // Allocate damage to target from successful attacks
-  const targetWardRoll = rollWard(ctx.rng, attackSeq.damage + attackSeq.mortal, targetWard);
+  const targetWardRoll = rollWard(
+    ctx.rng,
+    attackSeq.damage + attackSeq.mortal,
+    targetWard,
+    wardRollModifier(scenario, s, target),
+  );
   const damageToTarget = targetWardRoll.taken;
   if (damageToTarget > 0) {
     allocateDamage(ctx, target, damageToTarget, `${unit.name} (Eruption of Fury)`);
