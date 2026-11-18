@@ -1,7 +1,9 @@
 /**
  * Full-game simulations: the baseline NPC plays both sides from a seed, the invariants are
  * checked after every action, and the game is replayed from its seed and actions at the end.
- * `SIM_SEEDS` sets how many seeds run (default 5).
+ * `SIM_SEEDS` sets how many seeds run (default 5). `SIM_SHARD=i/n` (CI) runs only the seeds with
+ * (seed - 1) % n === i - 1, so n runners together cover every seed once; the extra tests run in
+ * shard 1 only.
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { chooseAction } from '../../src/ai/baseline.js';
@@ -30,6 +32,8 @@ import { startGame } from '../../src/engine/test-helpers.js';
 
 const SEEDS = Number(process.env.SIM_SEEDS ?? 5);
 const MAX_STEPS = 20_000;
+const [SHARD, SHARDS] = (process.env.SIM_SHARD ?? '1/1').split('/').map(Number) as [number, number];
+const inShard = (seed: number): boolean => (seed - 1) % SHARDS === SHARD - 1;
 
 /**
  * Checks the invariants after each step. Geometry is only re-checked for units whose models
@@ -132,6 +136,7 @@ describe('full games, baseline NPC against itself', () => {
   startGame(engine, 0); // warm the set-up cache
 
   for (let seed = 1; seed <= SEEDS; seed++) {
+    if (!inShard(seed)) continue;
     it(`seed ${seed} finishes five rounds with every invariant holding`, () => {
       const t0 = performance.now();
       const checker = new InvariantChecker(engine);
@@ -170,6 +175,7 @@ describe('full games, baseline NPC against itself', () => {
   }
 
   for (let seed = 1; seed <= Math.min(SEEDS, 3); seed++) {
+    if (!inShard(seed)) continue;
     it(`alternating deployment, seed ${seed}: the state survives a JSON round trip in every phase`, () => {
       const checker = new InvariantChecker(engine);
       let state = engine.newGame(seed, { deploy: true });
@@ -189,7 +195,7 @@ describe('full games, baseline NPC against itself', () => {
     });
   }
 
-  it('plays a game without invariant checks quickly', () => {
+  it.runIf(SHARD === 1)('plays a game without invariant checks quickly', () => {
     const t0 = performance.now();
     let state = startGame(engine, SEEDS + 1);
     while (engine.decision(state)) state = engine.apply(state, chooseAction(engine, state)).state;
