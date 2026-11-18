@@ -21,6 +21,13 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: `docs/ABILITIES.md`; printed text in `data/factions/seraphon.json` (battle traits, ids `9db2-50c6-6181-fc51`, `4d17-ddf6-7d2a-9889`, `360d-fd80-f153-269f`, `5089-fe1e-4dd7-5eb4`, `6960-effd-2a46-d7d4`, `90ae-3432-b3f3-4727`; the conditions per Asterism are in the declare text of Further the Great Plan); `src/rules/factions/seasons.ts` and `src/engine/decisions.ts` (a start-of-round decision, as Seasons Of War); `src/engine/abilities/effects.ts` (`unitGrants`, `abilityAttackModifiers`); `src/engine/movement.ts` and `src/engine/abilities/magic.ts` (Move and casting rolls)
 - **Done when**: the Great Plan is asked at deployment (the NPC picks one) and Further the Great Plan at the start of rounds 2 and later, with the printed conditions and "not one picked before"; only prophesied Asterisms apply; one test per ability: Itzl the Tamer (Companion weapons of Seraphon have Crit (2 Hits)), Quetzl the Preserver (-1 Rend against melee attacks on Seraphon wholly in friendly territory), Sotek the Deliverer (+2 Move for Seraphon), Tepok the Seer (+1 to casting rolls for Seraphon), The Great Plan, Further the Great Plan. The Move bonus shows in the movement allowance on screen. Update `docs/ABILITIES.md`.
 
+### V1 Apply the visibility ruling to spells, prayers and abilities
+
+- **Tier**: sonnet+review
+- **Touches**: engine, rules
+- **Read**: `docs/RULES-DECISIONS.md` (the 2026-11-18 visibility ruling), `src/engine/abilities/magic.ts`, `src/engine/abilities/lores.ts`, printed text in `data/factions/sylvaneth.json`, `data/factions/seraphon.json` and `data/lores.json`
+- **Done when**: every targeted spell, prayer and ability follows the visibility ruling: visibility is required as the ruling says, except Sylvaneth spells and prayers whose printed text measures range from the creeping overgrowth. The targeting code and the UI's target highlighting agree. One test per spell or prayer whose behaviour changes, plus a test for one overgrowth-measured exception. Any spell that already matched is listed in the PR. `docs/ABILITIES.md` is updated if a status changes.
+
 ### M4c Lord Kroak and Vengeance of Azyr
 
 - **Tier**: sonnet+review
@@ -96,6 +103,7 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Tier**: sonnet+review
 - **Touches**: engine, rules, ai, ui/prompts
 - **Read**: `docs/ABILITIES.md`; printed text in `data/factions/sylvaneth.json` (Awakened Wyldwood: Vengeful Forest Spirits `5dd6-a023-8cdb-5cb1`) and `data/factions/seraphon.json` (Realmshaper Engine: Fierce Guardians `bf4d-2061-b8d1-193`, Power Unleashed `aa75-204a-4256-8c68`); `src/engine/factionTerrain.test.ts`, `src/engine/wyldwood.ts`, `src/engine/eligibility.ts` (`isFactionTerrainUnit`; the terrain "never acts", I39), `src/rules/core/modifiers.ts`, RULES-DECISIONS I39, I40, I59
+- **Ruling**: I39 is superseded by the owner's 2026-11-18 ruling (I74): each faction terrain piece's abilities work as its warscroll prints them.
 - **Done when**: one test per ability: Vengeful Forest Spirits (D3 per target, mortal damage on 2+), Fierce Guardians (+1 to hit for Saurus and Kroxigor combat attacks against an enemy within 9" of the terrain), Power Unleashed (D3 per target on 2+, and D3 on the terrain if it has a Health characteristic). Say in `docs/RULES-DECISIONS.md` how I39 changes (the terrain acts through its abilities only, and still never moves or fights). Update `docs/ABILITIES.md`.
 
 ### M4n Gaps in what is already implemented: Endless Growth choice, tactic tiers
