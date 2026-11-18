@@ -739,6 +739,29 @@ button {
   place-items: center;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
+.fab.on {
+  background: #e4c070;
+  color: #1a1d20;
+  border-color: #e4c070;
+}
+.layer-measure {
+  pointer-events: none;
+}
+.measure-line {
+  stroke: #e4c070;
+  stroke-width: calc(var(--k) * 2px);
+  stroke-dasharray: calc(var(--k) * 6px) calc(var(--k) * 4px);
+}
+.measure-dot {
+  r: calc(var(--k) * 4px);
+  fill: #e4c070;
+  stroke: #1a1d20;
+  stroke-width: calc(var(--k) * 1.5px);
+}
+.label.measure-label {
+  fill: #ffe9a8;
+  font-size: calc(var(--k) * 16px);
+}
 .fab:active {
   background: #2a3239;
 }

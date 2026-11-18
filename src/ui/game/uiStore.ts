@@ -60,6 +60,21 @@ export interface ChooserState {
   y: number;
 }
 
+/** One end of a measurement: a unit (measured base edge to base edge) or a free point. */
+export type MeasureEnd = { kind: 'unit'; id: UnitId } | { kind: 'point'; x: number; y: number };
+
+export interface MeasureState {
+  on: boolean;
+  a: MeasureEnd | null;
+  b: MeasureEnd | null;
+}
+
+/** The next tap of the measuring tool: fills the first end, then the second, then starts over. */
+export function measureTap(m: MeasureState, end: MeasureEnd): MeasureState {
+  if (!m.a || m.b) return { on: m.on, a: end, b: null };
+  return { ...m, b: end };
+}
+
 interface UiStore {
   selected: UnitId | null;
   sheetExpanded: boolean;
@@ -69,6 +84,7 @@ interface UiStore {
   attack: AttackState | null;
   abilityPick: AbilityPick | null;
   confirm: { text: string; action: () => void; ok: string } | null;
+  measure: MeasureState;
   camera: (CameraRequest & { nonce: number }) | null;
   /** Height of the bottom sheet in px, so the board can keep the table above it. */
   sheetHeight: number;
@@ -86,6 +102,7 @@ interface UiStore {
   setAbilityPick(p: AbilityPick | null): void;
   ask(text: string, ok: string, action: () => void): void;
   closeConfirm(): void;
+  setMeasure(m: MeasureState): void;
   moveCamera(req: CameraRequest): void;
   setSheetHeight(h: number): void;
   reset(): void;
@@ -102,6 +119,7 @@ export const useUi = create<UiStore>((set) => ({
   attack: null,
   abilityPick: null,
   confirm: null,
+  measure: { on: false, a: null, b: null },
   camera: null,
   sheetHeight: 0,
   zoomBucket: 10,
@@ -114,6 +132,7 @@ export const useUi = create<UiStore>((set) => ({
   setAbilityPick: (p) => set({ abilityPick: p }),
   ask: (text, ok, action) => set({ confirm: { text, ok, action } }),
   closeConfirm: () => set({ confirm: null }),
+  setMeasure: (m) => set({ measure: m }),
   moveCamera: (req) => set({ camera: { ...req, nonce: ++nonce } }),
   setSheetHeight: (h) => set({ sheetHeight: h }),
   reset: () =>
@@ -126,5 +145,6 @@ export const useUi = create<UiStore>((set) => ({
       attack: null,
       abilityPick: null,
       confirm: null,
+      measure: { on: false, a: null, b: null },
     }),
 }));

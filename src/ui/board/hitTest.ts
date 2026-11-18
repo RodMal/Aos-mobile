@@ -58,3 +58,31 @@ export function pick<K>(hits: readonly Hit<K>[]): PickResult<K> {
   if (inside.length === 1) return { t: 'one', key: inside[0]!.key };
   return { t: 'choose', keys: hits.map((h) => h.key) };
 }
+
+/**
+ * Where a measuring tap lands on empty table: the centre of an objective or a table corner when
+ * within `slop` inches (a corner or objective is what a player means), else the tap itself.
+ */
+export function snapPoint(
+  table: { w: number; h: number },
+  objectives: readonly { x: number; y: number }[],
+  p: Pt,
+  slop: number,
+): Pt {
+  const corners = [
+    { x: 0, y: 0 },
+    { x: table.w, y: 0 },
+    { x: 0, y: table.h },
+    { x: table.w, y: table.h },
+  ];
+  let best: Pt = p;
+  let bestD = slop;
+  for (const c of [...objectives, ...corners]) {
+    const d = Math.hypot(c.x - p.x, c.y - p.y);
+    if (d <= bestD) {
+      best = { x: c.x, y: c.y };
+      bestD = d;
+    }
+  }
+  return best;
+}
