@@ -14,12 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### X2 Split `src/rules/core/battleTactics.ts` per card, and `src/ui/prompts/Prompts.tsx` per prompt
-
-- **Tier**: sonnet
-- **Touches**: rules, ui/prompts, e2e
-- **Done when**: one module per tactic card plus a shared core; one component per prompt plus a small router; `pnpm game-hashes` `IDENTICAL`; e2e green.
-
 ### M4a Audit of the abilities on both lists
 
 - **Tier**: sonnet
