@@ -141,7 +141,12 @@ describe('session', () => {
       played = s;
     }
     expect(old).not.toBeNull();
-    expect(replay(engine, old!).state).toEqual(played!.state);
+    // A question asked after the last recorded action (the game's final turn end) is still open.
+    let replayed = replay(engine, old!);
+    while (engine.decision(replayed.state)?.kind === 'vengeance') {
+      replayed = applyToSession(engine, replayed, { t: 'choose', value: 'none' }).session;
+    }
+    expect(replayed.state).toEqual(played!.state);
   });
 
   it('saves and replays a game where Further the Great Plan was answered with a key and a new Asterism', () => {

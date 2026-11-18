@@ -14,6 +14,13 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
+### S1 Version saved games so a rules change offers a fresh game instead of silently diverging
+
+- **Tier**: sonnet
+- **Touches**: ui/game, engine
+- **Read**: `src/ui/game/session.ts` (`toRecord`, `replay`), `src/ui/game/store.ts`, I70 and I84 in `docs/RULES-DECISIONS.md`
+- **Done when**: `GameRecord` carries a rules version that is bumped whenever a change alters how recorded actions replay. On load, a record with an older version, or one whose replay throws, shows a short notice ("This saved game is from an older version — start a new game?") instead of silently starting fresh or diverging. There are tests for both paths, and the version bump is documented in `docs/HANDOVER.md`.
+
 ### M4d Sylvaneth passives: wards, movement, Battle Damaged, Glamourweave
 
 - **Tier**: sonnet+review

@@ -300,7 +300,7 @@ export function magicOptionsForUnit(
   const usedByUnit = unit.abilitiesUsed ?? [];
   const usedByArmy = state.players[unit.owner].spellsAttempted ?? [];
   // Arcane Vassal: the next Spell is measured from the picked Skink Wizard (I83).
-  const origin = (inHeroMain ? vassalOf(state, unit) : undefined) ?? unit;
+  const origin = vassalOf(state, unit) ?? unit;
 
   if (canCastSpells(scenario, unit) && !unit.miscast) {
     for (const id of knownSpellAndSummonIds(scenario, unit)) {
@@ -316,7 +316,7 @@ export function magicOptionsForUnit(
         const pos = findSummonPlacement(
           scenario,
           state,
-          unit,
+          origin,
           def.summonWarscrollId,
           def.summonRange ?? 12,
           def.summonMinEnemyGap ?? 9,
@@ -372,7 +372,11 @@ export function magicOptionsForUnit(
   }
 
   // Arcane Vassal: once per turn, in your own hero phase (I83).
-  if (inHeroMain && !usedByUnit.includes(ARCANE_VASSAL_ID) && !vassalOf(state, unit)) {
+  if (
+    (inHeroMain || inMagicalIntervention) &&
+    !usedByUnit.includes(ARCANE_VASSAL_ID) &&
+    !vassalOf(state, unit)
+  ) {
     const vassals = arcaneVassalTargets(scenario, state, unit);
     if (vassals.length > 0) {
       out.push({
@@ -555,9 +559,9 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
 
   if (def.kind === 'spell' || def.kind === 'summon') {
     const cv = def.castingValue ?? 6;
-    // Arcane Vassal: the picked Skink Wizard counts as the caster for range, visibility, Unbind
-    // and the spell's effects; the casting roll and a miscast stay with `unit` (I83).
-    const vassal = def.kind === 'spell' ? vassalOf(ctx.s, unit) : undefined;
+    // Arcane Vassal: the picked Skink Wizard counts as the caster (spell or summon) for range,
+    // visibility, set-up, Unbind and the effects; the casting roll and a miscast stay with `unit` (I83).
+    const vassal = vassalOf(ctx.s, unit);
     const origin = vassal ?? unit;
     if (vassal) {
       ctx.s.effects = (ctx.s.effects ?? []).filter(

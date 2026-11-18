@@ -238,6 +238,78 @@ describe('Arcane Vassal (6bfc-5f30-ec02-307)', () => {
   });
 });
 
+describe('Arcane Vassal: summons and Magical Intervention', () => {
+  const SUMMON_SHACKLES = 'ee70-f212-c079-a752';
+  const WS_SHACKLES = 'dee3-92a0-27e7-252a';
+  const vassalAction: Action = {
+    t: 'ability',
+    unit: KROAK,
+    abilityId: ARCANE_VASSAL,
+    target: STARSEER,
+  };
+
+  it('a summon is a Spell ability: it is set up from the target, and spends the effect', () => {
+    const s = arena([KROAK, STARSEER, DRYADS], {
+      [KROAK]: [60, 22],
+      [STARSEER]: [45, 22],
+      [DRYADS]: [6, 22],
+    });
+    const used = engine.apply(s, vassalAction).state;
+    const cast = applyUntil(
+      engine,
+      used,
+      { t: 'ability', unit: KROAK, abilityId: SUMMON_SHACKLES },
+      (r) => r.events.some((e) => e.t === 'cast' && e.success),
+    );
+    expect(cast.state.effects?.some((e) => e.id === ARCANE_VASSAL)).toBe(false);
+    const id = manifestationUnitId(1, WS_SHACKLES);
+    const m = cast.state.units[id]!.models[0]!;
+    // Set up from the Starseer (the vassal is the caster), 17" away: beyond Kroak's reach of 18".
+    const top = cast.state.stack[cast.state.stack.length - 1];
+    expect(top).toMatchObject({ t: 'place', reason: 'summon', caster: STARSEER });
+    expect(Math.hypot(m.x - 60, m.y - 22)).toBeGreaterThan(18);
+  });
+
+  it('is offered, and used for the spell, in the enemy hero phase through Magical Intervention', () => {
+    const s = arena(
+      [KROAK, STARSEER, DRYADS],
+      { [KROAK]: [35, 22], [STARSEER]: [22, 22], [DRYADS]: [6, 22] },
+      0,
+    );
+    const passed = engine.apply(s, { t: 'pass' }).state;
+    const intervened = engine.apply(passed, {
+      t: 'command',
+      command: 'magicalIntervention',
+      unit: KROAK,
+    }).state;
+    const opt = engine
+      .unitOptions(intervened, KROAK)
+      .find((o) => o.t === 'ability' && o.abilityId === ARCANE_VASSAL);
+    expect(opt).toMatchObject({ targets: [STARSEER] });
+    const used = engine.apply(intervened, vassalAction).state;
+    expect(used.stack[used.stack.length - 1]?.t).toBe('magicalIntervention');
+    const celestial = engine
+      .unitOptions(used, KROAK)
+      .find((o) => o.t === 'ability' && o.abilityId === CELESTIAL_DELIVERANCE);
+    expect(celestial).toMatchObject({ targets: [DRYADS] });
+  });
+});
+
+describe('Vengeance of Azyr: a pick frame with no candidates left', () => {
+  it('is dropped instead of asked', () => {
+    const s = arena([KROAK, DRYADS], { [KROAK]: [30, 22], [DRYADS]: [4, 4] }, 0);
+    s.phase = 'end';
+    s.stack = [
+      { t: 'turnEnd' },
+      { t: 'vengeance', player: 1, stage: 'pick', queue: [] },
+      { t: 'creepingDread', player: 0, units: [KROAK], max: 1 },
+    ];
+    const r = engine.apply(s, { t: 'pass' }).state;
+    expect(engine.decision(r)?.kind).not.toBe('vengeance');
+    expect(r.active).toBe(1); // the turn ended
+  });
+});
+
 describe('Dead for Innumerable Ages (c5a7-920c-9ff8-652)', () => {
   function endOfTurn(damage: number, active: 0 | 1): GameState {
     const s = arena([KROAK, DRYADS], { [KROAK]: [30, 22], [DRYADS]: [4, 4] }, active);
