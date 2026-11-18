@@ -181,7 +181,9 @@ export async function answerStartPrompt(page: Page): Promise<boolean> {
   const fugitive = page.locator('[data-fugitive]').first();
   const first = page.getByRole('button', { name: 'Take first turn' });
   const power = page.getByTestId('place-of-power').getByRole('button', { name: 'Pass' });
-  const season = page.locator('[data-season]:not([disabled])').first();
+  const season = page
+    .locator('[data-season="reaping"]:not([disabled]), [data-season="dwindling"]:not([disabled])')
+    .first();
   const dread = page.getByTestId('dread-pass');
   for (const l of [season, fugitive, first, power, dread]) {
     if (await usable(l)) {
@@ -261,7 +263,14 @@ export async function minimalPlayerStep(page: Page): Promise<string | null> {
     ['confirm', page.getByTestId('confirm-ok')],
     ['priority', page.getByRole('button', { name: 'Take first turn' })],
     ['fugitive', page.locator('[data-fugitive]').first()],
-    ['season', page.locator('[data-season]:not([disabled])').first()],
+    [
+      'season',
+      page
+        .locator(
+          '[data-season="reaping"]:not([disabled]), [data-season="dwindling"]:not([disabled])',
+        )
+        .first(),
+    ],
     ['pass creeping dread', page.getByTestId('dread-pass')],
     ['skip reaction', page.getByRole('button', { name: 'Skip', exact: true })],
     ['take the damage', page.getByTestId('pain-skip')],

@@ -80,6 +80,7 @@ describe('damage allocation', () => {
   it('mortal damage is warded point by point', () => {
     const s = arena();
     const alarielle = s.units['0:0']!;
+    s.players[0].rageDice = 0; // no Fight Through the Pain queueing
     const ctx = ctxFor(s, [5, 2, 6]);
     const r = inflictMortalDamage(ctx, alarielle, 3, 'test');
     expect(r.taken).toBe(1);
