@@ -623,7 +623,8 @@ function coveringFireAllocations(
   // "A friendly unit that has not run and is not in combat" (shooting phase only, owner's
   // ruling 2026-11-11; the offer is made only at the end of the enemy shooting phase).
   if (state.phase !== 'shooting') return [];
-  if (unit.moved === 'run' || inCombat(scenario, state, unit)) return [];
+  if (inCombat(scenario, state, unit)) return [];
+  if (unit.moved === 'run' && !unitGrants(scenario, state, unit).runAndShoot) return [];
   const wts = weaponTargets(scenario, state, unit, 'shoot');
   if (wts.length === 0) return [];
   const allEnemies = unitsOf(state, opponent(unit.owner));
@@ -971,7 +972,8 @@ export function createEngine(scenario: Scenario): Engine {
     useCommandOn(ctx, 'redeploy', unit);
     const roll = d6(ctx);
     ctx.events.push({ t: 'roll', player: unit.owner, label: 'Redeploy', dice: [roll] });
-    unit.moved = 'normal';
+    // A Redeploy is a run ability (owner's ruling, 2026-11-12): the unit counts as having run.
+    unit.moved = 'run';
     s.stack.push({ t: 'place', unit: unit.id, reason: 'normal', allowance: roll, dice: [roll] });
   }
 
@@ -1119,7 +1121,8 @@ export function createEngine(scenario: Scenario): Engine {
       unit.setUpThisTurn = true;
     }
     if (frame.reason === 'normal' || frame.reason === 'run' || frame.reason === 'retreat') {
-      unit.moved = frame.reason;
+      // A Redeploy placement (a `normal` frame on a unit already marked as run) stays a run.
+      if (!(frame.reason === 'normal' && unit.moved === 'run')) unit.moved = frame.reason;
     }
     if (frame.reason === 'charge') unit.charged = true;
     s.stack.pop();
@@ -1162,34 +1165,6 @@ export function createEngine(scenario: Scenario): Engine {
             ? frame.reason
             : undefined,
       });
-    }
-
-    // Offer Redeploy after each movement-phase move by the active player, to every eligible
-    // unit of the other player (not in combat, CP left, command unused this phase), unless
-    // that player chose "Don't ask again this phase". The NPC's own choice is filtered in
-    // src/ai/baseline.ts, never the offer.
-    if (
-      s.phase === 'movement' &&
-      unit.owner === s.active &&
-      !(s.reactionsOffered ?? []).includes('redeployMuted') &&
-      (frame.reason === 'normal' || frame.reason === 'run' || frame.reason === 'retreat')
-    ) {
-      // Offered after each enemy move while the command is unused this phase (no distance or
-      // once-per-phase offer filter: commands.ts in the earlier engine cites no such text).
-      const nonActive = opponent(s.active);
-      const candidates = unitsOf(s, nonActive).filter((u) => canRedeploy(scenario, s, u));
-      if (candidates.length > 0) {
-        s.stack.push({
-          t: 'reaction',
-          player: nonActive,
-          options: candidates.map((u) => ({
-            command: 'redeploy',
-            unit: u.id,
-            cost: COMMANDS.redeploy.cost,
-          })),
-          trigger: `move:${unit.id}`,
-        });
-      }
     }
   }
 
@@ -1323,9 +1298,6 @@ export function createEngine(scenario: Scenario): Engine {
       if (under?.t === 'endPhase') {
         s.reactionsOffered = [...(s.reactionsOffered ?? []), 'endPhasePassed'];
       }
-      if (action.dontAskAgain && reaction.options.some((o) => o.command === 'redeploy')) {
-        s.reactionsOffered = [...(s.reactionsOffered ?? []), 'redeployMuted'];
-      }
       return;
     }
     if (action.t === 'command') {
@@ -1402,6 +1374,26 @@ export function createEngine(scenario: Scenario): Engine {
           player: nonActive,
           options,
           trigger: 'phase:hero',
+        });
+        return true;
+      }
+    }
+
+    if (s.phase === 'movement' && !offered.includes('redeploy')) {
+      // Once, after the active player has finished all movement-phase activations.
+      const units = unitsOf(s, nonActive).filter((u) => canRedeploy(scenario, s, u));
+      if (units.length > 0) {
+        s.reactionsOffered = [...offered, 'redeploy'];
+        s.stack.push({ t: 'endPhase' });
+        s.stack.push({
+          t: 'reaction',
+          player: nonActive,
+          options: units.map((u) => ({
+            command: 'redeploy',
+            unit: u.id,
+            cost: COMMANDS.redeploy.cost,
+          })),
+          trigger: 'phase:movement',
         });
         return true;
       }

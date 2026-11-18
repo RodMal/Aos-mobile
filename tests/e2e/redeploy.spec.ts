@@ -1,8 +1,8 @@
-/** Redeploy: the player is offered it in the enemy movement phase and can use it. */
+/** Redeploy: offered once, when the enemy ends its movement phase, and can be used. */
 import { expect, test } from '@playwright/test';
 import { minimalPlayerStep, startGame, usable } from './helpers.js';
 
-test('the player is offered Redeploy in the enemy movement phase and can use it', async ({
+test('the player is offered Redeploy when the enemy ends its movement phase and can use it', async ({
   page,
 }, info) => {
   test.setTimeout(120_000);
@@ -18,7 +18,6 @@ test('the player is offered Redeploy in the enemy movement phase and can use it'
     if ((await minimalPlayerStep(page)) === null) await page.waitForTimeout(100);
   }
   expect(offered).toBe(true);
-  await expect(reaction.getByTestId('redeploy-mute')).toBeVisible();
   await page.screenshot({ path: `test-results/redeploy-${info.project.name}.png` });
   await redeploy.first().click();
   // The D6" move is placed through the place panel like any other move.

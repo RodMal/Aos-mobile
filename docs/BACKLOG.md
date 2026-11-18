@@ -13,14 +13,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R1 Redeploy timing, and Redeploy counts as a run
-
-- **Tier**: sonnet+review
-- **Read**: `src/engine/engine.ts` (search `redeploy`), `src/rules/core/commands.ts`, `src/ai/baseline.ts` (Redeploy policy), `src/ui/prompts/Prompts.tsx`, `tests/e2e/redeploy.spec.ts`
-- **Ruling** (owner, 2026-11-12): "Redeploy is only to be used once after the active player has finished all of his movement phase activations." "A redeploy is considered a run ability, so the same restriction applies to a counter charge, unless a unit has run and charge." Covering Fire likewise needs run-and-shoot.
-- **Done when**: one Redeploy reaction is offered when the active player passes the movement phase (never after single moves; the NPC never redeploys while the human still has units to move), listing every unit not in combat with CP available; a redeployed unit is marked exactly as having run, so Covering Fire, Counter-charge, shooting and charging are blocked unless it has the matching run-and-shoot / run-and-charge permission; engine tests for both, e2e updated. The per-move "Don't ask again this phase" option is removed if pointless.
-- **Note**: the flaky desktop test `tests/e2e/desktop.spec.ts:83` (a Reaction scrim covered the Roster button) is probably the per-move Redeploy prompt; confirm it is gone.
-
 ### R2 Free pile-in after a charge
 
 - **Tier**: sonnet+review
@@ -108,3 +100,5 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 ## Done
 
 History before the loop is in git and in `docs/RULES-DECISIONS.md`. One line per task from here on: `id — title — PR #n`.
+
+R1 — Redeploy timing, and Redeploy counts as a run
