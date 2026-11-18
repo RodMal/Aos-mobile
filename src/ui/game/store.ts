@@ -46,6 +46,11 @@ interface GameStore {
   dispatch(action: Action): boolean;
   undo(): void;
   newGame(seed: number, humanPlayer: PlayerId, options?: { deploy?: boolean }): void;
+  /** False while the start screen shows; the game (and the computer) wait for it. */
+  started: boolean;
+  /** The start screen may offer Continue: a saved game replayed. */
+  canContinue: boolean;
+  resume(): void;
   showToast(text: string, tone?: Toast['tone']): void;
   clearToast(): void;
 }
@@ -72,24 +77,42 @@ export function randomSeed(): number {
   return Math.floor(Math.random() * 1_000_000);
 }
 
-/** The session to start with, from the URL and any saved game. */
-export function initialSession(opts: UrlOptions): Session {
+export interface Start {
+  session: Session;
+  /** False: show the start screen first. */
+  started: boolean;
+  canContinue: boolean;
+}
+
+/**
+ * What to load with. A URL that names a game (seed, side, new or deploy) starts it at once;
+ * a bare URL shows the start screen, with Continue if the saved game replays.
+ */
+export function initialSession(opts: UrlOptions): Start {
+  const direct = opts.seed !== null || opts.side !== null || opts.fresh || opts.deploy === true;
   const record = loadSaved();
-  if (shouldResume(record, opts)) {
+  const resumable = !!record && (!direct || shouldResume(record, opts));
+  if (resumable) {
     try {
-      return replay(engine, record);
+      return { session: replay(engine, record), started: direct, canContinue: true };
     } catch {
-      // The saved actions no longer replay (the engine changed): start afresh.
+      // The saved actions no longer replay (the engine changed): show the start screen
+      // without Continue, never a silent fresh game. Task S1 adds the proper notice.
+      return { session: placeholder(opts), started: false, canContinue: false };
     }
   }
-  const session = newSession(
+  const session = placeholder(opts);
+  if (direct) save(session);
+  return { session, started: direct, canContinue: false };
+}
+
+function placeholder(opts: UrlOptions): Session {
+  return newSession(
     engine,
     opts.seed ?? randomSeed(),
     opts.side ?? 0,
     opts.deploy ? { deploy: true } : undefined,
   );
-  save(session);
-  return session;
 }
 
 function focusUnit(events: GameEvent[]): string | null {
@@ -108,9 +131,14 @@ function focusUnit(events: GameEvent[]): string | null {
   return null;
 }
 
-export function createGameStore(initial: Session, fast: boolean) {
+export function createGameStore(initial: Start, fast: boolean) {
   return create<GameStore>((set, get) => ({
-    session: initial,
+    session: initial.session,
+    started: initial.started,
+    canContinue: initial.canContinue,
+    resume() {
+      set({ started: true });
+    },
     fast,
     toast: null,
     gameId: 0,
@@ -149,7 +177,7 @@ export function createGameStore(initial: Session, fast: boolean) {
     newGame(seed, humanPlayer, options) {
       const session = newSession(engine, seed, humanPlayer, options);
       save(session);
-      set((s) => ({ session, toast: null, gameId: s.gameId + 1, lastFocus: null }));
+      set((s) => ({ session, started: true, toast: null, gameId: s.gameId + 1, lastFocus: null }));
     },
     showToast(text, tone = 'info') {
       set({ toast: { id: ++toastId, text, tone } });
