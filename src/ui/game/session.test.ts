@@ -83,8 +83,7 @@ describe('session', () => {
     const placement = shiftPlacement(currentPlacement(s.state.units['0:6']!), 1, 0);
     s = applyToSession(engine, s, { t: 'place', placement }).session;
     const d = engine.decision(s.state);
-    expect(d?.kind).toBe('reaction'); // Redeploy is offered after every move
-    s = applyToSession(engine, s, { t: 'pass' }).session;
+    expect(d?.kind).toBe('main'); // Redeploy is offered only when the phase is passed
     expect(canUndo(s)).toBe(true);
     s = undo(s);
     expect(s.state.stack.at(-1)?.t).toBe('place');

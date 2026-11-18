@@ -947,7 +947,7 @@ describe('Six Remaining Commands', () => {
     });
   });
 
-  it('redeploy is offered for every eligible unit, however far from the moving enemy, until muted', () => {
+  it('redeploy is offered once, when the active player passes the movement phase, to every eligible unit', () => {
     const s = baseArena([DRYADS, DRYADS_2, SAURUS_GUARD, KROAK]);
     s.phase = 'movement';
     placeUnit(scenario, s, DRYADS, 6, 6);
@@ -959,37 +959,125 @@ describe('Six Remaining Commands', () => {
       const p = shiftPlacement(currentPlacement(decl.units[id]!), 1, 0);
       return engine.apply(decl, { t: 'place', placement: p }).state;
     };
+    // Single moves raise no offer.
     const first = move(s, DRYADS);
-    const d = engine.decision(first);
-    expect(d).toMatchObject({ kind: 'reaction', player: 1, trigger: `move:${DRYADS}` });
+    expect(engine.decision(first)).toMatchObject({ kind: 'main', player: 0 });
+    const second = move(first, DRYADS_2);
+    expect(engine.decision(second)).toMatchObject({ kind: 'main', player: 0 });
+    // Passing the phase offers it, once, for every eligible unit.
+    const ended = engine.apply(second, { t: 'pass' }).state;
+    const d = engine.decision(ended);
+    expect(d).toMatchObject({ kind: 'reaction', player: 1, trigger: 'phase:movement' });
     expect(d?.kind === 'reaction' && d.options.map((o) => o.unit).sort()).toEqual(
       [KROAK, SAURUS_GUARD].sort(),
     );
-    // "Don't ask again this phase": the next move raises no offer.
-    const muted = engine.apply(first, { t: 'pass', dontAskAgain: true }).state;
-    const second = move(muted, DRYADS_2);
-    expect(engine.decision(second)).toMatchObject({ kind: 'main', player: 0 });
-    // A plain Skip keeps the offers coming.
-    const skipped = engine.apply(first, { t: 'pass' }).state;
-    expect(engine.decision(move(skipped, DRYADS_2))?.kind).toBe('reaction');
+    const skipped = engine.apply(ended, { t: 'pass' }).state;
+    expect(engine.decision(skipped)).toMatchObject({ phase: 'shooting' });
   });
 
-  it('redeploy: moves a unit not in combat up to D6" in the enemy Movement phase for 1 CP', () => {
+  it('a redeployed unit counts as having run: it is marked run and offered nothing more', () => {
+    const s = baseArena([DRYADS, SAURUS_GUARD]);
+    s.phase = 'movement';
+    placeUnit(scenario, s, DRYADS, 18, 22);
+    placeUnit(scenario, s, SAURUS_GUARD, 32, 22);
+    const ended = engine.apply(s, { t: 'pass' }).state;
+    const asked = engine.apply(ended, {
+      t: 'command',
+      command: 'redeploy',
+      unit: SAURUS_GUARD,
+    }).state;
+    expect(asked.units[SAURUS_GUARD]!.moved).toBe('run');
+    const placed = engine.apply(asked, {
+      t: 'place',
+      placement: shiftPlacement(currentPlacement(asked.units[SAURUS_GUARD]!), 0.5, 0),
+    }).state;
+    expect(placed.units[SAURUS_GUARD]!.moved).toBe('run');
+    // Redeploy is not offered a second time this phase.
+    expect(engine.decision(placed)).toMatchObject({ phase: 'shooting' });
+  });
+
+  it('a unit that has run keeps Covering Fire and Counter-charge with run-and-shoot / run-and-charge', () => {
+    const huanchi = (s: GameState, id: UnitId): void => {
+      s.effects = [
+        ...(s.effects ?? []),
+        {
+          id: '6086-ce9b-38be-28b2', // Speed of Huanchi: run and shoot, run and charge
+          name: 'Speed of Huanchi',
+          sourceUnit: id,
+          targetUnit: id,
+          owner: 1,
+          expires: 'startOfNextTurn',
+        },
+      ];
+    };
+    const s = baseArena([DRYADS, HUNTERS]);
+    s.phase = 'shooting';
+    placeUnit(scenario, s, DRYADS, 16, 22);
+    placeUnit(scenario, s, HUNTERS, 26, 22);
+    s.units[DRYADS]!.moved = 'normal';
+    s.players[0].cp = 0;
+    s.units[HUNTERS]!.moved = 'run';
+    huanchi(s, HUNTERS);
+    const cf = engine.decision(engine.apply(s, { t: 'pass' }).state);
+    expect(cf?.kind === 'reaction' && cf.options.some((o) => o.command === 'coveringFire')).toBe(
+      true,
+    );
+
+    const c = baseArena([DRYADS, SAURUS_GUARD]);
+    c.phase = 'charge';
+    placeUnit(scenario, c, DRYADS, 16, 22);
+    placeUnit(scenario, c, SAURUS_GUARD, 27, 22);
+    c.players[1].cp = 4;
+    c.units[SAURUS_GUARD]!.moved = 'run';
+    huanchi(c, SAURUS_GUARD);
+    const cc = engine.decision(engine.apply(c, { t: 'pass' }).state);
+    expect(cc?.kind === 'reaction' && cc.options.some((o) => o.command === 'counterCharge')).toBe(
+      true,
+    );
+  });
+
+  it('a unit that has run cannot Covering Fire (without run-and-shoot) or Counter-charge', () => {
+    const s = baseArena([DRYADS, HUNTERS]);
+    s.phase = 'shooting';
+    placeUnit(scenario, s, DRYADS, 16, 22);
+    placeUnit(scenario, s, HUNTERS, 26, 22);
+    s.units[DRYADS]!.moved = 'normal';
+    s.players[0].cp = 0;
+    const offered = (st: GameState) => {
+      const d = engine.decision(engine.apply(st, { t: 'pass' }).state);
+      return d?.kind === 'reaction' && d.options.some((o) => o.command === 'coveringFire');
+    };
+    expect(offered(s)).toBe(true);
+    s.units[HUNTERS]!.moved = 'run';
+    expect(offered(s)).toBe(false);
+
+    const c = baseArena([DRYADS, SAURUS_GUARD]);
+    c.phase = 'charge';
+    placeUnit(scenario, c, DRYADS, 16, 22);
+    placeUnit(scenario, c, SAURUS_GUARD, 27, 22);
+    c.players[1].cp = 4;
+    const counter = (st: GameState) => {
+      const d = engine.decision(engine.apply(st, { t: 'pass' }).state);
+      return d?.kind === 'reaction' && d.options.some((o) => o.command === 'counterCharge');
+    };
+    expect(counter(c)).toBe(true);
+    c.units[SAURUS_GUARD]!.moved = 'run';
+    expect(counter(c)).toBe(false);
+  });
+
+  it('redeploy: moves a unit not in combat up to D6" at the end of the enemy Movement phase for 1 CP', () => {
     const s = baseArena([DRYADS, SAURUS_GUARD]);
     s.phase = 'movement';
     placeUnit(scenario, s, DRYADS, 18, 22);
     placeUnit(scenario, s, SAURUS_GUARD, 32, 22);
 
-    // Active player moves Dryads 2" to end within 6" of Saurus Guard (but > 3")
-    const moveDecl = engine.apply(s, { t: 'move', unit: DRYADS, kind: 'normal' }).state;
-    const closer = shiftPlacement(currentPlacement(moveDecl.units[DRYADS]!), 2, 0);
-    const moved = engine.apply(moveDecl, { t: 'place', placement: closer });
+    const moved = engine.apply(s, { t: 'pass' });
 
     expect(engine.decision(moved.state)).toEqual({
       kind: 'reaction',
       player: 1,
       options: [{ command: 'redeploy', unit: SAURUS_GUARD, cost: 1 }],
-      trigger: `move:${DRYADS}`,
+      trigger: 'phase:movement',
     });
 
     const redeployed = engine.apply(moved.state, {
@@ -1648,7 +1736,7 @@ describe('reaction offers (owner ruling, 2026-11-11)', () => {
     ).toBe(true);
   });
 
-  it('Redeploy: offered after each enemy move, at any distance, until used', () => {
+  it('Redeploy: offered once at the end of the enemy movement phase, at any distance', () => {
     const s = passTo(engine, baseArena([DRYADS, DURTHU, SAURUS_GUARD, KROXIGOR]), 'movement');
     placeUnit(scenario, s, DRYADS, 6, 10);
     placeUnit(scenario, s, DURTHU, 6, 34);
@@ -1658,8 +1746,9 @@ describe('reaction offers (owner ruling, 2026-11-11)', () => {
     for (const unit of [DRYADS, DURTHU]) {
       st = engine.apply(st, { t: 'move', unit, kind: 'normal' }).state;
       st = engine.apply(st, { t: 'place', placement: currentPlacement(st.units[unit]!) }).state;
-      expect(offered(st, 'redeploy'), unit).toBe(true);
-      st = engine.apply(st, { t: 'pass' }).state;
+      expect(offered(st, 'redeploy'), unit).toBe(false);
     }
+    st = engine.apply(st, { t: 'pass' }).state;
+    expect(offered(st, 'redeploy')).toBe(true);
   });
 });

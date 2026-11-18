@@ -61,12 +61,13 @@ export function chooseAction(engine: Engine, state: GameState): Action {
         return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };
       }
       const cp = state.players[d.player].cp;
-      // Redeploy is offered after every enemy move: only worth it for a unit the mover has
-      // come within 9" of.
-      const mover = d.trigger.startsWith('move:') ? state.units[d.trigger.slice(5)] : undefined;
+      // Redeploy is offered once, at the end of the enemy movement phase: only worth it for a
+      // unit with an enemy within 9" (it then counts as having run).
       const worthIt = (o: ReactionOption) =>
         o.command !== 'redeploy' ||
-        (!!mover && unitDistance(engine.scenario, mover, state.units[o.unit]!) <= 9);
+        unitsOf(state, opponent(d.player)).some(
+          (e) => unitDistance(engine.scenario, e, state.units[o.unit]!) <= 9,
+        );
       const affordable = d.options.filter(
         (o) => o.command && cp >= Math.max(SPARE_CP, o.cost) && worthIt(o),
       );

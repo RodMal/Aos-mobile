@@ -130,12 +130,7 @@ describe('movement', () => {
       expect.objectContaining({ t: 'moved', unit: dryads.id, kind: 'normal' }),
     );
     expect(engine.unitOptions(s, dryads.id)).toEqual([]);
-    // The opponent may answer with Redeploy after each move (no distance filter).
-    const d2 = engine.decision(s)!;
-    if (d2.kind === 'reaction') {
-      expect(d2.options.every((o) => o.command === 'redeploy')).toBe(true);
-      s = engine.apply(s, { t: 'pass' }).state;
-    }
+    // No Redeploy is offered after a single move (only when the phase is passed).
     expect(engine.decision(s)).toMatchObject({ kind: 'main', phase: 'movement' });
   });
 

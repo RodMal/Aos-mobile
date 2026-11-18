@@ -4,7 +4,9 @@ import {
   footprintGapAtLeast,
   footprintInsidePolygon,
   footprintOuterRadius,
+  footprintOverlapsPolygon,
 } from '../../geom/index.js';
+import { canStandOn } from '../../data/battlefield.js';
 import { reapingBonus } from '../../rules/factions/seasons.js';
 import { applyMortalDamage, destroyUnit, type StepCtx } from '../damage.js';
 import { roll2D6, rollD3, rollD6 } from '../ctx.js';
@@ -257,6 +259,13 @@ function searchSummonPlacement(
         if (tooClose) continue;
       }
       if (!footprintWhollyWithin(fp, casterFps, range)) continue;
+      // Never on a feature models cannot stand on (the spires).
+      if (
+        scenario.battlefield.terrain.some(
+          (f) => !canStandOn(scenario.battlefield, f) && footprintOverlapsPolygon(fp, f.polygon),
+        )
+      )
+        continue;
       if (nearbyFps.some((ofp) => !footprintGapAtLeast(fp, ofp, 0.05))) continue;
       return { x, y, rot };
     }
