@@ -21,7 +21,8 @@
     "test:e2e": "playwright test",
     "selfplay": "tsx scripts/selfplay.ts",
     "data:extract": "node scripts/extract-data.mjs",
-    "check": "pnpm lint && pnpm typecheck && pnpm test"
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "game-hashes": "tsx scripts/game-hashes.ts"
   },
   "dependencies": {
     "react": "19.3.1",

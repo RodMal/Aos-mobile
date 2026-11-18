@@ -9,7 +9,6 @@ on:
     types: [completed]
     branches:
       - main
-      - ccr-badc8dc5-cnbda7
   workflow_dispatch:
 
 permissions:

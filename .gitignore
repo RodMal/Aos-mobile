@@ -13,3 +13,6 @@ coverage/
 
 # Agent worktrees
 .claude/worktrees/
+
+# Local baseline for scripts/game-hashes.ts
+scripts/.game-hashes.txt
