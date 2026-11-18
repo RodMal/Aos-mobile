@@ -570,6 +570,13 @@ button {
   stroke-dasharray: 4 3;
   animation: pulse 1.2s ease-in-out infinite;
 }
+.unit.fought .model,
+.unit.fought .trunk {
+  opacity: 0.4;
+}
+.roster-item.fought {
+  opacity: 0.6;
+}
 .unit.assigned .halo {
   stroke: var(--bad);
   stroke-dasharray: none;

@@ -167,6 +167,7 @@ export function UnitsLayer() {
           targets.has(id) || aimed.has(id) ? 'target' : '',
           assigned.has(id) ? 'assigned' : '',
           id === draftUnit ? 'drafting' : '',
+          state.phase === 'combat' && unit.fought ? 'fought' : '',
         ].join(' ');
         return (
           <g key={id} data-unit-id={id} className={cls}>
@@ -231,6 +232,7 @@ export function LabelsLayer({ rot }: { rot: Rot }) {
         const badge = [
           total > 1 ? `${alive}/${total}` : '',
           unit.damage > 0 ? `${unit.damage} dmg` : '',
+          state.phase === 'combat' && unit.fought ? 'fought' : '',
         ]
           .filter(Boolean)
           .join(' · ');
@@ -254,6 +256,7 @@ export function LabelsLayer({ rot }: { rot: Rot }) {
         (l.id === selected ? 1000 : 0) +
         (targets?.has(l.id) ? 500 : 0) +
         (l.owner === human ? 50 : 0) +
+        (l.badge.includes('fought') ? 300 : 0) +
         (state.units[l.id]?.models.length ?? 0);
       return {
         key: l.id,

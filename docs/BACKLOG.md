@@ -26,12 +26,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: `src/ui/prompts/Prompts.tsx`, `src/ui/game/eventText.ts`, `src/ui/board/layers.tsx`
 - **Done when**: a "See the map" button collapses the prompt to a small bar so the board can be panned, zoomed and units inspected, and one tap reopens it; the unit that triggered it is highlighted; a listed unit is highlighted when tapped or hovered. Bug: the trigger text says "1 finished a move nearby" (an id): every trigger text uses unit names. e2e on a phone project and desktop.
 
-### U2 Show which units have fought this combat phase
-
-- **Tier**: sonnet
-- **Read**: `src/ui/board/layers.tsx`, `src/ui/drawers/Roster.tsx`, `UnitState.fought` in `src/engine/types.ts`
-- **Done when**: in the combat phase, units of both sides that have fought are dimmed with a "fought" badge on the board and marked in the roster; e2e check.
-
 ### U3 Measuring tool
 
 - **Tier**: sonnet
