@@ -85,19 +85,21 @@ export function PlacePanel() {
       ? 'Drag or rotate to set up wholly within your territory (>= 9" from enemy territory).'
       : d.reason === 'charge'
         ? 'Placed in contact with the nearest enemy. Drag to choose another spot within ½" of an enemy unit.'
-        : d.reason === 'pileIn'
-          ? 'Piled in towards the nearest enemy. Each model may move up to 3" and must not end further from it.'
-          : d.reason === 'summon'
-            ? 'Drag to set up wholly within range of the caster, then confirm.'
-            : d.reason === 'setUp'
-              ? 'Drag or rotate: more than 3" from objectives and enemy units, 12" from your other Wyldwoods, 1" from other terrain.'
-              : d.reason === 'powerThrough'
-                ? 'Move up to your allowance. You may stay in combat with the units you were fighting, or leave, but not enter combat with any other unit.'
-                : draft.adjust
-                  ? `${tapWord()} a model, then drag anywhere to move it.`
-                  : finePointer()
-                    ? 'Drag anywhere to move the unit. The wheel zooms; Enter confirms.'
-                    : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
+        : d.reason === 'pileIn' && d.free
+          ? 'Free pile-in: you are no longer in combat, so each model may move up to 3" in any direction.'
+          : d.reason === 'pileIn'
+            ? 'Piled in towards the nearest enemy. Each model may move up to 3" and must not end further from it.'
+            : d.reason === 'summon'
+              ? 'Drag to set up wholly within range of the caster, then confirm.'
+              : d.reason === 'setUp'
+                ? 'Drag or rotate: more than 3" from objectives and enemy units, 12" from your other Wyldwoods, 1" from other terrain.'
+                : d.reason === 'powerThrough'
+                  ? 'Move up to your allowance. You may stay in combat with the units you were fighting, or leave, but not enter combat with any other unit.'
+                  : draft.adjust
+                    ? `${tapWord()} a model, then drag anywhere to move it.`
+                    : finePointer()
+                      ? 'Drag anywhere to move the unit. The wheel zooms; Enter confirms.'
+                      : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
   const canForwardToVictory =
     d.reason === 'charge' &&
     !commandBlocker(state, d.player, 'forwardToVictory', unit) &&
