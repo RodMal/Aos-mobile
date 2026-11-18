@@ -161,3 +161,36 @@ test('setting up a summoned manifestation is measured from the caster', async ({
   await expect(page.getByTestId('setup-range')).toHaveCount(1);
   await page.screenshot({ path: `test-results/summon-setup-${info.project.name}.png` });
 });
+
+test('Enrage The Spites: toggle up to 3 targets, the count shows, Cast needs one', async ({
+  page,
+}) => {
+  const ENRAGE = 'a924-fd6e-9278-4d4c';
+  const pos = await openPosition(page, 1, (engine, s, d) => {
+    if (d.kind !== 'main' || d.phase !== 'hero' || d.player !== 0) return null;
+    for (const id of s.unitOrder) {
+      const o = engine
+        .unitOptions(s, id)
+        .find((o) => o.t === 'ability' && o.abilityId === 'a924-fd6e-9278-4d4c');
+      if (o && o.t === 'ability' && o.targets.length >= 2) return id;
+    }
+    return null;
+  });
+  await openAbility(page, pos.note, ENRAGE);
+  const panel = page.getByTestId('ability-panel');
+  const confirm = page.getByTestId('ability-confirm');
+  const chips = panel.getByTestId('ability-targets').locator('.chip');
+  const count = panel.getByTestId('ability-target-count');
+  await expect(confirm).toBeDisabled();
+  await expect(count).toHaveText('0 of up to 3 targets picked');
+  await chips.nth(0).click();
+  await chips.nth(1).click();
+  await expect(count).toHaveText('2 of up to 3 targets picked');
+  await expect(chips.nth(0)).toHaveAttribute('aria-checked', 'true');
+  await expect(confirm).toBeEnabled();
+  await chips.nth(1).click();
+  await expect(count).toHaveText('1 of up to 3 targets picked');
+  await confirm.click();
+  await expect(panel).toHaveCount(0);
+  expect(await logText(page)).toMatch(/Enrage The Spites/);
+});

@@ -40,6 +40,17 @@ export interface AbilityPick {
   unit: UnitId;
   option: Extract<UnitOption, { t: 'ability' } | { t: 'command' }>;
   target: UnitId | null;
+  /** Abilities that take several targets (`maxTargets`): the ones picked so far. */
+  targets?: UnitId[];
+}
+
+/** Picks or unpicks `id` on a multi-target ability, up to its `maxTargets`. */
+export function toggleAbilityTarget(pick: AbilityPick, id: UnitId): AbilityPick {
+  const max = pick.option.t === 'ability' ? (pick.option.maxTargets ?? 1) : 1;
+  const now = pick.targets ?? [];
+  if (now.includes(id)) return { ...pick, targets: now.filter((t) => t !== id) };
+  if (now.length >= max) return pick;
+  return { ...pick, targets: [...now, id] };
 }
 
 export interface ChooserState {

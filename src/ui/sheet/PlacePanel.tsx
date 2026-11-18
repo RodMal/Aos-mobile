@@ -90,7 +90,7 @@ export function PlacePanel() {
           : d.reason === 'summon'
             ? 'Drag to set up wholly within range of the caster, then confirm.'
             : d.reason === 'setUp'
-              ? 'Drag or rotate to set up more than 3" from every objective, terrain feature and unit.'
+              ? 'Drag or rotate: more than 3" from objectives and enemy units, 12" from your other Wyldwoods, 1" from other terrain.'
               : d.reason === 'powerThrough'
                 ? 'Move up to your allowance. You may stay in combat with the units you were fighting, or leave, but not enter combat with any other unit.'
                 : draft.adjust

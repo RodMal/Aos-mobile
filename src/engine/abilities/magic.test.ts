@@ -16,9 +16,13 @@ import {
   shiftPlacement,
   strikeOrder,
   unitGrants,
+  unitsWithin,
+  IllegalActionError,
+  type GameEvent,
   type GameState,
   type UnitId,
 } from '../index.js';
+import { chooseAction } from '../../ai/baseline.js';
 import {
   applyUntil,
   editable,
@@ -1321,6 +1325,83 @@ describe('Warscroll Spells (Wizard-Specific)', () => {
       .map((e) => (e.t === 'damage' ? e.unit : ''));
     expect(damagedIds).toHaveLength(3);
     expect(damagedIds).toEqual(expect.arrayContaining([SAURUS_GUARD, KROXIGOR, HUNTERS]));
+  });
+
+  describe('Enrage The Spites: the caster picks up to 3 targets (owner, 2026-11-12)', () => {
+    const arena = () => {
+      const s = baseArena([ALARIELLE, DRYCHA, SAURUS_GUARD, KROXIGOR, HUNTERS]);
+      placeUnit(scenario, s, DRYCHA, 20, 22);
+      placeUnit(scenario, s, SAURUS_GUARD, 27, 19);
+      placeUnit(scenario, s, KROXIGOR, 27, 25);
+      const terrain = scenario.battlefield.terrain[0]!;
+      const [tx, ty] = terrain.polygon[0]!;
+      s.overgrown = [[terrain.id], []];
+      placeUnit(scenario, s, HUNTERS, tx, ty);
+      return s;
+    };
+    const cast = (s: GameState, targets: string[]) =>
+      applyUntil(
+        engine,
+        s,
+        { t: 'ability', unit: DRYCHA, abilityId: ENRAGE_THE_SPITES, targets },
+        (r) => r.events.some((e) => e.t === 'cast' && e.success),
+      );
+    const hits = (events: GameEvent[]) =>
+      events.flatMap((e) => (e.t === 'damage' && e.source === 'Enrage The Spites' ? [e] : []));
+
+    it('offers up to 3 targets; three picked targets each take D3 mortal damage', () => {
+      const s = arena();
+      const opt = engine
+        .unitOptions(s, DRYCHA)
+        .find((o) => o.t === 'ability' && o.abilityId === ENRAGE_THE_SPITES);
+      expect(opt).toMatchObject({ maxTargets: 3 });
+      const res = cast(s, [SAURUS_GUARD, KROXIGOR, HUNTERS]);
+      const h = hits(res.events);
+      expect(h.map((e) => e.unit).sort()).toEqual([HUNTERS, KROXIGOR, SAURUS_GUARD].sort());
+      for (const e of h) {
+        expect(e.amount).toBeGreaterThanOrEqual(1);
+        expect(e.amount).toBeLessThanOrEqual(3);
+      }
+    });
+
+    it('hits only the picked targets, including one valid only through the overgrowth', () => {
+      const s = arena();
+      const dist = unitsWithin(scenario, s.units[DRYCHA]!, s.units[HUNTERS]!, 12);
+      expect(dist).toBe(false); // out of 12": legal only because it is in the overgrowth
+      const res = cast(s, [HUNTERS]);
+      expect(hits(res.events).map((e) => e.unit)).toEqual([HUNTERS]);
+      const two = cast(s, [KROXIGOR, HUNTERS]);
+      expect(
+        hits(two.events)
+          .map((e) => e.unit)
+          .sort(),
+      ).toEqual([HUNTERS, KROXIGOR].sort());
+    });
+
+    it('rejects no targets, more than 3, duplicates and illegal targets', () => {
+      const s = arena();
+      const act = (targets: string[]) => () =>
+        engine.apply(s, { t: 'ability', unit: DRYCHA, abilityId: ENRAGE_THE_SPITES, targets });
+      expect(act([])).toThrow(IllegalActionError);
+      expect(act([SAURUS_GUARD, SAURUS_GUARD])).toThrow(/only once/);
+      expect(act([ALARIELLE])).toThrow(/not a legal target/);
+      expect(act([SAURUS_GUARD, KROXIGOR, HUNTERS, ALARIELLE])).toThrow(/1 to 3 targets/);
+    });
+
+    it('the NPC casts it at up to 3 targets', () => {
+      let s = arena();
+      keepOnly(s, [DRYCHA, SAURUS_GUARD, KROXIGOR, HUNTERS]);
+      for (let i = 0; i < 6; i++) {
+        const a = chooseAction(engine, s);
+        if (a.t === 'ability' && a.abilityId === ENRAGE_THE_SPITES) {
+          expect(a.targets).toHaveLength(3);
+          expect(new Set(a.targets).size).toBe(3);
+          return;
+        }
+        s = engine.apply(s, a).state;
+      }
+      throw new Error('the NPC did not cast Enrage The Spites');
+    });
   });
 
   it('Celestial Deliverance (Lord Kroak only): hits up to 3 enemies within 18" for D3 mortal damage and can be cast multiple times per phase', () => {

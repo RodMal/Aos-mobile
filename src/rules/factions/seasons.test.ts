@@ -3,7 +3,12 @@ import { chooseAction } from '../../ai/baseline.js';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../../data/lists.js';
 import { createEngine, createScenario, type GameState } from '../../engine/index.js';
 import { editable, keepOnly, passTo, placeUnit, startGame } from '../../engine/test-helpers.js';
-import { burgeoningPick, creepingDreadSurcharge, reapingBonus } from './seasons.js';
+import {
+  burgeoningPick,
+  creepingDreadCandidates,
+  creepingDreadSurcharge,
+  reapingBonus,
+} from './seasons.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
 const engine = createEngine(scenario);
@@ -108,6 +113,29 @@ describe('Creeping Dread (owner, 2026-11-11)', () => {
     const used = engine.apply(s, { t: 'choose', value: foe }).state;
     expect(used.creepingDread).toEqual({ player: 0, targets: [foe], spent: [] });
     expect(chooseAction(engine, s)).toEqual({ t: 'choose', value: foe });
+  });
+
+  it('never offers a HERO as a target (owner, 2026-11-12), on screen or for the NPC', () => {
+    const { s, foe } = inOvergrowth();
+    const kroak = named(s, 'Lord Kroak').id;
+    placeUnit(scenario, s, kroak, 34, 6); // in the overgrowth too
+    s.unitOrder.forEach((id) => {
+      const u = s.units[id]!;
+      if (u.name === 'Skink Starseer') {
+        u.status = 'battlefield';
+        u.models.forEach((m) => (m.alive = true));
+        placeUnit(scenario, s, id, 26, 6);
+      }
+    });
+    const candidates = creepingDreadCandidates(scenario, s, 0);
+    expect(candidates).toContain(foe);
+    expect(candidates).not.toContain(kroak);
+    expect(candidates.map((id) => s.units[id]!.name)).not.toContain('Skink Starseer');
+    // The start-of-turn decision (what the prompt lists and the NPC picks from) is the same.
+    s.stack = [{ t: 'creepingDread', player: 0, units: candidates, max: 3 }];
+    expect(() => engine.apply(s, { t: 'choose', value: kroak })).toThrow();
+    const a = chooseAction(engine, s);
+    expect(a.t === 'choose' && a.value.split(',')).not.toContain(kroak);
   });
 
   it('the first command for the target costs 1 more CP unless it is wholly within 12" of a Hero', () => {

@@ -42,6 +42,8 @@ export interface AbilityResolveArgs {
   unit: UnitState;
   target?: UnitState;
   secondTarget?: UnitState;
+  /** Every target picked, when the ability takes several (`maxTargets`). */
+  targets?: UnitState[];
   roll?: number;
   choice?: string;
 }
@@ -64,6 +66,8 @@ export interface AbilityDefinition {
   summonRange?: number;
   summonMinEnemyGap?: number;
   target?: AbilityTargetSpec;
+  /** How many targets may be picked ("up to 3"), when more than one. */
+  maxTargets?: number;
   canUse?: (scenario: Scenario, state: GameState, unit: UnitState) => boolean;
   resolve?: (args: AbilityResolveArgs) => void;
   /** Attack modifiers evaluated when an ActiveEffect with `effect.id === def.id` is in play. */

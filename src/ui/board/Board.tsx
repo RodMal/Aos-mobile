@@ -7,7 +7,7 @@ import { useGame } from '../game/instance.js';
 import { useHuman } from '../game/hooks.js';
 import { assignAll } from '../game/attackPlan.js';
 import { moveModel, translateDraft } from '../game/placementEdit.js';
-import { useUi } from '../game/uiStore.js';
+import { toggleAbilityTarget, useUi } from '../game/uiStore.js';
 import { GhostLayer } from './GhostLayer.js';
 import { zoomBucket } from './declutter.js';
 import { hitTest, pick, type HitTarget } from './hitTest.js';
@@ -208,7 +208,14 @@ export function Board() {
             at,
             slop,
           );
-          if (hits.length > 0) ui.setAbilityPick({ ...picking, target: hits[0]!.key });
+          if (hits.length > 0) {
+            const multi = picking.option.t === 'ability' && (picking.option.maxTargets ?? 1) > 1;
+            ui.setAbilityPick(
+              multi
+                ? toggleAbilityTarget(picking, hits[0]!.key)
+                : { ...picking, target: hits[0]!.key },
+            );
+          }
           return;
         }
         const result = pick(hitTest(units, at, slop));

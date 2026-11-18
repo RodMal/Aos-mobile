@@ -23,7 +23,8 @@ export function GhostLayer({ rot }: { rot: Rot }) {
   if (reach) return <SetUpGhost rot={rot} reach={reach} bad={bad} />;
   const start = unitCentre(unit);
   const end = placementCentre(draft.placement);
-  const dist = maxDistance(unit, draft.placement);
+  // Set-up has no move distance: no measuring line from where the piece was suggested.
+  const dist = decision.reason === 'setUp' ? 0 : maxDistance(unit, draft.placement);
   const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
   const tooFar = dist > allowance + 1e-6;
   const active = draft.adjust ? draft.activeModel : null;
@@ -45,13 +46,15 @@ export function GhostLayer({ rot }: { rot: Rot }) {
           className="allowance-ring model-ring"
         />
       )}
-      <line
-        x1={start.x}
-        y1={start.y}
-        x2={end.x}
-        y2={end.y}
-        className={`measure ${tooFar ? 'bad' : ''}`}
-      />
+      {dist > 0 && (
+        <line
+          x1={start.x}
+          y1={start.y}
+          x2={end.x}
+          y2={end.y}
+          className={`measure ${tooFar ? 'bad' : ''}`}
+        />
+      )}
       {draft.placement.models.map((m) => {
         const fp = modelFootprint(scenario, unit, m.i, m);
         return (

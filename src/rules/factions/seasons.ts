@@ -131,7 +131,10 @@ export function hasCreepingDread(scenario: Scenario, player: PlayerId): boolean 
   return scenario.armies[player].battleTraits.some((a) => a.id === CREEPING_DREAD_ID);
 }
 
-/** Enemy units within `player`'s creeping overgrowth (faction terrain and manifestations aside). */
+/**
+ * Enemy units within `player`'s creeping overgrowth (faction terrain and manifestations aside).
+ * Not HERO units: the owner's ruling (2026-11-12); the printed text says only "an enemy unit".
+ */
 export function creepingDreadCandidates(
   scenario: Scenario,
   state: GameState,
@@ -140,7 +143,7 @@ export function creepingDreadCandidates(
   return unitsOf(state, opponent(player))
     .filter((u) => {
       const p = profileOf(scenario, u);
-      return !p.isFactionTerrain && !p.isManifestation;
+      return !p.isFactionTerrain && !p.isManifestation && !hasKeyword(scenario, u, 'HERO');
     })
     .filter((u) => inCreepingOvergrowth(scenario, state, u, player, false))
     .map((u) => u.id);

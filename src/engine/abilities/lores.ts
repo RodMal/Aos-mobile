@@ -480,15 +480,20 @@ export const LORE_ABILITIES: AbilityDefinition[] = [
       range: 12,
       allowCreepingOvergrowth: true,
     },
-    resolve: ({ ctx, unit, target, secondTarget }) => {
-      const targets = pickUpToThreeTargets(
-        ctx.scenario,
-        ctx.s,
-        unit,
-        { side: 'enemy', range: 12, allowCreepingOvergrowth: true },
-        target,
-        secondTarget,
-      );
+    // "Pick up to 3 enemy units" (owner, 2026-11-12): the caster picks 1 to 3 (`targets`);
+    // without a list, the target and the nearest legal units up to 3.
+    maxTargets: 3,
+    resolve: ({ ctx, unit, target, secondTarget, targets: picked }) => {
+      const targets =
+        picked ??
+        pickUpToThreeTargets(
+          ctx.scenario,
+          ctx.s,
+          unit,
+          { side: 'enemy', range: 12, allowCreepingOvergrowth: true },
+          target,
+          secondTarget,
+        );
       for (const tgt of targets) {
         if (tgt.status !== 'battlefield') continue;
         const dmg = rollD3(ctx, unit.owner, 'Enrage The Spites damage');
