@@ -254,8 +254,8 @@ export const usable = async (l: Locator): Promise<boolean> =>
   (await l.isVisible().catch(() => false)) && (await l.isEnabled().catch(() => false));
 
 /**
- * One step of a minimal player: ends its own phases, answers the priority roll and the fugitive
- * pick, skips reactions (taking the damage instead of Fight Through the Pain), and fights back when it must. Returns what it clicked, or null if nothing applied.
+ * One step of a minimal player: ends its own phases, answers the priority roll, the fugitive
+ * pick, the Seraphon prophecies, skips reactions (taking the damage instead of Fight Through the Pain), and fights back when it must. Returns what it clicked, or null if nothing applied.
  */
 export async function minimalPlayerStep(page: Page): Promise<string | null> {
   const controls: [string, Locator][] = [
@@ -271,6 +271,10 @@ export async function minimalPlayerStep(page: Page): Promise<string | null> {
         )
         .first(),
     ],
+    // The Great Plan, and Further the Great Plan (a key whose condition is met, then an Asterism).
+    ['asterism', page.locator('[data-asterism]').first()],
+    ['asterism key', page.locator('[data-key]:not([disabled])').first()],
+    ['asterism pass', page.getByTestId('asterism-pass')],
     ['pass creeping dread', page.getByTestId('dread-pass')],
     ['skip reaction', page.getByRole('button', { name: 'Skip', exact: true })],
     ['take the damage', page.getByTestId('pain-skip')],
