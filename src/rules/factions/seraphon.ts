@@ -104,7 +104,14 @@ export function asterismConditionMet(
   player: PlayerId,
   id: string,
 ): boolean {
-  const foes = Object.values(state.units).filter((u) => u.owner === opponent(player));
+  // Itzl and Quetzl count enemy units only: no manifestations, no faction terrain (I78).
+  const foes = Object.values(state.units).filter(
+    (u) =>
+      u.owner === opponent(player) &&
+      !u.isManifestation &&
+      !profileOf(scenario, u).isFactionTerrain,
+  );
+  const allFoes = Object.values(state.units).filter((u) => u.owner === opponent(player));
   switch (id) {
     case ITZL_ID:
       return foes.filter((u) => u.status === 'destroyed').length >= 3;
@@ -115,7 +122,7 @@ export function asterismConditionMet(
       );
     }
     case SOTEK_ID: {
-      const general = foes.find((u) => !u.isManifestation && isGeneral(scenario, u));
+      const general = allFoes.find((u) => !u.isManifestation && isGeneral(scenario, u));
       return (
         !!general &&
         (general.status === 'destroyed' ||

@@ -184,6 +184,41 @@ describe('Further the Great Plan (4d17-ddf6-7d2a-9889)', () => {
     expect(asterismConditionMet(scenario, s, 1, QUETZL_ID)).toBe(false);
   });
 
+  it('Itzl and Quetzl do not count manifestations or faction terrain (I78, owner 2026-11-18)', () => {
+    const s = game();
+    const terrain = Object.values(s.units).filter(
+      (u) => u.owner === 0 && profileOf(scenario, u).isFactionTerrain,
+    );
+    expect(terrain.length).toBeGreaterThan(0);
+    const normal = Object.values(s.units).filter(
+      (u) => u.owner === 0 && !profileOf(scenario, u).isFactionTerrain,
+    );
+    // Itzl: two destroyed units plus a destroyed manifestation and destroyed terrain is still 2.
+    normal[0]!.status = 'destroyed';
+    normal[1]!.status = 'destroyed';
+    normal[2]!.isManifestation = true;
+    normal[2]!.status = 'destroyed';
+    terrain[0]!.status = 'destroyed';
+    expect(asterismConditionMet(scenario, s, 1, ITZL_ID)).toBe(false);
+    normal[3]!.status = 'destroyed';
+    expect(asterismConditionMet(scenario, s, 1, ITZL_ID)).toBe(true);
+
+    // Quetzl: a manifestation or faction terrain wholly in the territory does not fail it.
+    const t = game();
+    expect(asterismConditionMet(scenario, t, 1, QUETZL_ID)).toBe(true);
+    const home = t.units[WARRIORS]!.models[0]!;
+    const terrain2 = Object.values(t.units).find(
+      (u) => u.owner === 0 && profileOf(scenario, u).isFactionTerrain,
+    )!;
+    placeUnit(scenario, t, terrain2.id, home.x, home.y);
+    expect(asterismConditionMet(scenario, t, 1, QUETZL_ID)).toBe(true);
+    t.units[DRYADS]!.isManifestation = true;
+    placeUnit(scenario, t, DRYADS, home.x, home.y);
+    expect(asterismConditionMet(scenario, t, 1, QUETZL_ID)).toBe(true);
+    t.units[DRYADS]!.isManifestation = false;
+    expect(asterismConditionMet(scenario, t, 1, QUETZL_ID)).toBe(false);
+  });
+
   it('Sotek the Deliverer needs the enemy general in combat or destroyed', () => {
     const s = game();
     expect(asterismConditionMet(scenario, s, 1, SOTEK_ID)).toBe(false);
