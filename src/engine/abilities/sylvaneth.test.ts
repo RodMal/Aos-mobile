@@ -70,7 +70,9 @@ describe("Alarielle's Song (3f73-3ee4-8f6b-b16b)", () => {
   });
 
   it('never worsens a better ward', () => {
-    expect(effectiveWard(scenario, s, unit(s, ALARIELLE))).toBe(5);
+    const t = arena({ [WARSONG]: [30, 22], [ALARIELLE]: [30, 28], [DRYADS]: [24, 22] });
+    expect(unitGrants(scenario, t, unit(t, ALARIELLE)).ward).toBe(5);
+    expect(unitGrants(scenario, t, unit(t, DRYADS)).ward).toBe(6);
   });
 
   it('subtracts 1 from the ward rolls of enemies within 12", and rollWard applies it', () => {

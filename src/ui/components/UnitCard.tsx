@@ -4,6 +4,7 @@ import { diceText, type UnitProfile, type Weapon } from '../../data/profile.js';
 import { displayKeyword } from '../../data/markup.js';
 import { profileFor, scenario } from '../game/engine.js';
 import { useGameState } from '../game/hooks.js';
+import { effectiveWard } from '../../engine/abilities/effects.js';
 import { moveOf } from '../../rules/factions/seraphon.js';
 import { AbilityView } from './AbilityView.js';
 
@@ -25,13 +26,14 @@ export function StatLine({ unit }: { unit: UnitState }) {
   const p = profileFor(unit);
   const state = useGameState();
   const alive = aliveCount(unit);
+  const ward = effectiveWard(scenario, state, unit);
   return (
     <div className="stats" data-testid="stat-line">
       <Stat label="Move" value={moveText(p, moveOf(scenario, state, unit))} />
       <Stat label="Health" value={String(p.health)} />
       <Stat label="Save" value={p.save >= 7 ? '–' : `${p.save}+`} />
       <Stat label="Control" value={String(p.control)} />
-      {p.ward !== null && <Stat label="Ward" value={`${p.ward}+`} />}
+      {ward !== undefined && <Stat label="Ward" value={`${ward}+`} />}
       <Stat label="Models" value={`${alive}/${unit.models.length}`} />
       <Stat label="Damage" value={String(unit.damage)} />
     </div>

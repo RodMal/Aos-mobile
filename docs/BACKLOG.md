@@ -14,6 +14,13 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
+### M4d-2 Glamourweave re-roll as a player choice
+
+- **Tier**: sonnet+review
+- **Touches**: engine, ui/prompts
+- **Read**: `docs/RULES-DECISIONS.md` I96; Glamourweave `cafd-9cf1-871c-f47e` in `data/factions/sylvaneth.json`; `src/engine/abilities/sylvaneth.ts`, `src/engine/attack.ts`, `src/engine/combat.ts`
+- **Done when**: the player is offered each phase's hit, wound and save re-roll at the moment of a failed roll and can keep it for later; the NPC decides deterministically; old saves follow the rules-version rule (HANDOVER); there are tests.
+
 ### M4e Sylvaneth commands: Fury of The Forest, The Land Awakens, The Goddess Of Life
 
 - **Tier**: sonnet+review
