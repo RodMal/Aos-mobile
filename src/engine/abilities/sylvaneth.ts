@@ -15,6 +15,8 @@ export const TERROR_OF_THE_DEEP_WOODS_ID = 'a1f-39fd-6570-f3d5';
 export const ONE_WITH_THE_FOREST_ID = 'f62f-75b0-48cd-101e';
 export const KURNOTHI_WAR_HORN_ID = '59e8-f376-a5df-144c';
 export const GLAMOURWEAVE_ID = 'cafd-9cf1-871c-f47e';
+/** The `ability` action that answers "re-roll this failed roll" (a `pass` keeps it). */
+export const GLAMOURWEAVE_REROLL_ID = 'glamourweave';
 
 const BATTLE_DAMAGED_FROM = 10;
 

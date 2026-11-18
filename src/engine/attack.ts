@@ -67,10 +67,22 @@ export interface AttackInput {
   /** Force a critical-hit ability; by default the best one is chosen. */
   crit?: CritAbility | null;
   /**
-   * Re-rolls available (Glamourweave): each is spent on the first failed roll of its kind.
-   * Re-rolling a failed roll is never worse than keeping it, so the choice is made for the player.
+   * Re-rolls available (Glamourweave): each is spent on one failed roll of its kind, the one
+   * `chooseReroll` says yes to (every failed roll of that kind is put to it, in order, until one is).
+   * Without `chooseReroll` the first failed roll is re-rolled.
    */
   rerolls?: { hit?: boolean; wound?: boolean; save?: boolean };
+  chooseReroll?: (kind: 'hit' | 'wound' | 'save', die: number) => boolean;
+}
+
+/** Thrown by a `chooseReroll` that needs the player's answer before the sequence can go on. */
+export class RerollNeeded extends Error {
+  constructor(
+    readonly kind: 'hit' | 'wound' | 'save',
+    readonly die: number,
+  ) {
+    super(`A ${kind} re-roll needs an answer.`);
+  }
 }
 
 export interface AttackRoll {
@@ -103,7 +115,12 @@ export function rollAttackSequence(rng: RngCursor, input: AttackInput): AttackRo
   // Rolls `die`; a failed one is rolled again when a re-roll of `kind` is left.
   const roll = (kind: 'hit' | 'wound' | 'save', failed: (die: number) => boolean): number => {
     let die = rng.int(1, 6);
-    if (avail[kind] && !rerolled[kind] && failed(die)) {
+    if (
+      avail[kind] &&
+      !rerolled[kind] &&
+      failed(die) &&
+      (input.chooseReroll?.(kind, die) ?? true)
+    ) {
       rerolled[kind] = true;
       die = rng.int(1, 6);
     }

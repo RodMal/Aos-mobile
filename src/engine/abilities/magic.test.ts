@@ -28,6 +28,7 @@ import {
 import { chooseAction } from '../../ai/baseline.js';
 import {
   applyUntil as applyUntilRaw,
+  takeRerolls,
   editable,
   keepOnly,
   passTo,
@@ -1424,7 +1425,7 @@ describe('Strike-first / Strike-last Combat Order', () => {
       // Saurus Guard fights
       let st = engine.apply(s, { t: 'fight', unit: SAURUS_GUARD }).state;
       st = engine.apply(st, { t: 'pass' }).state; // skip pile-in
-      st = engine.apply(st, engine.defaultAction(st)).state; // resolve attacks
+      st = takeRerolls(engine, engine.apply(st, engine.defaultAction(st))).state; // resolve attacks
 
       // 3. Entering the 'normal' tier resets first pick to state.active (Player 0)
       expect(currentFightTier(scenario, st)).toBe('normal');
@@ -1819,7 +1820,10 @@ describe('Once-Per-Phase Command Restrictions (Per Unit & Per Army)', () => {
     }));
     st = engine.apply(st, { t: 'targets', allocations: durthuAllocs, allOutAttack: true }).state;
     // Saurus Guard uses All-out Defence reaction
-    st = engine.apply(st, { t: 'command', command: 'allOutDefence', unit: SAURUS_GUARD }).state;
+    st = takeRerolls(
+      engine,
+      engine.apply(st, { t: 'command', command: 'allOutDefence', unit: SAURUS_GUARD }),
+    ).state;
 
     // 2. Saurus Guard now picks to fight in the same Combat phase -> CANNOT also use All-out Attack because it already used All-out Defence this phase
     st = engine.apply(st, { t: 'fight', unit: SAURUS_GUARD }).state;
@@ -1831,7 +1835,10 @@ describe('Once-Per-Phase Command Restrictions (Per Unit & Per Army)', () => {
     expect(() =>
       engine.apply(st, { t: 'targets', allocations: sgAllocs, allOutAttack: true }),
     ).toThrow(/already used a command this phase/);
-    st = engine.apply(st, { t: 'targets', allocations: sgAllocs, allOutAttack: false }).state;
+    st = takeRerolls(
+      engine,
+      engine.apply(st, { t: 'targets', allocations: sgAllocs, allOutAttack: false }),
+    ).state;
 
     // 3. Drycha now picks to fight for Player 0 in the same Combat phase -> CANNOT use All-out Attack because Player 0 already used All-out Attack with Durthu this phase
     st = engine.apply(st, { t: 'fight', unit: DRYCHA }).state;

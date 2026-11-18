@@ -10,7 +10,15 @@ import { moveOf } from '../../rules/factions/seraphon.js';
 import { rollAttackSequence, rollWard } from '../attack.js';
 import { usedWeapon } from '../combat.js';
 import { moveOptions } from '../eligibility.js';
-import { createEngine, createScenario, inCombat, type GameState, type UnitId } from '../index.js';
+import {
+  createEngine,
+  createScenario,
+  inCombat,
+  type Action,
+  type GameState,
+  type StepResult,
+  type UnitId,
+} from '../index.js';
 import { profileOf } from '../query.js';
 import {
   ScriptedDice,
@@ -214,6 +222,25 @@ describe('Glamourweave (cafd-9cf1-871c-f47e)', () => {
     });
   });
 
+  it('re-rolls the failed roll the player picks, not the first', () => {
+    // 2 attacks, hit 4+. Hits: 2 (fails, kept) then 3 (fails) -> re-roll to 6. Wound 6, save 6.
+    const asked: number[] = [];
+    const r = rollAttackSequence(new ScriptedDice([2, 3, 6, 6, 6]), {
+      weapon: weapon({ attacks: { n: 0, sides: 0, plus: 2 } }),
+      attacks: 2,
+      mods: { hit: 0, wound: 0, save: 0, rend: 0, damage: 0 },
+      target: { save: 4, ward: null },
+      rerolls: { hit: true },
+      chooseReroll: (_kind, die) => {
+        asked.push(die);
+        return asked.length === 2;
+      },
+    });
+    expect(asked).toEqual([2, 3]);
+    expect(r.dice.hit).toEqual([2, 6]);
+    expect(r.rerolled.hit).toBe(true);
+  });
+
   it('is spent once per phase for the unit and returns at the end of the phase', () => {
     const s = arena({ [DURTHU]: [30, 22], [ENEMY]: [36, 22] });
     expect(glamourRerolls(scenario, s, unit(s, DURTHU), unit(s, ENEMY))).toEqual({
@@ -237,17 +264,140 @@ describe('Glamourweave (cafd-9cf1-871c-f47e)', () => {
     expect(glamourRerolls(scenario, s, unit(s, ALARIELLE), unit(s, ENEMY))).toEqual({});
   });
 
-  it('is used in a real fight: the re-roll is noted and spent for the phase', () => {
+  /** Durthu and the enemy in combat, at Durthu's fight with its targets to choose. */
+  function durthuFights(): GameState {
     const base = arena({ [DURTHU]: [20, 22], [ENEMY]: [26, 22], [BELTHANOS]: [8, 8] });
     placeUnit(scenario, base, DURTHU, 20, 22, 90);
     placeUnit(scenario, base, ENEMY, 26, 22, 270);
     expect(inCombat(scenario, base, unit(base, DURTHU))).toBe(true);
     let s = passTo(engine, base, 'combat');
     s = engine.apply(s, { t: 'fight', unit: DURTHU }).state;
-    s = engine.apply(s, { t: 'pass' }).state; // no pile-in
-    const r = applyUntil(engine, s, engine.defaultAction(s), (x) =>
-      x.events.some((e) => e.t === 'note' && e.text.startsWith('Glamourweave')),
+    return engine.apply(s, { t: 'pass' }).state; // no pile-in
+  }
+
+  const rerollOf = (s: GameState) => {
+    const d = engine.decision(s);
+    if (d?.kind !== 'reaction') return null;
+    return d.options.find((o) => o.ability === 'glamourweave') ?? null;
+  };
+  const keep: Action = { t: 'pass' };
+  const reroll = (u: UnitId): Action => ({ t: 'ability', unit: u, abilityId: 'glamourweave' });
+  const spent = (s: GameState) => (s.effects ?? []).map((e) => e.id.split(':')[1]);
+  /** Keeps every re-roll asked about until none is. */
+  const keepAll = (r: StepResult): StepResult => {
+    let x = r;
+    for (let i = 0; i < 200 && rerollOf(x.state); i++) x = engine.apply(x.state, keep);
+    expect(rerollOf(x.state)).toBeNull();
+    return x;
+  };
+
+  it('asks the player at a failed hit roll; re-rolling spends it for the phase', () => {
+    const s = durthuFights();
+    const r = applyUntil(engine, s, engine.defaultAction(s), (x) => rerollOf(x.state) !== null);
+    const d = engine.decision(r.state)!;
+    expect(d.kind === 'reaction' && d.player).toBe(0);
+    const option = rerollOf(r.state)!;
+    expect(option.unit).toBe(DURTHU);
+    expect(option.reroll).toMatchObject({ kind: 'hit', target: ENEMY });
+    expect(option.reroll!.die).toBeLessThan(6);
+    // Nothing is spent while the question is open.
+    expect(spent(r.state)).toEqual([]);
+    const after = engine.apply(r.state, reroll(DURTHU));
+    expect(spent(after.state)).toContain('hit');
+    expect(after.events.some((e) => e.t === 'note' && e.text.startsWith('Glamourweave'))).toBe(
+      true,
     );
-    expect(r.state.effects?.some((e) => e.id.startsWith('cafd-9cf1-871c-f47e:'))).toBe(true);
+  });
+
+  it('declining keeps the re-roll: the next failed roll is asked about, and keeping all spends none', () => {
+    const s = durthuFights();
+    for (let rng = 1; rng < 3000; rng++) {
+      let x = engine.apply({ ...s, rng }, engine.defaultAction(s));
+      if (!rerollOf(x.state)) continue;
+      x = engine.apply(x.state, keep);
+      const second = rerollOf(x.state);
+      if (second?.reroll?.kind !== 'hit') continue;
+      expect(spent(x.state)).toEqual([]); // still unspent
+      x = keepAll(x);
+      expect(spent(x.state)).toEqual([]);
+      return;
+    }
+    throw new Error('no game asked twice');
+  });
+
+  it('keeping a roll and re-rolling a later one replays the same dice', () => {
+    const s = durthuFights();
+    for (let rng = 1; rng < 3000; rng++) {
+      let x = engine.apply({ ...s, rng }, engine.defaultAction(s));
+      if (!rerollOf(x.state)) continue;
+      const first = rerollOf(x.state)!.reroll!.die;
+      x = engine.apply(x.state, keep);
+      if (rerollOf(x.state)?.reroll?.kind !== 'hit') continue;
+      x = keepAll(engine.apply(x.state, reroll(DURTHU)));
+      const attack = x.events.find((e) => e.t === 'attacks');
+      expect(attack?.t === 'attacks' && attack.dice.hit).toContain(first);
+      expect(spent(x.state)).toContain('hit');
+      return;
+    }
+    throw new Error('no game asked twice');
+  });
+
+  it('a pause on the second weapon keeps the first weapon’s damage, applied once', () => {
+    const s = durthuFights();
+    const action = engine.defaultAction(s);
+    expect(action.t === 'targets' && action.allocations.length).toBe(2);
+    for (let rng = 1; rng < 3000; rng++) {
+      const first = engine.apply({ ...s, rng }, action);
+      // Paused after the first weapon has rolled (its attacks event is already out).
+      if (!rerollOf(first.state) || !first.events.some((e) => e.t === 'attacks')) continue;
+      let r = engine.apply(first.state, reroll(DURTHU));
+      const events = [...first.events, ...r.events];
+      r = keepAll({ ...r, events });
+      const all = [...events, ...r.events.filter((e) => !events.includes(e))];
+      const attacks = all.filter((e) => e.t === 'attacks');
+      expect(attacks.map((e) => e.t === 'attacks' && e.weapon)).toEqual([
+        'Guardian Sword',
+        'Massive Impaling Talons',
+      ]);
+      const dealt = attacks.reduce((n, e) => n + (e.t === 'attacks' ? e.damage : 0), 0);
+      const taken = all
+        .filter((e) => e.t === 'damage' && e.unit === ENEMY)
+        .reduce((n, e) => n + (e.t === 'damage' ? e.amount : 0), 0);
+      expect(taken).toBe(dealt);
+      return;
+    }
+    throw new Error('no game paused on the second weapon');
+  });
+
+  it("asks the owner of the target for a save re-roll on the opponent's attack", () => {
+    let s = durthuFights();
+    s = keepAll(engine.apply(s, engine.defaultAction(s))).state;
+    s = editable(s);
+    s.effects = []; // a fresh phase
+    if (engine.decision(s)?.kind === 'fightPick') {
+      s = engine.apply(s, { t: 'fight', unit: ENEMY }).state;
+      s = engine.apply(s, { t: 'pass' }).state;
+    }
+    const r = applyUntil(
+      engine,
+      s,
+      engine.defaultAction(s),
+      (x) => rerollOf(x.state)?.reroll?.kind === 'save',
+    );
+    expect(rerollOf(r.state)!.unit).toBe(DURTHU);
+    const d = engine.decision(r.state)!;
+    expect(d.kind === 'reaction' && d.player).toBe(0);
+  });
+
+  it('nothing is asked when no unit in the fight has the artefact', () => {
+    const base = arena({ [ALARIELLE]: [20, 22], [ENEMY]: [26, 22] });
+    placeUnit(scenario, base, ALARIELLE, 20, 22, 90);
+    placeUnit(scenario, base, ENEMY, 26, 22, 270);
+    let s = passTo(engine, base, 'combat');
+    s = engine.apply(s, { t: 'fight', unit: ALARIELLE }).state;
+    s = engine.apply(s, { t: 'pass' }).state;
+    for (let rng = 1; rng < 200; rng++) {
+      expect(rerollOf(engine.apply({ ...s, rng }, engine.defaultAction(s)).state)).toBeNull();
+    }
   });
 });

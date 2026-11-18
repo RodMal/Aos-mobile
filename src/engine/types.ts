@@ -197,6 +197,15 @@ export type Frame =
       defended: UnitId[];
       /** Set when the attack is made via Covering Fire (-1 to hit). */
       coveringFire?: boolean;
+      /**
+       * Progress while a Glamourweave re-roll is asked about (the frame waits under a `reaction`):
+       * `at` is the allocation being rolled, `pending` the damage rolled for the earlier ones, and
+       * `choices` the answers so far to this allocation's re-roll questions, in order (the
+       * allocation is rolled again from the same dice, so the answers replay).
+       */
+      at?: number;
+      pending?: { target: UnitId; amount: number }[];
+      choices?: boolean[];
     }
   /**
    * Attack damage rolled and waiting to be allocated, one entry per target unit, kept under a
@@ -551,13 +560,18 @@ export interface ReactionOption {
    * `fightThroughThePain`: answer with `{ t: 'ability', unit, abilityId: 'fight-through-the-pain',
    * rageDice }`, or pass to take all the damage.
    */
-  ability?: 'unbind' | 'fightThroughThePain';
+  ability?: 'unbind' | 'fightThroughThePain' | 'glamourweave';
   unit: UnitId;
   cost: number;
   /** Fight Through the Pain: the damage points about to be allocated to `unit`. */
   damage?: number;
   /** Fight Through the Pain: the most rage dice that may be spent. */
   maxRageDice?: number;
+  /**
+   * `glamourweave`: re-roll this failed roll (`{ t: 'ability', unit, abilityId: 'glamourweave' }`)
+   * or `pass` to keep it for a later roll. `unit` is the unit carrying the artefact.
+   */
+  reroll?: { kind: 'hit' | 'wound' | 'save'; die: number; weapon: string; target: UnitId };
 }
 
 // ─── Actions ────────────────────────────────────────────────────────────────────

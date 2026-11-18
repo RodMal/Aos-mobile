@@ -45,6 +45,8 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
         ? { title: 'You won the priority roll', hint: 'Choose who takes the first turn.' }
         : { title: `${who} won the priority roll`, hint: 'The opponent is choosing…' };
     case 'reaction':
+      if (mine && d.options.some((o) => o.ability === 'glamourweave'))
+        return { title: 'Glamourweave', hint: 'Re-roll the failed roll, or keep the re-roll.' };
       return mine
         ? { title: 'Reaction', hint: 'Use a command, or skip.' }
         : { title: `${who} may react`, hint: 'The opponent is deciding…' };

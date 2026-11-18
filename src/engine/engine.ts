@@ -1,5 +1,6 @@
 import './abilities/lores.js';
 import './abilities/sylvaneth.js';
+import { GLAMOURWEAVE_REROLL_ID } from './abilities/sylvaneth.js';
 import { declareAbility } from './abilities/magic.js';
 import { illegal, type Ctx } from './ctx.js';
 import { attackerOf, isFactionTerrainUnit, profileOf, unitById } from './query.js';
@@ -410,6 +411,12 @@ export function createEngine(scenario: Scenario): Engine {
         return { t: 'pass' };
       case 'creepingDread':
         return { t: 'pass' };
+      case 'reaction': {
+        // A Glamourweave re-roll is taken, as it always was before the choice existed.
+        const glamour = d.options.find((o) => o.ability === 'glamourweave');
+        if (glamour) return { t: 'ability', unit: glamour.unit, abilityId: GLAMOURWEAVE_REROLL_ID };
+        return { t: 'pass' };
+      }
       case 'vengeance':
         // Optional, like the others: the default declines (`pass` is not an answer to it).
         return { t: 'choose', value: d.stage === 'pick' ? 'none' : d.units[0]! };

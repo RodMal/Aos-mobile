@@ -8,7 +8,7 @@ import {
   type Action,
   type GameState,
 } from './index.js';
-import { editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
+import { editable, keepOnly, passTo, placeUnit, startGame, takeRerolls } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
 const engine = createEngine(scenario);
@@ -66,11 +66,14 @@ describe('shooting', () => {
     const s = arena();
     s.players[1].cp = 0; // no All-out Defence reaction
     const weaponId = engine.targetOptions(s, DURTHU, 'shoot')[0]!.weaponId;
-    const r = engine.apply(s, {
-      t: 'shoot',
-      unit: DURTHU,
-      allocations: [{ weaponId, target: SKINKS }],
-    });
+    const r = takeRerolls(
+      engine,
+      engine.apply(s, {
+        t: 'shoot',
+        unit: DURTHU,
+        allocations: [{ weaponId, target: SKINKS }],
+      }),
+    );
     const attacks = r.events.find((e) => e.t === 'attacks');
     expect(attacks).toMatchObject({ attacker: DURTHU, target: SKINKS, mode: 'shoot', attacks: 5 });
     expect(r.state.units[DURTHU]!.shot).toBe(true);

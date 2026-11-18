@@ -55,6 +55,10 @@ export function chooseAction(engine: Engine, state: GameState): Action {
     }
     case 'reaction': {
       if (d.options.length === 0) return { t: 'pass' };
+      // Glamourweave: re-roll the first failed roll offered (never worse than keeping it, and
+      // the same every time).
+      const glamour = d.options.find((o) => o.ability === 'glamourweave');
+      if (glamour) return { t: 'ability', unit: glamour.unit, abilityId: 'glamourweave' };
       const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
       if (pain) return painAction(engine, state, pain);
       const unbindOpt = d.options.find((o) => o.ability === 'unbind');
