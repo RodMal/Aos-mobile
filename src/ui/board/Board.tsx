@@ -1,16 +1,16 @@
 /** The battlefield: one SVG, one view transform, touch gestures and the camera. */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { modelFootprint, unitCentre, unitFootprints } from '../../engine/index.js';
+import { modelFootprint, unitCentre, unitFootprints, type GameState } from '../../engine/index.js';
 import { scenario, engine } from '../game/engine.js';
 import { editDraft } from '../game/draftActions.js';
 import { useGame } from '../game/instance.js';
 import { useHuman } from '../game/hooks.js';
 import { assignAll } from '../game/attackPlan.js';
 import { moveModel, translateDraft } from '../game/placementEdit.js';
-import { toggleAbilityTarget, useUi } from '../game/uiStore.js';
+import { measureTap, toggleAbilityTarget, useUi, type MeasureEnd } from '../game/uiStore.js';
 import { GhostLayer } from './GhostLayer.js';
 import { zoomBucket } from './declutter.js';
-import { hitTest, pick, type HitTarget } from './hitTest.js';
+import { hitTest, pick, snapPoint, type HitTarget } from './hitTest.js';
 import {
   Defs,
   LabelsLayer,
@@ -19,6 +19,7 @@ import {
   TableLayer,
   UnitsLayer,
 } from './layers.js';
+import { MeasureLayer } from './MeasureLayer.js';
 import { useGestures, type GestureHandlers, type GestureRefs } from './useGestures.js';
 import {
   centreOn,
@@ -52,6 +53,18 @@ function placingNow(): boolean {
   const { session } = useGame.getState();
   const d = engine.decision(session.state);
   return !!d && d.kind === 'place' && d.player === session.humanPlayer && !!useUi.getState().draft;
+}
+
+/** What a measuring tap picks: a unit under it, else an objective or corner nearby, else the point. */
+function measureEndAt(state: GameState, at: Pt, slop: number): MeasureEnd {
+  const units: HitTarget<string>[] = state.unitOrder
+    .map((id) => state.units[id]!)
+    .filter((u) => u.status === 'battlefield')
+    .map((u) => ({ key: u.id, footprints: unitFootprints(scenario, u) }));
+  const hit = hitTest(units, at, slop)[0];
+  if (hit) return { kind: 'unit', id: hit.key };
+  const p = snapPoint(TABLE, scenario.battlefield.objectives, at, slop * 1.5);
+  return { kind: 'point', x: p.x, y: p.y };
 }
 
 export function Board() {
@@ -169,6 +182,10 @@ export function Board() {
         const slop = SLOP_PX / v.scale;
         const ui = useUi.getState();
         const state = useGame.getState().session.state;
+        if (ui.measure.on) {
+          ui.setMeasure(measureTap(ui.measure, measureEndAt(state, at, slop)));
+          return;
+        }
         if (placingNow()) {
           const draft = ui.draft!;
           if (!draft.adjust) return;
@@ -343,6 +360,7 @@ export function Board() {
         <UnitsLayer />
         <GhostLayer rot={rot} />
         <LabelsLayer rot={rot} />
+        <MeasureLayer rot={rot} />
       </g>
     </svg>
   );

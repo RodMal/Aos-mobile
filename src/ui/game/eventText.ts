@@ -216,6 +216,12 @@ export function toastLine(lines: readonly LogLine[]): LogLine | null {
   return best;
 }
 
+/** The unit that caused a reaction (the caster, mover, shooter or fighter), if there is one. */
+export function triggerUnit(trigger: string): string | null {
+  const m = /^(?:spell|move|pain|shoot|fight|charge):([^:]+)/.exec(trigger);
+  return m ? m[1]! : null;
+}
+
 /** A reaction trigger such as "shoot:1:5" in words. */
 export function reactionText(trigger: string, ctx: LogContext): string {
   if (trigger.startsWith('spell:')) {
@@ -231,7 +237,10 @@ export function reactionText(trigger: string, ctx: LogContext): string {
     return `${unitId ? ctx.unitName(unitId) : 'Your unit'} is about to take ${amount} damage. Fight Through the Pain?`;
   }
   if (trigger.startsWith('phase:')) {
-    return 'End of phase reaction opportunity.';
+    const phase = PHASE_NAMES[trigger.slice(6)];
+    return phase
+      ? `Your opponent's ${phase} phase is ending. You may react with one of these units.`
+      : 'The phase is ending. You may react with one of these units.';
   }
   const m = /^(shoot|fight|charge):(.+)$/.exec(trigger);
   if (!m) return trigger;

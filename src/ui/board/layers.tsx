@@ -152,6 +152,7 @@ export function UnitsLayer() {
   const human = useHuman();
   const selected = useUi((s) => s.selected);
   const draftUnit = useUi((s) => s.draft?.unit ?? null);
+  const flagged = useUi((s) => s.flagged);
   const { canAct, targets, assigned, aimed } = useHighlights(state);
   return (
     <g className="layer-units">
@@ -168,13 +169,15 @@ export function UnitsLayer() {
           assigned.has(id) ? 'assigned' : '',
           id === draftUnit ? 'drafting' : '',
           state.phase === 'combat' && unit.fought ? 'fought' : '',
+          flagged.includes(id) ? 'flagged' : '',
         ].join(' ');
         return (
           <g key={id} data-unit-id={id} className={cls}>
             {((id === selected && id !== draftUnit) ||
               canAct.has(id) ||
               targets.has(id) ||
-              aimed.has(id)) &&
+              aimed.has(id) ||
+              flagged.includes(id)) &&
               fps.map((fp, k) => <Shape key={`h${k}`} fp={fp} grow={0.12} className="halo" />)}
             {fps.map((fp, k) => (
               <Shape key={alive[k]} fp={fp} data-model={alive[k]} className="model" />

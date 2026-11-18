@@ -14,21 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### U1 Reaction prompt: see the map, and unit names
-
-- **Tier**: sonnet
-- **Touches**: ui/prompts, ui/board
-- **Read**: `src/ui/prompts/Prompts.tsx`, `src/ui/game/eventText.ts`, `src/ui/board/layers.tsx`
-- **Done when**: a "See the map" button collapses the prompt to a small bar so the board can be panned, zoomed and units inspected, and one tap reopens it; the unit that triggered it is highlighted; a listed unit is highlighted when tapped or hovered. Bug: the trigger text says "1 finished a move nearby" (an id): every trigger text uses unit names. e2e on a phone project and desktop.
-
-### U3 Measuring tool
-
-- **Tier**: sonnet
-- **Touches**: ui/sheet, ui/board
-- **Read**: `src/ui/sheet/Rail.tsx` (board tools), `src/ui/board/Board.tsx`, `src/ui/board/hitTest.ts`, `src/geom/index.ts`
-- **Owner's reason**: missed the second tier of Flanking Firestorm thinking a unit was within 9" of a corner.
-- **Done when**: a toggle in the board tools; tap or click two points, or a unit and a point (corner, objective); shows the distance in inches, base edge to base edge for units; touch and mouse; e2e on phone and desktop.
-
 ### U4 Live checks for battle tactic conditions
 
 - **Tier**: sonnet
