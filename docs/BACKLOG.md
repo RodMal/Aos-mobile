@@ -43,13 +43,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: `src/rules/core/fury.ts`, the fugitive pick in `src/ui/prompts/`, Seasons Of War in `src/rules/factions/sylvaneth.ts`
 - **Done when**: Fight Through the Pain is also offered for mortal damage outside attacks; the Burning for Vengeance fugitive pick highlights the candidates on the board; The Burgeoning lets the player pick its terrain feature.
 
-### X1 Split `src/engine/engine.ts` into phase modules
-
-- **Tier**: sonnet+review
-- **Touches**: engine, docs
-- **Why**: 1,890 lines that every engine task has to read; the main cost of past agents.
-- **Done when**: `engine.ts` keeps only `createEngine` and the decision/apply dispatch (under about 400 lines); phases, commands, reactions and set-up each live in their own module under `src/engine/`; `pnpm game-hashes` prints `IDENTICAL` against a baseline saved before the change; no behaviour or public API change; `docs/HANDOVER.md` code map updated.
-
 ### X2 Split `src/rules/core/battleTactics.ts` per card, and `src/ui/prompts/Prompts.tsx` per prompt
 
 - **Tier**: sonnet
