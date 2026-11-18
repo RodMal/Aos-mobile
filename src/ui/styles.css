@@ -500,6 +500,16 @@ button {
   opacity: 0.85;
 }
 
+.overgrowth-reach {
+  opacity: 0.14;
+  fill: #7ccf6e;
+  stroke: #7ccf6e;
+  stroke-linejoin: round;
+}
+.overgrowth-reach.enemy {
+  fill: #c9a24a;
+  stroke: #c9a24a;
+}
 .overgrown-outline {
   fill: rgba(120, 200, 110, 0.1);
   stroke: #7ccf6e;

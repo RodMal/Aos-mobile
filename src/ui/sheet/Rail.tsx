@@ -35,6 +35,8 @@ export function Rail() {
   const undoable = useGame((s) => canUndo(s.session));
   const undo = useGame((s) => s.undo);
   const measuring = useUi((s) => s.measure.on);
+  const showOvergrowth = useUi((s) => s.showOvergrowth);
+  const setShowOvergrowth = useUi((s) => s.setShowOvergrowth);
   const setMeasure = useUi((s) => s.setMeasure);
   return (
     <div className="rail">
@@ -75,6 +77,15 @@ export function Rail() {
           onClick={() => setMeasure({ on: !measuring, a: null, b: null })}
         >
           <Icon name="ruler" />
+        </button>
+        <button
+          className={`fab ${showOvergrowth ? 'on' : ''}`}
+          aria-label="Overgrowth shading"
+          aria-pressed={showOvergrowth}
+          data-testid="overgrowth-toggle"
+          onClick={() => setShowOvergrowth(!showOvergrowth)}
+        >
+          <Icon name="leaf" />
         </button>
         <button
           className="fab"
