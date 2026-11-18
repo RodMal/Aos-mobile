@@ -11,7 +11,7 @@
  * - Sotek the Deliverer (6960-...): +2 Move for friendly SERAPHON units.
  * - Tepok the Seer (90ae-...): +1 to casting rolls for friendly SERAPHON units.
  *
- * Readings are in docs/RULES-DECISIONS.md (I59 to I64).
+ * Readings are in docs/RULES-DECISIONS.md (I76 to I81).
  */
 import type { Weapon } from '../../data/profile.js';
 import { hasKeyword, inCombat, opponent, profileOf } from '../../engine/query.js';
