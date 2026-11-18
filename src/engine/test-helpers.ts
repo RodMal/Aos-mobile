@@ -121,7 +121,8 @@ export function takeRerolls(engine: Engine, result: StepResult): StepResult {
   for (let i = 0; i < 50; i++) {
     const d = engine.decision(r.state);
     if (d?.kind !== 'reaction' || !d.options.some((o) => o.ability === 'glamourweave')) break;
-    r = engine.apply(r.state, engine.defaultAction(r.state));
+    const next = engine.apply(r.state, engine.defaultAction(r.state));
+    r = { ...next, events: [...r.events, ...next.events] };
   }
   return r;
 }

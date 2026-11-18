@@ -80,6 +80,31 @@ describe('session', () => {
     expect(canUndo(s)).toBe(false);
   });
 
+  it('cannot undo while attacks wait on a Glamourweave question (the dice would be seen)', () => {
+    let s = toMovement();
+    s = applyToSession(engine, s, { t: 'move', unit: '0:6', kind: 'normal' }).session;
+    expect(canUndo(s)).toBe(true);
+    const paused = {
+      ...s,
+      state: {
+        ...s.state,
+        stack: [
+          ...s.state.stack,
+          {
+            t: 'resolve' as const,
+            unit: '0:6',
+            mode: 'fight' as const,
+            allocations: [],
+            allOutAttack: false,
+            defended: [],
+            at: 0,
+          },
+        ],
+      },
+    };
+    expect(canUndo(paused)).toBe(false);
+  });
+
   it('undoes a move past the opponent’s declined reaction to it', () => {
     let s = toMovement();
     const before = s.state;

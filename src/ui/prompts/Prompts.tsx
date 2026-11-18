@@ -32,7 +32,13 @@ export function DecisionPrompts() {
   }
   if (d.kind === 'reaction') {
     const glamour = d.options.find((o) => o.ability === 'glamourweave');
-    if (glamour?.reroll) return <RerollPrompt key={d.trigger} option={glamour} />;
+    if (glamour?.reroll)
+      return (
+        <RerollPrompt
+          key={`${d.trigger}:${glamour.reroll.die}:${glamour.reroll.weapon}`}
+          option={glamour}
+        />
+      );
     const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
     if (pain) {
       return (

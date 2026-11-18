@@ -114,6 +114,10 @@ function undoIndex(session: Session): number {
     k--;
   }
   if (k < 0) return -1;
+  // A Glamourweave question rewinds the dice to replay them, so the failed die would be seen
+  // and could then be undone: no undo while attacks wait on one, nor back to such a moment.
+  const paused = (st: GameState) => st.stack.some((f) => f.t === 'resolve' && f.at !== undefined);
+  if (paused(session.state) || paused(h[k]!.before)) return -1;
   return h[k]!.before.rng === session.state.rng ? k : -1;
 }
 

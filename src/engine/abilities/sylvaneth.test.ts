@@ -342,6 +342,33 @@ describe('Glamourweave (cafd-9cf1-871c-f47e)', () => {
     throw new Error('no game asked twice');
   });
 
+  it('a pause on the second weapon keeps the first weapon’s damage, applied once', () => {
+    const s = durthuFights();
+    const action = engine.defaultAction(s);
+    expect(action.t === 'targets' && action.allocations.length).toBe(2);
+    for (let rng = 1; rng < 3000; rng++) {
+      const first = engine.apply({ ...s, rng }, action);
+      // Paused after the first weapon has rolled (its attacks event is already out).
+      if (!rerollOf(first.state) || !first.events.some((e) => e.t === 'attacks')) continue;
+      let r = engine.apply(first.state, reroll(DURTHU));
+      const events = [...first.events, ...r.events];
+      r = keepAll({ ...r, events });
+      const all = [...events, ...r.events.filter((e) => !events.includes(e))];
+      const attacks = all.filter((e) => e.t === 'attacks');
+      expect(attacks.map((e) => e.t === 'attacks' && e.weapon)).toEqual([
+        'Guardian Sword',
+        'Massive Impaling Talons',
+      ]);
+      const dealt = attacks.reduce((n, e) => n + (e.t === 'attacks' ? e.damage : 0), 0);
+      const taken = all
+        .filter((e) => e.t === 'damage' && e.unit === ENEMY)
+        .reduce((n, e) => n + (e.t === 'damage' ? e.amount : 0), 0);
+      expect(taken).toBe(dealt);
+      return;
+    }
+    throw new Error('no game paused on the second weapon');
+  });
+
   it("asks the owner of the target for a save re-roll on the opponent's attack", () => {
     let s = durthuFights();
     s = keepAll(engine.apply(s, engine.defaultAction(s))).state;
