@@ -50,6 +50,19 @@ describe('Ever Growing (Awakened Wyldwood)', () => {
     expect(s.overgrown![0]).toContain('outcrop-w');
   });
 
+  it('stays blocked every round while the opponent holds the closest feature', () => {
+    const s = arena([WYLDWOOD, '1:1']);
+    placeUnit(scenario, s, WYLDWOOD, 22, 23.5);
+    const o = terrain('outcrop-w');
+    placeUnit(scenario, s, '1:1', o.centre[0], o.centre[1] - 4);
+    for (let round = 0; round < 3; round++) {
+      const notes = applyEverGrowing(scenario, s);
+      expect(notes.join(' ')).toMatch(/outcrop-w|Outcrop.*controlled by the opponent/);
+    }
+    // No fall back to the next-closest feature: nothing ever gets a token.
+    expect(s.overgrown![0]).toEqual([]);
+  });
+
   it('gives no token when the opponent controls the closest feature', () => {
     const s = arena([WYLDWOOD, '1:1']);
     placeUnit(scenario, s, WYLDWOOD, 22, 23.5);
@@ -122,5 +135,26 @@ describe('creeping overgrowth range', () => {
     expect(
       legalTargetsForSpec(scenario, s, warsong, { ...within, creepingOvergrowthWholly: true }),
     ).toEqual([]);
+  });
+});
+
+describe('Ever Growing in a played game', () => {
+  it('fires at the start of the next battle round and logs which feature gained a token', () => {
+    let s = startGame(engine, 3);
+    const roundOne = s.overgrown![0]!.length;
+    expect(roundOne).toBeGreaterThan(0);
+    const notes: string[] = [];
+    for (
+      let i = 0;
+      i < 400 && (s.round === 1 || s.stack.some((f) => f.t === 'alarielleSeason'));
+      i++
+    ) {
+      const r = engine.apply(s, engine.defaultAction(s));
+      s = r.state;
+      for (const e of r.events) if (e.t === 'note') notes.push(e.text);
+    }
+    expect(s.round).toBe(2);
+    expect(notes.some((n) => /^Ever Growing: .+ gains an overgrown token\.$/.test(n))).toBe(true);
+    expect(s.overgrown![0]!.length).toBeGreaterThan(roundOne);
   });
 });
