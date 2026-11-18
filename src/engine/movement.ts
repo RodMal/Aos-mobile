@@ -17,6 +17,7 @@ import {
   footprintWhollyWithin,
   gapToEnemies,
   hasTrunk,
+  inCombat,
   unitTrunks,
   unitBounds,
   modelFootprint,
@@ -212,8 +213,8 @@ export function checkMovePlacement(
     }
   }
 
-  if (rules.reason === 'pileIn') {
-    // No model may end further from the nearest enemy unit than it started.
+  if (rules.reason === 'pileIn' && inCombat(scenario, state, unit)) {
+    // A unit still in combat: no model may end further from the nearest enemy unit than it started.
     const enemies = nearbyEnemyFootprints(
       scenario,
       state,

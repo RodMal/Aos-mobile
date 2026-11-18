@@ -374,6 +374,8 @@ export type Decision =
       allowance: number;
       dice: number[];
       canPass: boolean;
+      /** A pile-in by a unit that is no longer in combat: up to 3" in any direction. */
+      free?: boolean;
     }
   /** Pick the next unit to fight. `pass` is only legal when `canPass`. */
   | { kind: 'fightPick'; player: PlayerId; canPass: boolean }

@@ -34,7 +34,7 @@ Dispatch by **Tier**, always with `isolation: "worktree"`, and give the agent on
 | `sonnet+review` | `aos-dev`, then `aos-review` on the branch; send CHANGES back to the same `aos-dev` (SendMessage) at most twice |
 | `opus`          | `aos-dev` with `model: "opus"`                                                                                  |
 
-Each implementer, before handing back, runs `pnpm check` and `pnpm test:sim` (plus the e2e specs it touches, for UI changes only) and moves its own task from `## Ready` to `## Done` in `docs/BACKLOG.md` as `id — title`, **appended to the end of `## Done`** so PRs do not conflict in the same spot. If `docs/BACKLOG.md` still conflicts, resolve it by keeping both lines.
+Each implementer, before handing back, runs `pnpm check` and `pnpm test:sim` (plus the e2e specs it touches, for UI changes only) and deletes its own task section from `## Ready` in `docs/BACKLOG.md`. It does not add anything to `## Done`: the merged PR (`<id>: <title>`) is the record of completion, so parallel PRs do not conflict there. If `docs/BACKLOG.md` still conflicts, keep every other task's section and drop only the finished one.
 
 ## 3. Open the PR
 

@@ -709,6 +709,9 @@ export function createEngine(scenario: Scenario): Engine {
             allowance: top.allowance,
             dice: top.dice,
             canPass: top.reason !== 'deploy',
+            ...(top.reason === 'pileIn' && !inCombat(scenario, state, unitById(state, top.unit))
+              ? { free: true }
+              : {}),
           };
         case 'targets':
           return {

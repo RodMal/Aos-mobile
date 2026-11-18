@@ -1,6 +1,6 @@
 # Backlog
 
-The loop (`.claude/skills/aos-loop/SKILL.md`) takes the **first task under "Ready"**, does it as one PR, then moves it to "Done" with the PR number. Keep each task small enough for one PR and one agent.
+The loop (`.claude/skills/aos-loop/SKILL.md`) takes the **first task under "Ready"**, does it as one PR, then deletes its section from "Ready" in that PR (and nothing else in this file, so parallel PRs do not conflict). The merged PR, titled `<id>: <title>`, is the record of completion. Keep each task small enough for one PR and one agent.
 
 Task fields:
 
@@ -13,14 +13,6 @@ Task fields:
 Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat them.
 
 ## Ready
-
-### R2 Free pile-in after a charge
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ai, ui/sheet
-- **Read**: `src/engine/movement.ts` (pile-in rules), `src/engine/engine.ts` (`eligibleFighters`, pile-in frame), `src/ai/placement.ts` (`pileInPlacement`), `src/ui/sheet/PlacePanel.tsx`
-- **Ruling** (owner, 2026-11-12): a unit not in combat can fight, and pile in, only if it charged this turn. "If I charged, and the unit I was in combat with died, whenever I do my pile in, if I am no longer in combat with another unit, I can pile in the 3 inches whichever direction I want."
-- **Done when**: tests for charged-and-in-combat (must not end further from the nearest enemy), charged-and-not-in-combat (free 3" any direction), neither (no fight offered); the pile-in hint says when it is free; NPC uses it towards the nearest enemy or objective.
 
 ### U1 Reaction prompt: see the map, and unit names
 
@@ -112,7 +104,7 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Done
 
-History before the loop is in git and in `docs/RULES-DECISIONS.md`. One line per task from here on: `id — title — PR #n`.
+History before the loop is in git and in `docs/RULES-DECISIONS.md`. Older entries are kept as history; new completions are the merged PRs (`<id>: <title>`), not lines here.
 
 R1 — Redeploy timing, and Redeploy counts as a run
-L1 — Faster CI and a parallel loop
+R2 — Free pile-in after a charge

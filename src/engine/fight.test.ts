@@ -3,6 +3,7 @@ import { chargePlacement, pileInPlacement } from '../ai/placement.js';
 import { SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import {
   createEngine,
+  eligibleFighters,
   createScenario,
   currentPlacement,
   IllegalActionError,
@@ -159,6 +160,52 @@ describe('combat phase', () => {
     expect(engine.checkPlacement(s, far).map((v) => v.code)).toContain('TOO_FAR');
     const p = pileInPlacement(engine, s, DRYADS)!;
     expect(engine.checkPlacement(s, p)).toEqual([]);
+  });
+
+  describe('free pile-in after a charge (owner ruling 2026-11-12)', () => {
+    it('charged and still in combat: pile-in must not end further, and is not free', () => {
+      const s0 = editable(arena('combat', 25));
+      s0.units[DRYADS]!.charged = true;
+      const s = engine.apply(s0, { t: 'fight', unit: DRYADS }).state;
+      expect(engine.decision(s)).not.toHaveProperty('free');
+      const back = shiftPlacement(currentPlacement(s.units[DRYADS]!), -1, 0);
+      expect(engine.checkPlacement(s, back).map((v) => v.code)).toContain('PILE_IN_FURTHER');
+    });
+
+    it('charged and no longer in combat: free 3" in any direction, but not more', () => {
+      const s0 = editable(arena('combat', 40));
+      s0.units[DRYADS]!.charged = true;
+      const s = engine.apply(s0, { t: 'fight', unit: DRYADS }).state;
+      expect(engine.decision(s)).toMatchObject({ kind: 'place', reason: 'pileIn', free: true });
+      const cur = currentPlacement(s.units[DRYADS]!);
+      for (const [dx, dy] of [
+        [-2.5, 0],
+        [0, 2.5],
+        [0, -2.5],
+        [2.5, 0],
+      ] as const) {
+        expect(engine.checkPlacement(s, shiftPlacement(cur, dx, dy))).toEqual([]);
+      }
+      const far = shiftPlacement(cur, -3.5, 0);
+      expect(engine.checkPlacement(s, far).map((v) => v.code)).toEqual(['TOO_FAR']);
+    });
+
+    it('the NPC uses a free pile-in to close on the nearest enemy', () => {
+      const s0 = editable(arena('combat', 40));
+      s0.units[DRYADS]!.charged = true;
+      const s = engine.apply(s0, { t: 'fight', unit: DRYADS }).state;
+      const p = pileInPlacement(engine, s, DRYADS)!;
+      expect(engine.checkPlacement(s, p)).toEqual([]);
+      const before = currentPlacement(s.units[DRYADS]!).models[0]!;
+      expect(p.models[0]!.x).toBeGreaterThan(before.x + 1.5);
+    });
+
+    it('neither charged nor in combat: no fight is offered', () => {
+      const s = editable(arena('combat', 40));
+      s.units[DRYADS]!.charged = false;
+      s.units[SAURUS]!.charged = false;
+      expect(eligibleFighters(scenario, s, 0).map((u) => u.id)).not.toContain(DRYADS);
+    });
   });
 
   it('the defender may answer an attack with All-out Defence', () => {
