@@ -4,6 +4,7 @@ import { AsterismPrompt } from './AsterismPrompt.js';
 import { CreepingDreadPrompt } from './CreepingDreadPrompt.js';
 import { FugitivePrompt } from './FugitivePrompt.js';
 import { VengeancePrompt } from './VengeancePrompt.js';
+import { PrayerPrompt } from './PrayerPrompt.js';
 import { PainPrompt } from './PainPrompt.js';
 import { PlaceOfPowerPrompt } from './PlaceOfPowerPrompt.js';
 import { PriorityPrompt } from './PriorityPrompt.js';
@@ -23,6 +24,7 @@ export function DecisionPrompts() {
   if (d.kind === 'fugitive') {
     return <FugitivePrompt key="fugitive" d={d} />;
   }
+  if (d.kind === 'prayer') return <PrayerPrompt key={`${d.unit}:${d.points}`} d={d} />;
   if (d.kind === 'asterism') return <AsterismPrompt key={`${state.round}`} d={d} />;
   if (d.kind === 'vengeance') {
     return <VengeancePrompt key={`${d.stage}:${d.unit ?? ''}`} d={d} />;

@@ -99,7 +99,27 @@ test('a priest chants a prayer through the panel', async ({ page }) => {
   await panel.getByTestId('ability-targets').locator('.chip').first().click();
   await page.getByTestId('ability-confirm').click();
   await expect(page.getByTestId('ability-panel')).toHaveCount(0);
+  // A roll that answers the prayer asks whether to use it now or bank the points.
+  const answered = page.getByTestId('prayer-use');
+  if (await answered.isVisible()) await answered.click();
   expect(await logText(page)).toMatch(/Warsong Revenant chants Song Of War/);
+});
+
+test('an answered prayer offers to use it now or bank the ritual points', async ({ page }) => {
+  test.setTimeout(90_000);
+  await openPosition(page, 1, (_engine, _s, d) =>
+    d.kind === 'prayer' && d.player === 0 ? 'prayer' : null,
+  );
+  const prompt = page.getByTestId('prayer');
+  await expect(prompt).toBeVisible();
+  await expect(prompt).toContainText('Prayer answered');
+  await expect(prompt).toContainText('ritual points');
+  await expect(prompt.getByTestId('prayer-use')).toBeVisible();
+  await expect(prompt.getByTestId('prayer-bank')).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('prayer.png') });
+  await prompt.getByTestId('prayer-bank').click();
+  await expect(prompt).toHaveCount(0);
+  expect(await logText(page)).toMatch(/chants .* \(\d+ ritual pts\)/);
 });
 
 test('the opponent casting offers an Unbind reaction that can be answered', async ({ page }) => {

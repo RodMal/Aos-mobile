@@ -1,4 +1,4 @@
-import { unitGrants } from './abilities/effects.js';
+import { getAbility, unitGrants } from './abilities/effects.js';
 import { magicOptionsForUnit } from './abilities/magic.js';
 import { mayShoot, weaponTargets } from './combat.js';
 import { checkMovePlacement } from './movement.js';
@@ -132,6 +132,17 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
           player: top.player,
           stage: top.stage,
           ...asterismOptions(scenario, state, top.player, top.stage),
+        };
+      case 'prayer':
+        return {
+          kind: 'prayer',
+          player: unitById(state, top.unit).owner,
+          unit: top.unit,
+          ability: getAbility(top.abilityId)?.name ?? top.abilityId,
+          die: top.die,
+          points: top.points,
+          banked: unitById(state, top.unit).ritualPoints ?? 0,
+          targetValue: getAbility(top.abilityId)?.chantingValue ?? 4,
         };
       case 'fugitive':
         return { kind: 'fugitive', player: top.player, units: top.units };

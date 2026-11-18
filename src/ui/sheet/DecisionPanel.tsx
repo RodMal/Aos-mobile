@@ -60,6 +60,10 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
       return mine
         ? { title: 'Creeping Dread', hint: 'Pick enemy units in the overgrowth, or pass.' }
         : { title: `${who} Creeping Dread`, hint: 'The opponent is choosing…' };
+    case 'prayer':
+      return mine
+        ? { title: 'Prayer answered', hint: 'Use the prayer now, or bank the ritual points.' }
+        : { title: `${who} chants`, hint: 'The opponent is choosing…' };
     case 'asterism':
       return mine
         ? {

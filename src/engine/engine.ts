@@ -17,6 +17,7 @@ import { type AlarielleSeason } from '../rules/factions/sylvaneth.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import { friendlyWyldwoods } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID } from './wyldwood.js';
+import { choosePrayer } from './abilities/magic.js';
 import { chooseVengeance } from './vengeance.js';
 import {
   type Action,
@@ -308,6 +309,9 @@ export function createEngine(scenario: Scenario): Engine {
         continueRound(ctx);
         break;
       }
+      case 'prayer':
+        choosePrayer(ctx, action);
+        break;
       case 'asterism':
         chooseAsterism(ctx, action);
         break;
@@ -396,6 +400,9 @@ export function createEngine(scenario: Scenario): Engine {
         return { t: 'choose', value: d.seasons[0]! };
       case 'fugitive':
         return { t: 'choose', value: suggestFugitive(scenario, state, d.player) ?? d.units[0]! };
+      case 'prayer':
+        // The prayer is answered, as it always was before the choice existed.
+        return { t: 'choose', value: 'use' };
       case 'asterism':
         // Optional for engine-driven games, like a Place of Power: the default prophesies
         // nothing (the NPC picks, see `chooseAction`).

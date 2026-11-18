@@ -114,6 +114,9 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       const ids = npcCreepingDreadTargets(engine.scenario, state, d.units, d.max);
       return ids.length > 0 ? { t: 'choose', value: ids.join(',') } : { t: 'pass' };
     }
+    case 'prayer':
+      // Always answer: a prayer that is answered now beats points that may be lost to a 1 later.
+      return { t: 'choose', value: 'use' };
     case 'asterism': {
       const pick = npcAsterism(engine.scenario, state, d.player, d.stage);
       return pick

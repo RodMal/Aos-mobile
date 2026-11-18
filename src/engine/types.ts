@@ -269,6 +269,20 @@ export type Frame =
    */
   | { t: 'vengeance'; player: PlayerId; stage: 'pick' | 'pile' | 'strike'; queue: UnitId[] }
   /**
+   * A chanting roll that would answer the prayer, waiting for its player to use the prayer now
+   * or bank the points. `points` is the ritual points the unit would have (banked plus the roll).
+   */
+  | {
+      t: 'prayer';
+      unit: UnitId;
+      abilityId: string;
+      target?: UnitId;
+      secondTarget?: UnitId;
+      choice?: string;
+      die: number;
+      points: number;
+    }
+  /**
    * Start of the battle, before the first turn is decided: a player with Burning for Vengeance
    * picks an enemy Hero (on the battlefield or in reserve) to be the fugitive.
    */
@@ -482,6 +496,23 @@ export type Decision =
        * whether its condition holds. Answer `<key id>,<option id>`; an unmet key is illegal.
        */
       keys: { id: string; name: string; text: string; condition: string; met: boolean }[];
+    }
+  /**
+   * A chanting roll has reached the chanting value. Answer `choose` `use` (the prayer is answered
+   * now and its ritual points are spent) or `bank` (keep the points for a later chant). `pass`
+   * is not an answer, so a game saved before this existed replays by inserting `use`.
+   */
+  | {
+      kind: 'prayer';
+      player: PlayerId;
+      unit: UnitId;
+      ability: string;
+      die: number;
+      /** Ritual points the unit has, the roll included. */
+      points: number;
+      /** What it had banked before this roll. */
+      banked: number;
+      targetValue: number;
     }
   /** Burning for Vengeance: pick the enemy fugitive (answer with `choose` and a unit ID). */
   | { kind: 'fugitive'; player: PlayerId; units: UnitId[] }
