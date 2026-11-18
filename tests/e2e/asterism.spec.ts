@@ -13,10 +13,11 @@ test('The Great Plan: pick an Asterism; Sotek the Deliverer adds 2 to the Move s
   await page.screenshot({ path: info.outputPath(`great-plan-${info.project.name}.png`) });
   await prompt.locator('[data-asterism="6960-effd-2a46-d7d4"]').click();
   await expect(prompt).toBeHidden();
-  // The fugitive, the first turn and a Place of Power may follow; answer each until the board is free.
+  // The fugitive, the first turn, a Place of Power and Kroak's Unbind (offered for every enemy
+  // spell, from anywhere) may follow; answer each until the board is free.
   const popup = page.locator('.modal-wrap');
   await page.waitForTimeout(800);
-  for (let i = 0; i < 8 && (await popup.isVisible().catch(() => false)); i++) {
+  for (let i = 0; i < 30 && (await popup.isVisible().catch(() => false)); i++) {
     if (
       await page
         .locator('[data-fugitive]')

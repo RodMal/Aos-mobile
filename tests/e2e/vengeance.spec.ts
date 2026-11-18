@@ -49,7 +49,7 @@ test('Vengeance of Azyr: pick units at the end of a turn, then each piles in', a
   await prompt.getByTestId('vengeance-use').click();
   await expect(prompt).toBeHidden();
   // The first picked unit now makes its pile-in move on the board.
-  await expect(page.getByTestId('decision')).toContainText(/pile/i);
+  await expect(page.getByTestId('place-panel')).toContainText(/pile/i);
   await page.screenshot({ path: info.outputPath(`vengeance-pile-in-${info.project.name}.png`) });
 });
 
