@@ -2,6 +2,8 @@
 import { memo, useMemo } from 'react';
 import {
   aliveCount,
+  overgrownTokenIds,
+  terrainFeatures,
   unitCentre,
   unitFootprints,
   unitTrunks,
@@ -114,6 +116,54 @@ export function ObjectivesLayer() {
           </g>
         );
       })}
+    </g>
+  );
+}
+
+/** A marker on every terrain feature that has an overgrown token (either player's). */
+export function OvergrowthLayer() {
+  const state = useGameState();
+  const human = useHuman();
+  const marks: { key: string; owner: 0 | 1; x: number; y: number; outline: string[] }[] = [];
+  for (const owner of [0, 1] as const) {
+    const ids = new Set(overgrownTokenIds(scenario, state, owner));
+    if (ids.size === 0) continue;
+    for (const f of terrainFeatures(scenario, state)) {
+      if (!ids.has(f.id)) continue;
+      if (f.polygon) {
+        const n = f.polygon.length;
+        marks.push({
+          key: `${owner}-${f.id}`,
+          owner,
+          x: f.polygon.reduce((a, p) => a + p[0], 0) / n,
+          y: f.polygon.reduce((a, p) => a + p[1], 0) / n,
+          outline: [points(f.polygon)],
+        });
+      } else if (f.unit) {
+        const c = unitCentre(f.unit);
+        marks.push({ key: `${owner}-${f.id}`, owner, x: c.x, y: c.y, outline: [] });
+      }
+    }
+  }
+  return (
+    <g className="layer-overgrowth" pointerEvents="none">
+      {marks.map((m) => (
+        <g
+          key={m.key}
+          className={`overgrown ${m.owner === human ? 'friendly' : 'enemy'}`}
+          data-testid="overgrown-mark"
+          data-overgrown={m.key.slice(2)}
+        >
+          {m.outline.map((pts, i) => (
+            <polygon key={i} points={pts} className="overgrown-outline" />
+          ))}
+          <circle cx={m.x} cy={m.y} r={0.9} className="overgrown-badge" />
+          <path
+            d={`M${m.x} ${m.y + 0.5} Q${m.x - 0.7} ${m.y - 0.1} ${m.x} ${m.y - 0.6} Q${m.x + 0.7} ${m.y - 0.1} ${m.x} ${m.y + 0.5} Z`}
+            className="overgrown-leaf"
+          />
+        </g>
+      ))}
     </g>
   );
 }

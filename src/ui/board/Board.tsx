@@ -14,6 +14,7 @@ import { hitTest, pick, snapPoint, type HitTarget } from './hitTest.js';
 import {
   Defs,
   LabelsLayer,
+  OvergrowthLayer,
   ObjectivesLayer,
   RangeLayer,
   TableLayer,
@@ -356,6 +357,7 @@ export function Board() {
       <g ref={gRef}>
         <TableLayer human={human} />
         <ObjectivesLayer />
+        <OvergrowthLayer />
         <RangeLayer />
         <UnitsLayer />
         <GhostLayer rot={rot} />

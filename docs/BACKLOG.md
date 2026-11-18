@@ -28,14 +28,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: `src/engine/overgrowth.ts`, `src/ui/board/layers.tsx`
 - **Done when**: a light, toggleable shading shows where the creeping overgrowth reaches, updating as it changes.
 
-### R3 Overgrowth spreading to terrain features
-
-- **Tier**: sonnet+review
-- **Touches**: engine, rules
-- **Read**: `src/engine/overgrowth.ts`, `src/rules/factions/sylvaneth.ts`; printed text of Ever Growing, Endless Growth, Budding Forest, The Land Awakens in `data/factions/sylvaneth.json`
-- **Owner's report**: overgrowth never spreads to terrain features in play.
-- **Done when**: the rule that places overgrown tokens on terrain features fires as printed, with tests; each overgrown feature is marked on the board and logged.
-
 ### R4 Leftovers from earlier rules work
 
 - **Tier**: sonnet+review

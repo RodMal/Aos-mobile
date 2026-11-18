@@ -6,6 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
 // Touch-only specs skip themselves on `desktop` and mouse equivalents live in the shared helpers.
 // On CI the build job's `dist` is downloaded and only served; locally (or without a dist) the app
 // is built first. PW_PREBUILT=1 forces serving the existing dist.
+const port = process.env.PW_PORT ?? '4173';
 const prebuilt =
   process.env.PW_PREBUILT === '1' || (!!process.env.CI && existsSync('dist/index.html'));
 
@@ -16,7 +17,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: `http://localhost:${port}`,
     trace: 'off',
   },
   projects: [
@@ -36,8 +37,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: prebuilt ? 'pnpm preview' : 'pnpm build && pnpm preview',
-    url: 'http://localhost:4173',
+    command: `${prebuilt ? '' : 'pnpm build && '}pnpm exec vite preview --port ${port} --strictPort`,
+    url: `http://localhost:${port}`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },

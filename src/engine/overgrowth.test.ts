@@ -124,3 +124,24 @@ describe('creeping overgrowth range', () => {
     ).toEqual([]);
   });
 });
+
+describe('Ever Growing in a played game', () => {
+  it('fires at the start of the next battle round and logs which feature gained a token', () => {
+    let s = startGame(engine, 3);
+    const roundOne = s.overgrown![0]!.length;
+    expect(roundOne).toBeGreaterThan(0);
+    const notes: string[] = [];
+    for (
+      let i = 0;
+      i < 400 && (s.round === 1 || s.stack.some((f) => f.t === 'alarielleSeason'));
+      i++
+    ) {
+      const r = engine.apply(s, engine.defaultAction(s));
+      s = r.state;
+      for (const e of r.events) if (e.t === 'note') notes.push(e.text);
+    }
+    expect(s.round).toBe(2);
+    expect(notes.some((n) => /^Ever Growing: .+ gains an overgrown token\.$/.test(n))).toBe(true);
+    expect(s.overgrown![0]!.length).toBeGreaterThan(roundOne);
+  });
+});
