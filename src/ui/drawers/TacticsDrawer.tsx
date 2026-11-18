@@ -4,6 +4,7 @@ import { playerName, scenario } from '../game/engine.js';
 import { useGameState, useHuman } from '../game/hooks.js';
 import { tacticCardsView, type CardView } from '../game/tactics.js';
 import type { GameState, PlayerId } from '../../engine/index.js';
+import { liveTacticCheck } from '../../rules/core/battleTactics.js';
 import { Drawer } from './Drawer.js';
 
 function cardNote(state: GameState, player: PlayerId, card: CardView): string | null {
@@ -15,7 +16,7 @@ function cardNote(state: GameState, player: PlayerId, card: CardView): string | 
   return null;
 }
 
-function Card({ card, note }: { card: CardView; note: string | null }) {
+function Card({ card, note, live }: { card: CardView; note: string | null; live: boolean | null }) {
   const next = card.tiers.find((t) => t.status === 'next');
   return (
     <li className="tactic-card" data-testid="tactic-card">
@@ -37,6 +38,15 @@ function Card({ card, note }: { card: CardView; note: string | null }) {
             </span>
             <span className="tier-label">{t.label}</span>
             <span className="tier-name">{t.name}</span>
+            {t.status === 'next' && live !== null && (
+              <span
+                className={`tier-live ${live ? 'met' : 'unmet'}`}
+                data-testid={`tier-live-${t.tier}`}
+                data-met={live}
+              >
+                {live ? '● Met now' : '○ Not met now'}
+              </span>
+            )}
             <span className="sr-only">
               {t.status === 'done' ? ' completed' : t.status === 'next' ? ' next' : ''}
             </span>
@@ -67,7 +77,12 @@ export function TacticsPanel({ testId = 'tactics-panel' }: { testId?: string }) 
           </h3>
           <ul className="tactic-list">
             {tacticCardsView(scenario.armies[p].tacticCards, state, p).map((c) => (
-              <Card key={c.id} card={c} note={cardNote(state, p, c)} />
+              <Card
+                key={c.id}
+                card={c}
+                note={cardNote(state, p, c)}
+                live={liveTacticCheck(scenario, state, p, c.id)?.met ?? null}
+              />
             ))}
           </ul>
         </section>

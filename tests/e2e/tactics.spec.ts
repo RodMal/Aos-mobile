@@ -19,6 +19,7 @@ test('the top bar opens the battle tactics tracker with both armies’ cards and
   await expect(first.getByTestId('tier-affray')).toHaveAttribute('data-status', 'next');
   await expect(first.getByTestId('tier-strike')).toHaveAttribute('data-status', 'later');
   await expect(first.getByTestId('tactic-next')).toContainText('You complete this battle tactic');
+  await expect(first.getByTestId('tier-live-affray')).toHaveAttribute('data-met', /true|false/);
   await page.screenshot({ path: info.outputPath(`tactics-${info.project.name}.png`) });
   // On desktop the tracker is also in view in the sheet, without opening anything.
   await expect(page.getByTestId('tactics-sheet')).toBeVisible({ visible: isDesktop() });
