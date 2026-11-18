@@ -1,7 +1,7 @@
 import { fireTriggers } from './abilities/effects.js';
 import { resolveAttacks } from './combat.js';
 import { illegal, type Ctx } from './ctx.js';
-import { inflictMortalDamage } from './damage.js';
+import { doomedByQueuedDamage, inflictMortalDamage } from './damage.js';
 import { placementDistance } from './movement.js';
 import { isFactionTerrainUnit, opponent } from './query.js';
 import { dwindling } from '../rules/factions/seasons.js';
@@ -76,7 +76,8 @@ export function place(ctx: Ctx, placement: Placement): void {
     frame.reason !== 'deploy' &&
     frame.reason !== 'setUp' &&
     frame.reason !== 'pileIn' &&
-    unit.status === 'battlefield'
+    unit.status === 'battlefield' &&
+    !doomedByQueuedDamage(ctx, unit)
   ) {
     fireTriggers(ctx, 'afterMove', {
       unit,

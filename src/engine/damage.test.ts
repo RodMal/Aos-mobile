@@ -100,4 +100,37 @@ describe('returning slain models', () => {
     Object.assign(dryads.models[dead]!, at, { alive: true });
     expect(checkCoherencyFootprints(unitFootprints(scenario, dryads)).coherent).toBe(true);
   });
+
+  describe('Fight Through the Pain queue', () => {
+    it('with rage dice, wards first and queues the damage that got through', () => {
+      const s = arena();
+      s.players[0].rageDice = 2;
+      const alarielle = s.units['0:0']!;
+      const ctx = ctxFor(s, [5, 2, 6]);
+      const r = inflictMortalDamage(ctx, alarielle, 3, 'test');
+      expect(r).toEqual({ taken: 1, slain: 0, destroyed: false });
+      expect(alarielle.damage).toBe(0);
+      expect(s.pendingMortal).toEqual([{ target: '0:0', amount: 1, source: 'test' }]);
+      expect(ctx.events[0]).toMatchObject({ t: 'roll', label: 'Ward' });
+      expect(ctx.events.some((e) => e.t === 'damage')).toBe(false);
+    });
+
+    it('`immediate` skips the queue', () => {
+      const s = arena();
+      s.players[0].rageDice = 2;
+      const alarielle = s.units['0:0']!;
+      inflictMortalDamage(ctxFor(s, [1, 1, 1]), alarielle, 2, 'test', { immediate: true });
+      expect(alarielle.damage).toBe(2);
+      expect(s.pendingMortal ?? []).toEqual([]);
+    });
+
+    it('faction terrain skips the queue', () => {
+      const s = editable(fresh);
+      s.players[0].rageDice = 2;
+      const terrain = s.units['0:terrain']!;
+      terrain.status = 'battlefield';
+      inflictMortalDamage(ctxFor(s), terrain, 2, 'test');
+      expect(s.pendingMortal ?? []).toEqual([]);
+    });
+  });
 });

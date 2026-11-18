@@ -109,6 +109,19 @@ export function inflictMortalDamage(
   return allocateDamage(ctx, unit, ward.taken, source);
 }
 
+/**
+ * True when the mortal damage already held for `unit` (see `inflictMortalDamage`) would destroy
+ * it. Such a unit takes no "after a move" trigger: it is as good as gone.
+ */
+export function doomedByQueuedDamage(ctx: Ctx, unit: UnitState): boolean {
+  const queued = (ctx.s.pendingMortal ?? [])
+    .filter((q) => q.target === unit.id)
+    .reduce((a, q) => a + q.amount, 0);
+  if (queued === 0 || unit.status !== 'battlefield') return false;
+  const alive = unit.models.filter((m) => m.alive).length;
+  return queued >= alive * profileOf(ctx.scenario, unit).health - unit.damage;
+}
+
 export const applyMortalDamage = inflictMortalDamage;
 
 /** Heals up to `amount` damage points allocated to `unit`. */

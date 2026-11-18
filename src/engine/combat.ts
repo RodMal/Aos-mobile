@@ -27,6 +27,7 @@ import type {
   Frame,
   GameState,
   Scenario,
+  UnitId,
   UnitState,
   WeaponTargets,
 } from './types.js';
@@ -346,10 +347,20 @@ export function flushMortalDamage(ctx: Ctx): void {
   const queued = ctx.s.pendingMortal;
   if (!queued || queued.length === 0) return;
   ctx.s.pendingMortal = [];
+  // One prompt per unit: its queued entries are added up (sources named once each).
+  const merged: { target: UnitId; amount: number; source: string }[] = [];
+  for (const q of queued) {
+    const same = merged.find((m) => m.target === q.target);
+    if (!same) merged.push({ ...q });
+    else {
+      same.amount += q.amount;
+      if (!same.source.split(', ').includes(q.source)) same.source += `, ${q.source}`;
+    }
+  }
   allocatePending(ctx, {
     t: 'allocate',
     attacker: queued[0]!.target,
     mode: 'shoot',
-    pending: queued.map((q) => ({ target: q.target, amount: q.amount, source: q.source })),
+    pending: merged,
   });
 }
