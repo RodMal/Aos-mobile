@@ -9,7 +9,7 @@ import {
   eruptionOfFuryTargets,
   MAX_ERUPTION_RAGE_DICE,
 } from '../rules/core/fury.js';
-import { seasonsAllowed } from '../rules/factions/seasons.js';
+import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import { isAwakenedWyldwood } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID, canSetUpWyldwood, checkWyldwoodSetUp } from './wyldwood.js';
 import {
@@ -113,6 +113,10 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
           player: top.player,
           unit: top.unit,
           seasons: seasonsAllowed(state),
+          features: burgeoningOptions(scenario, state, top.player).map((f) => ({
+            id: f.id,
+            name: f.name,
+          })),
         };
       case 'creepingDread':
         return { kind: 'creepingDread', player: top.player, units: top.units, max: top.max };

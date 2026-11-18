@@ -14,7 +14,7 @@ import { suggestFugitive } from '../rules/core/battleTactics.js';
 import { initFury, resolveEruptionOfFury } from '../rules/core/fury.js';
 import { resolvePlaceOfPower, type PlaceOfPowerBoon } from './terrain.js';
 import { type AlarielleSeason } from '../rules/factions/sylvaneth.js';
-import { seasonsAllowed } from '../rules/factions/seasons.js';
+import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import { WYLDWOOD_SETUP_ID } from './wyldwood.js';
 import {
   type Action,
@@ -50,6 +50,7 @@ import {
   redeploy,
   setUpWyldwood,
 } from './commands.js';
+import { flushMortalDamage } from './combat.js';
 import { declareCharge, place, skipPlace } from './placing.js';
 import { answerReaction, offerEndOfPhaseReaction } from './reactions.js';
 import { declareFight, declareShoot, declareTargets, settle } from './declare.js';
@@ -260,10 +261,19 @@ export function createEngine(scenario: Scenario): Engine {
         const frame = s.stack.pop();
         if (frame?.t !== 'alarielleSeason') illegal('Not choosing Alarielle season.');
         if (action.t !== 'choose') illegal('Choose a season of war.');
-        const season = action.value;
+        const [season = '', feature] = action.value.split(':');
         if (!seasonsAllowed(state).includes(season as AlarielleSeason)) {
           illegal('Pick a season of war other than the one picked last battle round.');
         }
+        if (feature !== undefined) {
+          if (
+            season !== 'burgeoning' ||
+            !burgeoningOptions(scenario, state, frame.player).some((f) => f.id === feature)
+          ) {
+            illegal('The Burgeoning cannot name that terrain feature.');
+          }
+          s.burgeoningChoice = feature;
+        } else delete s.burgeoningChoice;
         s.alarielleSeason = { ...(s.alarielleSeason ?? {}), [s.round]: season };
         s.alarielleSeasonPlayer = frame.player;
         ctx.events.push({
@@ -279,7 +289,10 @@ export function createEngine(scenario: Scenario): Engine {
         else illegal('Pick Creeping Dread targets, or pass.');
         break;
     }
-    settle(ctx);
+    do {
+      flushMortalDamage(ctx);
+      settle(ctx);
+    } while ((s.pendingMortal?.length ?? 0) > 0);
     s.rng = ctx.rng.state;
     return { state: s, events: ctx.events };
   }
@@ -333,6 +346,7 @@ export function createEngine(scenario: Scenario): Engine {
       s.stack = buildDeploymentFrames(scenario, s.units);
     } else {
       startRound(ctx);
+      flushMortalDamage(ctx);
     }
     s.rng = ctx.rng.state;
     return s;

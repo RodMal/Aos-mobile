@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { Decision, ReactionOption } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
 import { COMMAND_NAMES, reactionText, triggerUnit } from '../game/eventText.js';
-import { logContext, playerName } from '../game/engine.js';
+import { logContext, playerName, scenario } from '../game/engine.js';
 import { useGame } from '../game/instance.js';
 import { useGameState, useHuman, useHumanDecision } from '../game/hooks.js';
 import { randomSeed } from '../game/store.js';
@@ -38,12 +38,19 @@ function Die({ value }: { value: number }) {
 }
 
 /** The collapsed form of a prompt: a small bar that leaves the board free. */
-function PeekBar({ onReopen }: { onReopen: () => void }) {
+function PeekBar({
+  onReopen,
+  label = 'Reaction',
+}: {
+  onReopen: () => void;
+  /** What is waiting: "Reaction", "Pick the fugitive"... */
+  label?: string;
+}) {
   return (
-    <div className="peek-bar" data-testid="reaction-bar" role="region" aria-label="Reaction">
-      <span className="small">Reaction waiting</span>
+    <div className="peek-bar" data-testid="reaction-bar" role="region" aria-label={label}>
+      <span className="small">{label} waiting</span>
       <button className="btn primary" data-testid="reaction-reopen" onClick={onReopen}>
-        Back to reaction
+        Back to {label.toLowerCase()}
       </button>
     </div>
   );
@@ -119,6 +126,142 @@ function PainPrompt({ option, fury }: { option: ReactionOption; fury: number }) 
         >
           Take the damage
         </button>
+      </div>
+    </Modal>
+  );
+}
+
+/** Burning for Vengeance: the candidates are outlined on the board; pick one from the list. */
+function FugitivePrompt({ d }: { d: Extract<Decision, { kind: 'fugitive' }> }) {
+  const state = useGameState();
+  const [peek, setPeek] = useState(false);
+  const [hot, setHot] = useState<string | null>(null);
+  const setFlagged = useUi((s) => s.setFlagged);
+  useEffect(() => {
+    setFlagged(d.units.filter((id) => state.units[id]?.status === 'battlefield'));
+    return () => setFlagged([]);
+  }, [d.units, state, setFlagged]);
+  const show = (id: string) => {
+    if (state.units[id]?.status === 'battlefield') {
+      useUi.getState().moveCamera({ kind: 'unit', unit: id, zoom: false, onlyIfHidden: true });
+    }
+  };
+  if (peek) return <PeekBar label="Fugitive pick" onReopen={() => setPeek(false)} />;
+  return (
+    <Modal title="Burning for Vengeance" testId="fugitive">
+      <p>
+        Pick an enemy Hero to be the <strong>fugitive</strong> for the rest of the battle. Quick
+        Pursuit and Bring Them In are scored against it (or completed once it is gone). The
+        candidates are outlined on the board.
+      </p>
+      <div className="stack">
+        <button className="btn wide" data-testid="fugitive-see-map" onClick={() => setPeek(true)}>
+          See the map
+        </button>
+        {d.units.map((id) => {
+          const u = state.units[id];
+          return (
+            <button
+              key={id}
+              className={`btn wide ${hot === id ? 'chosen' : ''}`}
+              data-fugitive={id}
+              onPointerEnter={(e) => e.pointerType === 'mouse' && (setHot(id), show(id))}
+              onPointerLeave={(e) => e.pointerType === 'mouse' && setHot(null)}
+              onClick={() => dispatch({ t: 'choose', value: id })}
+            >
+              {u?.name ?? id}
+              {u?.status === 'reserve' && <span className="muted small"> · in reserve</span>}
+            </button>
+          );
+        })}
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * The Burgeoning: Ever Growing may name any terrain feature the opponent does not control. The
+ * features are outlined on the board; a choice is answered as `burgeoning:<feature id>`.
+ */
+function SeasonPrompt({ d }: { d: Extract<Decision, { kind: 'alarielleSeason' }> }) {
+  const state = useGameState();
+  const [stage, setStage] = useState<'season' | 'terrain'>('season');
+  const [peek, setPeek] = useState(false);
+  const setFlagged = useUi((s) => s.setFlagged);
+  const setFlaggedTerrain = useUi((s) => s.setFlaggedTerrain);
+  const last = state.alarielleSeason?.[state.round - 1];
+  useEffect(() => {
+    if (stage !== 'terrain') return;
+    const onTable = new Set(scenario.battlefield.terrain.map((t) => t.id));
+    setFlaggedTerrain(d.features.map((f) => f.id).filter((id) => onTable.has(id)));
+    setFlagged(d.features.map((f) => f.id).filter((id) => state.units[id]));
+    return () => {
+      setFlaggedTerrain([]);
+      setFlagged([]);
+    };
+  }, [stage, d.features, state, setFlagged, setFlaggedTerrain]);
+  if (stage === 'terrain') {
+    if (peek) return <PeekBar label="Terrain pick" onReopen={() => setPeek(false)} />;
+    return (
+      <Modal title="The Burgeoning" testId="burgeoning">
+        <p>
+          Ever Growing may name any terrain feature the opponent does not control. Pick the one that
+          gets an overgrown token (the others that could be picked are outlined).
+        </p>
+        <div className="stack">
+          <button
+            className="btn wide"
+            data-testid="burgeoning-see-map"
+            onClick={() => setPeek(true)}
+          >
+            See the map
+          </button>
+          {d.features.map((f) => (
+            <button
+              key={f.id}
+              className="btn wide"
+              data-feature={f.id}
+              onClick={() => dispatch({ t: 'choose', value: `burgeoning:${f.id}` })}
+            >
+              {f.name}
+            </button>
+          ))}
+          <button
+            className="btn wide"
+            data-testid="burgeoning-auto"
+            onClick={() => dispatch({ t: 'choose', value: 'burgeoning' })}
+          >
+            Closest to the centre
+          </button>
+          <button className="btn wide" onClick={() => setStage('season')}>
+            Back
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+  return (
+    <Modal title="Alarielle: Season of War" testId="alarielle-season">
+      <p>Pick a Season of War for the rest of this battle round (not last round&apos;s):</p>
+      <div className="stack">
+        {SEASONS.map((x) => (
+          <button
+            key={x.id}
+            className="btn wide"
+            data-season={x.id}
+            disabled={!d.seasons.includes(x.id)}
+            onClick={() =>
+              x.id === 'burgeoning' && d.features.length > 0
+                ? setStage('terrain')
+                : dispatch({ t: 'choose', value: x.id })
+            }
+          >
+            <strong>{x.name}</strong>
+            <span className="muted small block">
+              {x.id === last ? 'Picked last battle round' : x.text}
+            </span>
+          </button>
+        ))}
       </div>
     </Modal>
   );
@@ -318,30 +461,7 @@ export function DecisionPrompts() {
     );
   }
   if (d.kind === 'fugitive') {
-    return (
-      <Modal title="Burning for Vengeance" testId="fugitive">
-        <p>
-          Pick an enemy Hero to be the <strong>fugitive</strong> for the rest of the battle. Quick
-          Pursuit and Bring Them In are scored against it (or completed once it is gone).
-        </p>
-        <div className="stack">
-          {d.units.map((id) => {
-            const u = state.units[id];
-            return (
-              <button
-                key={id}
-                className="btn wide"
-                data-fugitive={id}
-                onClick={() => dispatch({ t: 'choose', value: id })}
-              >
-                {u?.name ?? id}
-                {u?.status === 'reserve' && <span className="muted small"> · in reserve</span>}
-              </button>
-            );
-          })}
-        </div>
-      </Modal>
-    );
+    return <FugitivePrompt key="fugitive" d={d} />;
   }
   if (d.kind === 'reaction') {
     const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
@@ -398,28 +518,7 @@ export function DecisionPrompts() {
     );
   }
   if (d.kind === 'alarielleSeason') {
-    const last = state.alarielleSeason?.[state.round - 1];
-    return (
-      <Modal title="Alarielle: Season of War" testId="alarielle-season">
-        <p>Pick a Season of War for the rest of this battle round (not last round&apos;s):</p>
-        <div className="stack">
-          {SEASONS.map((x) => (
-            <button
-              key={x.id}
-              className="btn wide"
-              data-season={x.id}
-              disabled={!d.seasons.includes(x.id)}
-              onClick={() => dispatch({ t: 'choose', value: x.id })}
-            >
-              <strong>{x.name}</strong>
-              <span className="muted small block">
-                {x.id === last ? 'Picked last battle round' : x.text}
-              </span>
-            </button>
-          ))}
-        </div>
-      </Modal>
-    );
+    return <SeasonPrompt key={state.round} d={d} />;
   }
   if (d.kind === 'creepingDread') {
     return <CreepingDreadPrompt key={state.round * 10 + state.turnIndex} d={d} />;

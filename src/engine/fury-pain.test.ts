@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { SERAPHON_PLACEHOLDER, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import { chooseAction } from '../ai/baseline.js';
-import { createEngine, createScenario, IllegalActionError, type GameState } from './index.js';
+import {
+  createEngine,
+  createScenario,
+  IllegalActionError,
+  type GameEvent,
+  type GameState,
+} from './index.js';
+import { currentPlacement, shiftPlacement } from './index.js';
 import { applyUntil, editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_PLACEHOLDER]);
@@ -134,5 +141,147 @@ describe('Fight Through the Pain (wired into damage allocation)', () => {
       unit: SKINKS,
     });
     expect(() => engine.apply(r.state, chooseAction(engine, r.state))).not.toThrow();
+  });
+});
+
+describe('Fight Through the Pain for mortal damage outside attacks', () => {
+  const DRYADS = '0:6';
+  const SAURUS = '1:1';
+
+  /** Player 0's Dryads retreat from Saurus Guard; player 0 holds `rage` rage dice. */
+  function retreat(rage: number, setup?: (s: GameState) => void, seed = 0) {
+    const s = editable(startGame(engine, 1));
+    keepOnly(s, [DRYADS, SAURUS]);
+    placeUnit(scenario, s, DRYADS, 20, 22, 90);
+    placeUnit(scenario, s, SAURUS, 23.5, 22, 270);
+    s.players[0].rageDice = rage;
+    s.players[0].furyLevel = rage;
+    setup?.(s);
+    const moving = passTo(engine, s, 'movement');
+    const declared = engine.apply(moving, { t: 'move', unit: DRYADS, kind: 'retreat' }).state;
+    const away = shiftPlacement(currentPlacement(declared.units[DRYADS]!), -6, 0);
+    return engine.apply({ ...declared, rng: declared.rng + seed }, { t: 'place', placement: away });
+  }
+
+  it('asks before the retreat mortal damage is allocated, showing the amount', () => {
+    const r = retreat(2);
+    const roll = r.events.find((e) => e.t === 'roll' && e.label.includes('Retreat'));
+    if (roll?.t !== 'roll') throw new Error('no retreat roll');
+    expect(r.events.some((e) => e.t === 'damage' && e.unit === DRYADS)).toBe(false);
+    expect(engine.decision(r.state)).toMatchObject({
+      kind: 'reaction',
+      player: 0,
+      options: [
+        {
+          ability: 'fightThroughThePain',
+          unit: DRYADS,
+          damage: roll.dice[0],
+          maxRageDice: 2,
+        },
+      ],
+    });
+  });
+
+  it('taking it allocates the full amount; spending a die rolls and can negate it', () => {
+    const r = retreat(2);
+    const amount = (engine.decision(r.state) as { options: { damage: number }[] }).options[0]!
+      .damage;
+    const taken = engine.apply(r.state, { t: 'pass' });
+    expect(taken.events).toContainEqual(
+      expect.objectContaining({ t: 'damage', unit: DRYADS, amount, source: 'Retreat' }),
+    );
+    const spent = engine.apply(r.state, {
+      t: 'ability',
+      unit: DRYADS,
+      abilityId: 'fight-through-the-pain',
+      rageDice: 1,
+    });
+    const die = spent.events.find((e) => e.t === 'roll' && e.label === 'Fight Through the Pain');
+    if (die?.t !== 'roll') throw new Error('no roll');
+    expect(spent.state.players[0].rageDice).toBe(1);
+    const dealt = spent.events
+      .filter((e) => e.t === 'damage' && e.unit === DRYADS)
+      .reduce((a, e) => a + (e.t === 'damage' ? e.amount : 0), 0);
+    expect(dealt).toBe(amount - (die.dice[0]! >= 3 ? 1 : 0));
+    expect(engine.decision(spent.state)).toMatchObject({ kind: 'main' });
+  });
+
+  it('is not asked without rage dice', () => {
+    const r = retreat(0);
+    expect(r.events.some((e) => e.t === 'damage' && e.unit === DRYADS)).toBe(true);
+    expect(engine.decision(r.state)).toMatchObject({ kind: 'main' });
+  });
+
+  /** Song Of Dread on the Dryads, cast by player 1, with every feature carrying a token. */
+  const dread = (s: GameState) => {
+    s.overgrown = [[], scenario.battlefield.terrain.map((x) => x.id)];
+    s.effects = [
+      {
+        id: '4c37-4bd5-f9d5-170a',
+        name: 'Song Of Dread',
+        sourceUnit: SAURUS,
+        targetUnit: DRYADS,
+        owner: 1,
+        expires: 'startOfNextTurn',
+      },
+    ];
+  };
+  const diceOf = (events: GameEvent[], label: string) => {
+    const e = events.find((x) => x.t === 'roll' && x.label.startsWith(label));
+    return e?.t === 'roll' ? e.dice[0] : undefined;
+  };
+
+  it('adds up the damage held for one unit into a single prompt', () => {
+    // Song Of Dread rolls a second D3 on the same unit after the retreat's D3.
+    const r = retreat(2, dread);
+    const retreatDie = diceOf(r.events, 'Retreat')!;
+    const dreadDie = diceOf(r.events, 'Song Of Dread damage')!;
+    expect(dreadDie).toBeDefined();
+    const d = engine.decision(r.state);
+    if (d?.kind !== 'reaction') throw new Error('expected a reaction');
+    expect(d.options[0]!.damage).toBe(retreatDie + dreadDie);
+    const done = engine.apply(r.state, { t: 'pass' });
+    expect(engine.decision(done.state)).toMatchObject({ kind: 'main' });
+    expect(
+      done.events.filter((e) => e.t === 'damage' && e.unit === DRYADS && e.amount > 0),
+    ).toHaveLength(1);
+  });
+
+  it('a unit its Retreat damage would destroy gets no after-move trigger', () => {
+    const r = retreat(2, (s) => {
+      dread(s);
+      const dryads = s.units[DRYADS]!;
+      for (const m of dryads.models.slice(1)) m.alive = false; // one model left
+    });
+    expect(diceOf(r.events, 'Retreat')).toBeDefined();
+    expect(diceOf(r.events, 'Song Of Dread damage')).toBeUndefined();
+    expect(engine.decision(r.state)).toMatchObject({ kind: 'reaction' });
+    const done = engine.apply(r.state, { t: 'pass' });
+    expect(done.state.units[DRYADS]!.status).toBe('destroyed');
+  });
+
+  it('flushes held damage after any action, not just movement (Power Through)', () => {
+    const s = editable(startGame(engine, 1));
+    const DURTHU = '0:2';
+    keepOnly(s, [DURTHU, SKINKS]);
+    placeUnit(scenario, s, DURTHU, 20, 22, 90);
+    placeUnit(scenario, s, SKINKS, 23.5, 22, 270);
+    s.players[0].rageDice = 0;
+    s.players[1].rageDice = 2;
+    s.players[0].cp = 3;
+    s.units[DURTHU]!.charged = true;
+    s.phase = 'end';
+    const end = s;
+    const option = engine
+      .unitOptions(end, DURTHU)
+      .find((o) => o.t === 'command' && o.command === 'powerThrough');
+    if (!option) throw new Error('Power Through is not offered');
+    const r = engine.apply(end, { t: 'command', command: 'powerThrough', unit: DURTHU });
+    expect(r.events.some((e) => e.t === 'damage' && e.unit === SKINKS)).toBe(false);
+    expect(engine.decision(r.state)).toMatchObject({
+      kind: 'reaction',
+      player: 1,
+      options: [expect.objectContaining({ ability: 'fightThroughThePain', unit: SKINKS })],
+    });
   });
 });

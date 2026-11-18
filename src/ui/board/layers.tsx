@@ -176,6 +176,27 @@ export function OvergrowthLayer({ onUnits = false }: { onUnits?: boolean }) {
   );
 }
 
+/** Outlines the battlefield terrain a prompt points out (The Burgeoning's candidates). */
+export function FlaggedTerrainLayer() {
+  const ids = useUi((s) => s.flaggedTerrain);
+  if (ids.length === 0) return null;
+  return (
+    <g className="layer-flagged-terrain" pointerEvents="none">
+      {battlefield.terrain
+        .filter((t) => ids.includes(t.id))
+        .map((t) => (
+          <polygon
+            key={t.id}
+            points={points(t.polygon)}
+            className="terrain-flag"
+            data-testid="terrain-flag"
+            data-terrain-id={t.id}
+          />
+        ))}
+    </g>
+  );
+}
+
 /**
  * Light shading of where each player's creeping overgrowth reaches: every feature with a token,
  * grown outwards by the range (a thick round-joined stroke), clipped to the table. One group per

@@ -206,7 +206,8 @@ export type Frame =
       t: 'allocate';
       attacker: UnitId;
       mode: AttackMode;
-      pending: { target: UnitId; amount: number }[];
+      /** `source` names where mortal damage came from (attack damage leaves it unset). */
+      pending: { target: UnitId; amount: number; source?: string }[];
     }
   /**
    * A spell that met its casting value and is waiting under an Unbind `reaction` frame.
@@ -339,6 +340,13 @@ export interface GameState {
   damagedInPhases?: Record<UnitId, Phase[]>;
   /** Alarielle's season of war chosen for each battle round: round -> season. */
   alarielleSeason?: Record<number, string>;
+  /**
+   * Mortal damage (ward already rolled) waiting to be allocated at the end of the current
+   * action, so its target's owner can first use Fight Through the Pain. Empty between actions.
+   */
+  pendingMortal?: { target: UnitId; amount: number; source: string }[];
+  /** The terrain feature picked with The Burgeoning this round, for Ever Growing. */
+  burgeoningChoice?: string;
   /** The player whose Alarielle picked the seasons. */
   alarielleSeasonPlayer?: PlayerId;
   /**
@@ -397,6 +405,11 @@ export type Decision =
       player: PlayerId;
       unit: UnitId;
       seasons: ('burgeoning' | 'reaping' | 'dwindling' | 'everdusk')[];
+      /**
+       * The terrain features The Burgeoning may name for Ever Growing. Answer with `choose`
+       * and `burgeoning:<feature id>`; plain `burgeoning` lets the closest-to-centre one be used.
+       */
+      features: { id: string; name: string }[];
     }
   /**
    * Creeping Dread at the start of a turn: answer with `choose` and up to `max` unit IDs

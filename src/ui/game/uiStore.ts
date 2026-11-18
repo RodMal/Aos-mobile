@@ -99,6 +99,9 @@ interface UiStore {
   /** Units a prompt wants pointed out on the board (the trigger of a reaction, a tapped unit). */
   flagged: UnitId[];
   setFlagged(ids: UnitId[]): void;
+  /** Battlefield terrain features (by ID) a prompt wants pointed out, e.g. for The Burgeoning. */
+  flaggedTerrain: string[];
+  setFlaggedTerrain(ids: string[]): void;
   select(id: UnitId | null): void;
   setSheetExpanded(v: boolean): void;
   openDrawer(d: Drawer): void;
@@ -133,6 +136,8 @@ export const useUi = create<UiStore>((set) => ({
   zoomBucket: 10,
   flagged: [],
   setFlagged: (ids) => set({ flagged: ids }),
+  flaggedTerrain: [],
+  setFlaggedTerrain: (ids) => set({ flaggedTerrain: ids }),
   select: (id) => set({ selected: id, chooser: null, sheetExpanded: false, abilityPick: null }),
   setSheetExpanded: (v) => set({ sheetExpanded: v }),
   openDrawer: (d) => set({ drawer: d, chooser: null }),
