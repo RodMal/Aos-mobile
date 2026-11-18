@@ -184,8 +184,10 @@ export function resolveEruptionOfFury(
     for (let k = 0; k < ones; k++) {
       selfMortalDamage += rollD3(ctx, player, 'Eruption of Fury (1s)');
     }
-    // Allocate directly without ward roll
-    allocateDamage(ctx, unit, selfMortalDamage, `${unit.name} (Eruption of Fury 1s)`);
+    // No ward roll; Fight Through the Pain applies (owner, 2026-11-18).
+    inflictMortalDamage(ctx, unit, selfMortalDamage, `${unit.name} (Eruption of Fury 1s)`, {
+      noWard: true,
+    });
   }
 
   ctx.events.push({

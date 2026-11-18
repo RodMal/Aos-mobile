@@ -15,6 +15,7 @@ import { initFury, resolveEruptionOfFury } from '../rules/core/fury.js';
 import { resolvePlaceOfPower, type PlaceOfPowerBoon } from './terrain.js';
 import { type AlarielleSeason } from '../rules/factions/sylvaneth.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
+import { friendlyWyldwoods } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID } from './wyldwood.js';
 import {
   type Action,
@@ -261,19 +262,31 @@ export function createEngine(scenario: Scenario): Engine {
         const frame = s.stack.pop();
         if (frame?.t !== 'alarielleSeason') illegal('Not choosing Alarielle season.');
         if (action.t !== 'choose') illegal('Choose a season of war.');
-        const [season = '', feature] = action.value.split(':');
+        // Unit and feature IDs contain colons, so split at the first one only.
+        const colon = action.value.indexOf(':');
+        const season = colon < 0 ? action.value : action.value.slice(0, colon);
+        const picks = colon < 0 ? undefined : action.value.slice(colon + 1);
         if (!seasonsAllowed(state).includes(season as AlarielleSeason)) {
           illegal('Pick a season of war other than the one picked last battle round.');
         }
-        if (feature !== undefined) {
-          if (
-            season !== 'burgeoning' ||
-            !burgeoningOptions(scenario, state, frame.player).some((f) => f.id === feature)
-          ) {
-            illegal('The Burgeoning cannot name that terrain feature.');
+        delete s.burgeoningChoices;
+        if (picks !== undefined) {
+          // `<wyldwood id>=<feature id>`, one per Awakened Wyldwood, joined by commas.
+          if (season !== 'burgeoning') illegal('Only The Burgeoning names terrain features.');
+          const wyldwoods = friendlyWyldwoods(scenario, state, frame.player).map((w) => w.id);
+          const options = burgeoningOptions(scenario, state, frame.player);
+          const choices: Record<string, string> = {};
+          for (const pick of picks.split(',')) {
+            const [wyldwood = '', feature = ''] = pick.split('=');
+            if (!wyldwoods.includes(wyldwood))
+              illegal('That is not one of your Awakened Wyldwoods.');
+            if (!options.some((f) => f.id === feature)) {
+              illegal('The Burgeoning cannot name that terrain feature.');
+            }
+            choices[wyldwood] = feature;
           }
-          s.burgeoningChoice = feature;
-        } else delete s.burgeoningChoice;
+          s.burgeoningChoices = choices;
+        }
         s.alarielleSeason = { ...(s.alarielleSeason ?? {}), [s.round]: season };
         s.alarielleSeasonPlayer = frame.player;
         ctx.events.push({

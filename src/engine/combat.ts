@@ -7,7 +7,7 @@ import { attackModifiers, sumModifiers } from '../rules/core/modifiers.js';
 import { clearExpiredEffects, effectiveWard, unitGrants } from './abilities/effects.js';
 import { hasAbility, rollAttackCount, rollAttackSequence, rollWard } from './attack.js';
 import { illegal, type Ctx } from './ctx.js';
-import { allocateDamage } from './damage.js';
+import { allocateDamage, runMortalFollowUp } from './damage.js';
 import { expectedAttacks, expectedDamage, type AttackMods } from './expected.js';
 import {
   COMBAT_RANGE,
@@ -27,7 +27,6 @@ import type {
   Frame,
   GameState,
   Scenario,
-  UnitId,
   UnitState,
   WeaponTargets,
 } from './types.js';
@@ -325,7 +324,7 @@ export function allocateOne(
   const { s } = ctx;
   // The frame may share its array with an earlier state (states are copied shallowly), so
   // replace it instead of shifting it.
-  const { target: id, source: named } = frame.pending[0]!;
+  const { target: id, source: named, followUp } = frame.pending[0]!;
   frame.pending = frame.pending.slice(1);
   const attacker = s.units[frame.attacker]!;
   const res = allocateDamage(
@@ -337,6 +336,7 @@ export function allocateOne(
   if (!named && res.destroyed && frame.mode === 'fight' && attacker.charged) {
     s.destroyedByChargeCombat = [...(s.destroyedByChargeCombat ?? []), id];
   }
+  if (followUp) runMortalFollowUp(ctx, followUp, res.destroyed);
 }
 
 /**
@@ -348,12 +348,13 @@ export function flushMortalDamage(ctx: Ctx): void {
   if (!queued || queued.length === 0) return;
   ctx.s.pendingMortal = [];
   // One prompt per unit: its queued entries are added up (sources named once each).
-  const merged: { target: UnitId; amount: number; source: string }[] = [];
+  const merged: typeof queued = [];
   for (const q of queued) {
     const same = merged.find((m) => m.target === q.target);
     if (!same) merged.push({ ...q });
     else {
       same.amount += q.amount;
+      if (q.followUp) same.followUp = q.followUp;
       if (!same.source.split(', ').includes(q.source)) same.source += `, ${q.source}`;
     }
   }

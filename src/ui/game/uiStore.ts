@@ -102,6 +102,12 @@ interface UiStore {
   /** Battlefield terrain features (by ID) a prompt wants pointed out, e.g. for The Burgeoning. */
   flaggedTerrain: string[];
   setFlaggedTerrain(ids: string[]): void;
+  /**
+   * A terrain pick in progress: a tap on one of the `candidates` (battlefield terrain or faction
+   * terrain IDs) on the board calls `onPick`. Candidates are outlined via `flagged*`.
+   */
+  terrainPick: { candidates: string[]; onPick(id: string): void } | null;
+  setTerrainPick(p: { candidates: string[]; onPick(id: string): void } | null): void;
   select(id: UnitId | null): void;
   setSheetExpanded(v: boolean): void;
   openDrawer(d: Drawer): void;
@@ -138,6 +144,8 @@ export const useUi = create<UiStore>((set) => ({
   setFlagged: (ids) => set({ flagged: ids }),
   flaggedTerrain: [],
   setFlaggedTerrain: (ids) => set({ flaggedTerrain: ids }),
+  terrainPick: null,
+  setTerrainPick: (p) => set({ terrainPick: p }),
   select: (id) => set({ selected: id, chooser: null, sheetExpanded: false, abilityPick: null }),
   setSheetExpanded: (v) => set({ sheetExpanded: v }),
   openDrawer: (d) => set({ drawer: d, chooser: null }),
@@ -159,6 +167,7 @@ export const useUi = create<UiStore>((set) => ({
       draft: null,
       attack: null,
       abilityPick: null,
+      terrainPick: null,
       confirm: null,
       measure: { on: false, a: null, b: null },
     }),

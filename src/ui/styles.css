@@ -1949,3 +1949,12 @@ button {
   gap: 6px;
   margin: 8px 0;
 }
+
+/* The Burgeoning's tap-to-pick bar: the board stays free for the tap. */
+.peek-bar.terrain-bar {
+  flex-wrap: wrap;
+  justify-content: center;
+  border-radius: 14px;
+  padding: 8px 12px;
+  width: max-content;
+}

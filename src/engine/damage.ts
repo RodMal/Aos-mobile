@@ -17,7 +17,8 @@ import {
 } from '../geom/index.js';
 import { effectiveWard } from './abilities/effects.js';
 import { rollWard } from './attack.js';
-import type { Ctx } from './ctx.js';
+import { rollD3, type Ctx } from './ctx.js';
+import { closestFeatureWithoutToken, giveOvergrownToken } from './overgrowth.js';
 import { boardPolygon } from './movement.js';
 import {
   aliveIndices,
@@ -29,7 +30,7 @@ import {
   unitFootprints,
   unitsOf,
 } from './query.js';
-import type { GameState, Scenario, UnitState } from './types.js';
+import type { GameState, MortalFollowUp, Scenario, UnitState } from './types.js';
 import {
   recordDamageAllocatedForTactics,
   recordUnitDestroyedForTactics,
@@ -74,20 +75,27 @@ export function allocateDamage(
   return { taken: amount, slain, destroyed };
 }
 
-/** Mortal damage: wards are rolled, then the damage is allocated. */
+/**
+ * Mortal damage: wards are rolled (unless `noWard`), then the damage is allocated. `followUp`
+ * runs once the damage has been allocated (after Fight Through the Pain, when it is held).
+ */
 export function inflictMortalDamage(
   ctx: Ctx,
   unit: UnitState,
   amount: number,
   source: string,
-  opts: { immediate?: boolean } = {},
+  opts: { immediate?: boolean; noWard?: boolean; followUp?: MortalFollowUp } = {},
 ): DamageResult {
-  const wardVal = effectiveWard(ctx.scenario, ctx.s, unit) ?? null;
-  const ward = rollWard(ctx.rng, amount, wardVal);
-  if (ward.dice.length > 0) {
-    ctx.events.push({ t: 'roll', player: unit.owner, label: 'Ward', dice: ward.dice });
+  let taken = amount;
+  if (!opts.noWard) {
+    const wardVal = effectiveWard(ctx.scenario, ctx.s, unit) ?? null;
+    const ward = rollWard(ctx.rng, amount, wardVal);
+    if (ward.dice.length > 0) {
+      ctx.events.push({ t: 'roll', player: unit.owner, label: 'Ward', dice: ward.dice });
+    }
+    taken = ward.taken;
   }
-  if (ward.taken === 0) {
+  if (taken === 0) {
     ctx.events.push({ t: 'damage', unit: unit.id, amount: 0, slain: 0, destroyed: false, source });
     return { taken: 0, slain: 0, destroyed: false };
   }
@@ -102,11 +110,38 @@ export function inflictMortalDamage(
   ) {
     ctx.s.pendingMortal = [
       ...(ctx.s.pendingMortal ?? []),
-      { target: unit.id, amount: ward.taken, source },
+      {
+        target: unit.id,
+        amount: taken,
+        source,
+        ...(opts.followUp ? { followUp: opts.followUp } : {}),
+      },
     ];
-    return { taken: ward.taken, slain: 0, destroyed: false };
+    return { taken, slain: 0, destroyed: false };
   }
-  return allocateDamage(ctx, unit, ward.taken, source);
+  const res = allocateDamage(ctx, unit, taken, source);
+  if (opts.followUp) runMortalFollowUp(ctx, opts.followUp, res.destroyed);
+  return res;
+}
+
+/** The follow-up of mortal damage that has just been allocated (see `MortalFollowUp`). */
+export function runMortalFollowUp(ctx: Ctx, followUp: MortalFollowUp, destroyed: boolean): void {
+  if (!destroyed) return;
+  const closest = closestFeatureWithoutToken(ctx.scenario, ctx.s, followUp.caster, followUp.anchor);
+  if (closest) {
+    giveOvergrownToken(ctx.s, followUp.caster, closest.id);
+    ctx.events.push({
+      t: 'note',
+      text: `${closest.name} gained an overgrown token from Metamorphosis.`,
+    });
+    return;
+  }
+  for (const id of followUp.nearby) {
+    const enemy = ctx.s.units[id]!;
+    if (enemy.status !== 'battlefield') continue;
+    const splash = rollD3(ctx, followUp.caster, 'Metamorphosis splash damage');
+    inflictMortalDamage(ctx, enemy, splash, 'Metamorphosis');
+  }
 }
 
 /**

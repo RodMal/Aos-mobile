@@ -85,33 +85,95 @@ describe('Seasons Of War (owner, 2026-11-11)', () => {
     const s = editable(startGame(engine, 1));
     s.alarielleSeason = { 1: 'burgeoning' };
     s.alarielleSeasonPlayer = 0;
-    const pick = burgeoningPick(scenario, s, 0);
+    const pick = burgeoningPick(scenario, s, 0, '0:terrain');
     expect(pick).toBeDefined();
     s.alarielleSeason = { 1: 'reaping' };
-    expect(burgeoningPick(scenario, s, 0)).toBeUndefined();
+    expect(burgeoningPick(scenario, s, 0, '0:terrain')).toBeUndefined();
   });
 
-  it('The Burgeoning lets the player name the feature, offered in the decision', () => {
-    const s0 = engine.newGame(1);
-    const d = engine.decision(s0)!;
+  /** The start of round 1 with a second Awakened Wyldwood for player 0 on the battlefield. */
+  function twoWyldwoods(): GameState {
+    const s = editable(engine.newGame(1));
+    const second = editable({ ...s, units: { x: s.units['0:terrain']! } }).units['x']!;
+    second.id = '0:terrain2';
+    second.name = 'Awakened Wyldwood (second)';
+    s.units[second.id] = second;
+    s.unitOrder.push(second.id);
+    placeUnit(scenario, s, second.id, 60, 8);
+    return s;
+  }
+
+  it('The Burgeoning offers the decision the player’s Wyldwoods and the features', () => {
+    const s = twoWyldwoods();
+    const d = engine.decision(s)!;
     if (d.kind !== 'alarielleSeason') throw new Error('expected the season decision');
-    const options = burgeoningOptions(scenario, s0, 0);
-    expect(d.features).toEqual(options.map((f) => ({ id: f.id, name: f.name })));
-    // A feature that is not the default pick.
-    const auto = engine.apply(s0, { t: 'choose', value: 'burgeoning' }).state;
-    const defaultPick = auto.overgrown?.[0]?.find((id) => !s0.overgrown?.[0]?.includes(id));
-    const other = d.features.find((f) => f.id !== defaultPick)!;
-    const r = engine.apply(s0, { t: 'choose', value: `burgeoning:${other.id}` });
-    expect(r.state.burgeoningChoice).toBe(other.id);
-    expect(r.state.overgrown?.[0]).toContain(other.id);
-    expect(r.events).toContainEqual(
-      expect.objectContaining({ t: 'note', text: expect.stringContaining(other.name) }),
+    expect(d.wyldwoods.map((w) => w.id)).toEqual(['0:terrain', '0:terrain2']);
+    expect(d.features).toEqual(
+      burgeoningOptions(scenario, s, 0).map((f) => ({ id: f.id, name: f.name })),
     );
-    expect(() => engine.apply(s0, { t: 'choose', value: 'burgeoning:nowhere' })).toThrow();
-    expect(() => engine.apply(s0, { t: 'choose', value: `reaping:${other.id}` })).toThrow();
+  });
+
+  it('The Burgeoning: each Awakened Wyldwood names its own feature (owner, 2026-11-18)', () => {
+    const s = twoWyldwoods();
+    const d = engine.decision(s)!;
+    if (d.kind !== 'alarielleSeason') throw new Error('expected the season decision');
+    const [a, b] = [d.features.at(-1)!, d.features.at(-2)!];
+    const r = engine.apply(s, {
+      t: 'choose',
+      value: `burgeoning:0:terrain=${a.id},0:terrain2=${b.id}`,
+    });
+    expect(r.state.burgeoningChoices).toEqual({ '0:terrain': a.id, '0:terrain2': b.id });
+    expect(r.state.overgrown?.[0]).toContain(a.id);
+    expect(r.state.overgrown?.[0]).toContain(b.id);
+    // Only the Wyldwood that is named picks a feature of its own: the other takes the default.
+    const one = engine.apply(s, { t: 'choose', value: `burgeoning:0:terrain2=${b.id}` });
+    expect(one.state.overgrown?.[0]).toContain(b.id);
+    expect(() => engine.apply(s, { t: 'choose', value: 'burgeoning:0:terrain=nowhere' })).toThrow();
+    expect(() => engine.apply(s, { t: 'choose', value: 'burgeoning:nowhere=outcrop-w' })).toThrow();
+    expect(() => engine.apply(s, { t: 'choose', value: `reaping:0:terrain=${a.id}` })).toThrow();
+  });
+
+  it('The Burgeoning without picks: each Wyldwood takes the next feature closest to the centre', () => {
+    const s = twoWyldwoods();
+    const r = engine.apply(s, { t: 'choose', value: 'burgeoning' });
+    const gained = (r.state.overgrown?.[0] ?? []).filter((id) => !s.overgrown?.[0]?.includes(id));
+    expect(gained).toHaveLength(2);
+    expect(new Set(gained).size).toBe(2);
+    // The first Wyldwood's pick is the single-pick default.
+    const s1 = editable(s);
+    s1.alarielleSeason = { 1: 'burgeoning' };
+    s1.alarielleSeasonPlayer = 0;
+    expect(gained[0]).toBe(burgeoningPick(scenario, s1, 0, '0:terrain'));
   });
 });
 
+describe('Enemy faction terrain as an overgrowth target (owner, 2026-11-18, I73)', () => {
+  /** A state with the opponent's faction terrain on the battlefield and nothing else near it. */
+  function withEnemyTerrain(): GameState {
+    const s = editable(engine.newGame(1));
+    expect(s.units['1:terrain']).toBeDefined();
+    s.units['1:terrain']!.status = 'battlefield';
+    placeUnit(scenario, s, '1:terrain', 40, 22);
+    s.overgrown = [[], []];
+    return s;
+  }
+
+  it('The Burgeoning may name the enemy faction terrain when no enemy unit controls it', () => {
+    const s = withEnemyTerrain();
+    keepOnly(s, ['0:terrain', '1:terrain']);
+    expect(burgeoningOptions(scenario, s, 0).map((f) => f.id)).toContain('1:terrain');
+    const r = engine.apply(s, { t: 'choose', value: 'burgeoning:0:terrain=1:terrain' });
+    expect(r.state.overgrown?.[0]).toContain('1:terrain');
+  });
+
+  it('is not an option while an enemy unit controls it', () => {
+    const s = withEnemyTerrain();
+    const guard = Object.values(s.units).find((u) => u.owner === 1 && u.armyIndex >= 0)!;
+    keepOnly(s, ['0:terrain', '1:terrain', guard.id]);
+    placeUnit(scenario, s, guard.id, 40, 26);
+    expect(burgeoningOptions(scenario, s, 0).map((f) => f.id)).not.toContain('1:terrain');
+  });
+});
 describe('Creeping Dread (owner, 2026-11-11)', () => {
   /** Player 0 in their hero phase, an enemy unit in the creeping overgrowth. */
   function inOvergrowth(): { s: GameState; foe: string } {

@@ -10,6 +10,7 @@ import { moveModel, translateDraft } from '../game/placementEdit.js';
 import { measureTap, toggleAbilityTarget, useUi, type MeasureEnd } from '../game/uiStore.js';
 import { GhostLayer } from './GhostLayer.js';
 import { zoomBucket } from './declutter.js';
+import type { Footprint } from '../../geom/index.js';
 import { hitTest, pick, snapPoint, type HitTarget } from './hitTest.js';
 import {
   Defs,
@@ -56,6 +57,13 @@ function placingNow(): boolean {
   const { session } = useGame.getState();
   const d = engine.decision(session.state);
   return !!d && d.kind === 'place' && d.player === session.humanPlayer && !!useUi.getState().draft;
+}
+
+/** A terrain feature's outline as a hit-test footprint. */
+function terrainFootprint(polygon: readonly (readonly [number, number])[]): Footprint {
+  const cx = polygon.reduce((a, p) => a + p[0], 0) / polygon.length;
+  const cy = polygon.reduce((a, p) => a + p[1], 0) / polygon.length;
+  return { kind: 'polygon', cx, cy, rotation: 0, outline: polygon };
 }
 
 /** What a measuring tap picks: a unit under it, else an objective or corner nearby, else the point. */
@@ -208,6 +216,19 @@ export function Board() {
           .map((id) => state.units[id]!)
           .filter((u) => u.status === 'battlefield')
           .map((u) => ({ key: u.id, footprints: unitFootprints(scenario, u) }));
+        if (ui.terrainPick) {
+          // Tap-to-pick terrain (The Burgeoning): faction terrain is a unit, the rest is authored.
+          const wanted = new Set(ui.terrainPick.candidates);
+          const targets: HitTarget<string>[] = [
+            ...units.filter((u) => wanted.has(u.key)),
+            ...scenario.battlefield.terrain
+              .filter((t) => wanted.has(t.id))
+              .map((t) => ({ key: t.id, footprints: [terrainFootprint(t.polygon)] })),
+          ];
+          const hit = hitTest(targets, at, slop)[0];
+          if (hit) ui.terrainPick.onPick(hit.key);
+          return;
+        }
         if (ui.attack) {
           const attack = ui.attack;
           const legal = new Set(attack.options.flatMap((o) => o.targets.map((t) => t.unit)));

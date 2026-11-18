@@ -14,8 +14,8 @@ const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_S
 const engine = createEngine(scenario);
 
 /** Player 0's end phase with a unit that has two melee weapons in combat with two enemy units. */
-function setup(): { s: GameState; unit: string; enemies: string[]; weapons: string[] } {
-  const s = editable(startGame(engine, 1));
+function setup(seed = 1): { s: GameState; unit: string; enemies: string[]; weapons: string[] } {
+  const s = editable(startGame(engine, seed));
   const unit = Object.values(s.units).find(
     (u) =>
       u.owner === 0 &&
@@ -77,6 +77,49 @@ describe('Eruption of Fury choices (owner, 2026-11-11)', () => {
     expect(() => engine.apply(s, { ...base, weaponId: 'nope' })).toThrow(IllegalActionError);
     // Leaving the choice out still spends the maximum.
     expect(engine.apply(s, base).state.players[0].rageDice).toBe(0);
+  });
+
+  it('offers Fight Through the Pain for the self-damage on 1s (owner, 2026-11-18)', () => {
+    // Spend 1 of the 3 dice, so the user still holds rage dice; find a roll with a 1.
+    for (let seed = 1; seed < 200; seed++) {
+      const { s, unit } = setup(seed);
+      const r = engine.apply(s, {
+        t: 'ability',
+        unit,
+        abilityId: 'eruption-of-fury',
+        rageDice: 1,
+      });
+      const ones = r.events.some((e) => e.t === 'note' && e.text.includes('one(s) dealt'));
+      if (!ones) continue;
+      // Held, not yet allocated, and asked of the unit's owner.
+      expect(
+        r.events.some((e) => e.t === 'damage' && e.source.includes('Eruption of Fury 1s')),
+      ).toBe(false);
+      const d = engine.decision(r.state);
+      expect(d).toMatchObject({ kind: 'reaction', player: 0 });
+      if (d?.kind !== 'reaction') return;
+      expect(d.options[0]).toMatchObject({ ability: 'fightThroughThePain', unit });
+      const done = engine.apply(r.state, { t: 'pass' });
+      expect(
+        done.events.some((e) => e.t === 'damage' && e.source.includes('Eruption of Fury 1s')),
+      ).toBe(true);
+      return;
+    }
+    throw new Error('no seed rolled a 1');
+  });
+
+  it('allocates the self-damage at once when the user has no rage dice left', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const { s, unit } = setup(seed);
+      const r = engine.apply(s, { t: 'ability', unit, abilityId: 'eruption-of-fury', rageDice: 3 });
+      if (!r.events.some((e) => e.t === 'note' && e.text.includes('one(s) dealt'))) continue;
+      expect(
+        r.events.some((e) => e.t === 'damage' && e.source.includes('Eruption of Fury 1s')),
+      ).toBe(true);
+      expect(engine.decision(r.state)?.kind).not.toBe('reaction');
+      return;
+    }
+    throw new Error('no seed rolled a 1');
   });
 
   it('the NPC names a legal weapon, target and dice count', () => {

@@ -1380,6 +1380,37 @@ describe('Warscroll Spells (Wizard-Specific)', () => {
     expect(res.state.overgrown?.[0]).toHaveLength(tokensBefore + 1);
   });
 
+  it('Metamorphosis: its main hit offers Fight Through the Pain, and the overgrowth follows the outcome (owner, 2026-11-18)', () => {
+    const s = baseArena([ALARIELLE, SAURUS_GUARD]);
+    placeUnit(scenario, s, ALARIELLE, 20, 22);
+    placeUnit(scenario, s, SAURUS_GUARD, 28, 22);
+    for (let i = 1; i < s.units[SAURUS_GUARD]!.models.length; i++) {
+      s.units[SAURUS_GUARD]!.models[i]!.alive = false;
+    }
+    s.units[SAURUS_GUARD]!.damage = 1;
+    s.players[1].rageDice = 3;
+    s.players[1].furyLevel = 3;
+    s.players[1].cp = 0;
+    const tokensBefore = s.overgrown?.[0]?.length ?? 0;
+    const res = applyUntil(
+      engine,
+      s,
+      { t: 'ability', unit: ALARIELLE, abilityId: METAMORPHOSIS, target: SAURUS_GUARD },
+      (r) => r.events.some((e) => e.t === 'cast' && e.success),
+    );
+    // The damage is held for the target's owner; the target stands and no token yet.
+    const d = engine.decision(res.state);
+    expect(d).toMatchObject({ kind: 'reaction', player: 1 });
+    if (d?.kind !== 'reaction') return;
+    expect(d.options[0]).toMatchObject({ ability: 'fightThroughThePain', unit: SAURUS_GUARD });
+    expect(res.state.units[SAURUS_GUARD]!.status).toBe('battlefield');
+    expect(res.state.overgrown?.[0]?.length ?? 0).toBe(tokensBefore);
+    // Taking it destroys the unit and then the closest feature gets its token.
+    const taken = engine.apply(res.state, { t: 'pass' });
+    expect(taken.state.units[SAURUS_GUARD]!.status).toBe('destroyed');
+    expect(taken.state.overgrown?.[0]).toHaveLength(tokensBefore + 1);
+  });
+
   it('Enrage The Spites (Drycha only): hits up to 3 enemies within 12" or in creeping overgrowth with D3 mortal damage each', () => {
     const s = baseArena([ALARIELLE, DRYCHA, SAURUS_GUARD, KROXIGOR, HUNTERS]);
     placeUnit(scenario, s, DRYCHA, 20, 22);
