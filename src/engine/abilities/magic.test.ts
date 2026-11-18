@@ -996,6 +996,46 @@ describe('Six Remaining Commands', () => {
     expect(engine.decision(placed)).toMatchObject({ phase: 'shooting' });
   });
 
+  it('a unit that has run keeps Covering Fire and Counter-charge with run-and-shoot / run-and-charge', () => {
+    const huanchi = (s: GameState, id: UnitId): void => {
+      s.effects = [
+        ...(s.effects ?? []),
+        {
+          id: '6086-ce9b-38be-28b2', // Speed of Huanchi: run and shoot, run and charge
+          name: 'Speed of Huanchi',
+          sourceUnit: id,
+          targetUnit: id,
+          owner: 1,
+          expires: 'startOfNextTurn',
+        },
+      ];
+    };
+    const s = baseArena([DRYADS, HUNTERS]);
+    s.phase = 'shooting';
+    placeUnit(scenario, s, DRYADS, 16, 22);
+    placeUnit(scenario, s, HUNTERS, 26, 22);
+    s.units[DRYADS]!.moved = 'normal';
+    s.players[0].cp = 0;
+    s.units[HUNTERS]!.moved = 'run';
+    huanchi(s, HUNTERS);
+    const cf = engine.decision(engine.apply(s, { t: 'pass' }).state);
+    expect(cf?.kind === 'reaction' && cf.options.some((o) => o.command === 'coveringFire')).toBe(
+      true,
+    );
+
+    const c = baseArena([DRYADS, SAURUS_GUARD]);
+    c.phase = 'charge';
+    placeUnit(scenario, c, DRYADS, 16, 22);
+    placeUnit(scenario, c, SAURUS_GUARD, 27, 22);
+    c.players[1].cp = 4;
+    c.units[SAURUS_GUARD]!.moved = 'run';
+    huanchi(c, SAURUS_GUARD);
+    const cc = engine.decision(engine.apply(c, { t: 'pass' }).state);
+    expect(cc?.kind === 'reaction' && cc.options.some((o) => o.command === 'counterCharge')).toBe(
+      true,
+    );
+  });
+
   it('a unit that has run cannot Covering Fire (without run-and-shoot) or Counter-charge', () => {
     const s = baseArena([DRYADS, HUNTERS]);
     s.phase = 'shooting';
