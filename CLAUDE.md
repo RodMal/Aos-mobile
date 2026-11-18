@@ -7,7 +7,7 @@ A web app for playing Warhammer Age of Sigmar 4 against a computer opponent, on 
 - **Run the loop.** To continue development, use the `aos-loop` skill (`.claude/skills/aos-loop/SKILL.md`): the main session orchestrates; agents in `.claude/agents/` implement (`aos-dev`, Sonnet), do mechanical work (`aos-chore`, Haiku) and review or advise (`aos-review`, Opus).
 - **Branches and PRs.** `main` is the released branch and deploys after CI passes. Every change goes through a PR from a `task/<id>` branch off `origin/main`, whatever working branch a session was opened on. Never push to `main` directly; never force-push.
 - **Merging.** The owner merges task PRs. The loop may merge a PR itself only if the owner has written below that it may.
-  - Loop may merge on green CI: **not authorised** (owner to decide).
+  - Loop may merge on green CI: **authorised** (owner, 2026-11-18).
 - **CI is the judge.** Locally run `pnpm check` and the tests the change touches; CI runs the full simulation and e2e suites on every PR.
 - **New requests from the owner** become tasks in `docs/BACKLOG.md`.
 
