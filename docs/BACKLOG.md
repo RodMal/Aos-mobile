@@ -28,14 +28,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: `src/ui/board/layers.tsx`, `src/ui/drawers/Roster.tsx`, `UnitState.fought` in `src/engine/types.ts`
 - **Done when**: in the combat phase, units of both sides that have fought are dimmed with a "fought" badge on the board and marked in the roster; e2e check.
 
-### U3 Measuring tool
-
-- **Tier**: sonnet
-- **Touches**: ui/sheet, ui/board
-- **Read**: `src/ui/sheet/Rail.tsx` (board tools), `src/ui/board/Board.tsx`, `src/ui/board/hitTest.ts`, `src/geom/index.ts`
-- **Owner's reason**: missed the second tier of Flanking Firestorm thinking a unit was within 9" of a corner.
-- **Done when**: a toggle in the board tools; tap or click two points, or a unit and a point (corner, objective); shows the distance in inches, base edge to base edge for units; touch and mouse; e2e on phone and desktop.
-
 ### U4 Live checks for battle tactic conditions
 
 - **Tier**: sonnet

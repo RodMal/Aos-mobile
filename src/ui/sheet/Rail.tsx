@@ -34,6 +34,8 @@ export function Rail() {
   const moveCamera = useUi((s) => s.moveCamera);
   const undoable = useGame((s) => canUndo(s.session));
   const undo = useGame((s) => s.undo);
+  const measuring = useUi((s) => s.measure.on);
+  const setMeasure = useUi((s) => s.setMeasure);
   return (
     <div className="rail">
       <div className="rail-col">
@@ -64,6 +66,15 @@ export function Rail() {
           onClick={() => moveCamera({ kind: 'zoom', factor: 1 / 1.6 })}
         >
           <Icon name="minus" />
+        </button>
+        <button
+          className={`fab ${measuring ? 'on' : ''}`}
+          aria-label="Measure"
+          aria-pressed={measuring}
+          data-testid="measure-toggle"
+          onClick={() => setMeasure({ on: !measuring, a: null, b: null })}
+        >
+          <Icon name="ruler" />
         </button>
         <button
           className="fab"

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Footprint } from '../../geom/index.js';
-import { distanceToFootprint, hitTest, pick } from './hitTest.js';
+import { distanceToFootprint, hitTest, pick, snapPoint } from './hitTest.js';
 
 const circle = (cx: number, cy: number, r = 0.5): Footprint => ({ kind: 'circle', cx, cy, r });
 
@@ -45,5 +45,16 @@ describe('hitTest and pick', () => {
 
   it('returns none far from everything', () => {
     expect(pick(hitTest(targets, { x: 20, y: 0 }, 1))).toEqual({ t: 'none' });
+  });
+});
+
+describe('snapPoint', () => {
+  const table = { w: 60, h: 44 };
+  const objs = [{ x: 30, y: 22 }];
+  it('snaps to a corner or an objective within the slop, else keeps the tap', () => {
+    expect(snapPoint(table, objs, { x: 1, y: 1.2 }, 2)).toEqual({ x: 0, y: 0 });
+    expect(snapPoint(table, objs, { x: 59, y: 43 }, 2)).toEqual({ x: 60, y: 44 });
+    expect(snapPoint(table, objs, { x: 30.5, y: 21.5 }, 2)).toEqual({ x: 30, y: 22 });
+    expect(snapPoint(table, objs, { x: 10, y: 10 }, 2)).toEqual({ x: 10, y: 10 });
   });
 });

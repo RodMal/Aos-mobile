@@ -5,6 +5,7 @@ export * from './polygon.js';
 export * from './footprint.js';
 export * from './geometry.js';
 export * from './coherency.js';
+export * from './measure.js';
 export {
   clearFormationCache,
   effectiveFrontage,
