@@ -1,3 +1,4 @@
+import type { Weapon } from '../../data/profile.js';
 import type { AttackSituation, Modifier } from '../../rules/core/modifiers.js';
 import type { StepCtx } from '../damage.js';
 import { inCreepingOvergrowth } from '../overgrowth.js';
@@ -31,8 +32,16 @@ import type {
 
 const REGISTRY = new Map<string, AbilityDefinition>();
 
+let auraCache: AbilityDefinition[] | null = null;
+
 export function registerAbility(def: AbilityDefinition): void {
   REGISTRY.set(def.id, def);
+  auraCache = null;
+}
+
+function auraDefinitions(): AbilityDefinition[] {
+  auraCache ??= [...REGISTRY.values()].filter((d) => d.auraGrants);
+  return auraCache;
 }
 
 export function getAbility(id: string): AbilityDefinition | undefined {
@@ -161,6 +170,20 @@ export function unitGrants(scenario: Scenario, state: GameState, unit: UnitState
     }
   }
 
+  const auras = auraDefinitions();
+  if (auras.length > 0 && unit.status === 'battlefield') {
+    for (const id of state.unitOrder) {
+      const source = state.units[id]!;
+      if (source.status !== 'battlefield') continue;
+      const sourceAbilities = profileOf(scenario, source).abilities;
+      for (const def of auras) {
+        if (sourceAbilities.some((a) => a.id === def.id)) {
+          mergeGrants(grants, def.auraGrants!(source, unit, scenario, state));
+        }
+      }
+    }
+  }
+
   for (const eff of effectsOnUnit(state, unit.id)) {
     const def = REGISTRY.get(eff.id);
     if (def?.effectGrants) {
@@ -169,6 +192,26 @@ export function unitGrants(scenario: Scenario, state: GameState, unit: UnitState
   }
 
   return grants;
+}
+
+/** The weapon as `unit` uses it, after the passive abilities that change a characteristic. */
+export function abilityWeapon(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  weapon: Weapon,
+): Weapon {
+  let out = weapon;
+  for (const ab of profileOf(scenario, unit).abilities) {
+    const def = REGISTRY.get(ab.id);
+    if (def?.weaponFor) out = def.weaponFor(unit, out, scenario, state);
+  }
+  return out;
+}
+
+/** The modifier added to each ward roll `unit` makes (an aura's penalty is negative). */
+export function wardRollModifier(scenario: Scenario, state: GameState, unit: UnitState): number {
+  return unitGrants(scenario, state, unit).wardRollModifier ?? 0;
 }
 
 function mergeGrants(into: UnitGrants, add: Partial<UnitGrants>): void {
@@ -185,6 +228,11 @@ function mergeGrants(into: UnitGrants, add: Partial<UnitGrants>): void {
   if (add.runAndCharge) into.runAndCharge = true;
   if (add.cannotRun) into.cannotRun = true;
   if (add.ignoreSaveModifiers) into.ignoreSaveModifiers = true;
+  if (add.cannotRetreat) into.cannotRetreat = true;
+  if (add.wardRollModifier) {
+    into.wardRollModifier = (into.wardRollModifier ?? 0) + add.wardRollModifier;
+  }
+  if (add.moveBonus) into.moveBonus = (into.moveBonus ?? 0) + add.moveBonus;
   if (add.chargeRollModifier) into.chargeRollModifier += add.chargeRollModifier;
 }
 
@@ -293,6 +341,11 @@ export function abilityAttackModifiers(
         ),
       );
     }
+  }
+
+  for (const ab of profileOf(scenario, sit.target).abilities) {
+    const def = REGISTRY.get(ab.id);
+    if (def?.defenceModifiers) out.push(...def.defenceModifiers(sit.target, sit, scenario, state));
   }
 
   for (const eff of state.effects ?? []) {

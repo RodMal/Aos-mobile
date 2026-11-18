@@ -66,6 +66,11 @@ export interface AttackInput {
   target: TargetDefence;
   /** Force a critical-hit ability; by default the best one is chosen. */
   crit?: CritAbility | null;
+  /**
+   * Re-rolls available (Glamourweave): each is spent on the first failed roll of its kind.
+   * Re-rolling a failed roll is never worse than keeping it, so the choice is made for the player.
+   */
+  rerolls?: { hit?: boolean; wound?: boolean; save?: boolean };
 }
 
 export interface AttackRoll {
@@ -81,12 +86,29 @@ export interface AttackRoll {
   damage: number;
   crit: CritAbility | null;
   dice: { hit: number[]; wound: number[]; save: number[] };
+  /** Which of the offered re-rolls were spent. */
+  rerolled: { hit: boolean; wound: boolean; save: boolean };
 }
 
 export function rollAttackSequence(rng: RngCursor, input: AttackInput): AttackRoll {
   const { weapon, mods, target } = input;
   const crit = input.crit !== undefined ? input.crit : chooseCrit(weapon, mods, target);
   const damageRoll = (): number => Math.max(0, rollDice(rng, weapon.damage) + mods.damage);
+  const avail = {
+    hit: input.rerolls?.hit ?? false,
+    wound: input.rerolls?.wound ?? false,
+    save: input.rerolls?.save ?? false,
+  };
+  const rerolled = { hit: false, wound: false, save: false };
+  // Rolls `die`; a failed one is rolled again when a re-roll of `kind` is left.
+  const roll = (kind: 'hit' | 'wound' | 'save', failed: (die: number) => boolean): number => {
+    let die = rng.int(1, 6);
+    if (avail[kind] && !rerolled[kind] && failed(die)) {
+      rerolled[kind] = true;
+      die = rng.int(1, 6);
+    }
+    return die;
+  };
 
   // 1. Hit rolls. An unmodified 6 is a critical hit only for a weapon with a Crit ability;
   // otherwise it is an ordinary roll.
@@ -94,7 +116,10 @@ export function rollAttackSequence(rng: RngCursor, input: AttackInput): AttackRo
   let hits = 0;
   let crits = 0;
   for (let i = 0; i < input.attacks; i++) {
-    const die = rng.int(1, 6);
+    const die = roll(
+      'hit',
+      (d) => !(d === 6 && crit !== null) && !hitSucceeds(d, weapon.hit, mods.hit),
+    );
     hitDice.push(die);
     if (die === 6 && crit !== null) crits++;
     else if (hitSucceeds(die, weapon.hit, mods.hit)) hits++;
@@ -114,7 +139,7 @@ export function rollAttackSequence(rng: RngCursor, input: AttackInput): AttackRo
   const woundDice: number[] = [];
   let wounds = autoWounds;
   for (let i = 0; i < toWound; i++) {
-    const die = rng.int(1, 6);
+    const die = roll('wound', (d) => !woundSucceeds(d, weapon.wound, mods.wound));
     woundDice.push(die);
     if (woundSucceeds(die, weapon.wound, mods.wound)) wounds++;
   }
@@ -128,7 +153,7 @@ export function rollAttackSequence(rng: RngCursor, input: AttackInput): AttackRo
       unsaved++;
       continue;
     }
-    const die = rng.int(1, 6);
+    const die = roll('save', (d) => !saveSucceeds(d, target.save, rend, mods.save));
     saveDice.push(die);
     if (!saveSucceeds(die, target.save, rend, mods.save)) unsaved++;
   }
@@ -147,6 +172,7 @@ export function rollAttackSequence(rng: RngCursor, input: AttackInput): AttackRo
     damage,
     crit,
     dice: { hit: hitDice, wound: woundDice, save: saveDice },
+    rerolled,
   };
 }
 
@@ -155,6 +181,7 @@ export function rollWard(
   rng: RngCursor,
   damage: number,
   ward: number | null,
+  modifier = 0,
 ): { taken: number; dice: number[] } {
   if (ward === null || damage <= 0) return { taken: Math.max(0, damage), dice: [] };
   const dice: number[] = [];
@@ -162,7 +189,7 @@ export function rollWard(
   for (let i = 0; i < damage; i++) {
     const die = rng.int(1, 6);
     dice.push(die);
-    if (die < ward) taken++;
+    if (die + modifier < ward) taken++;
   }
   return { taken, dice };
 }

@@ -7,6 +7,7 @@
 import type { Weapon } from '../../data/profile.js';
 import { abilityAttackModifiers } from '../../engine/abilities/effects.js';
 import '../../engine/abilities/commands.js';
+import '../../engine/abilities/sylvaneth.js';
 import type { AttackMods } from '../../engine/expected.js';
 import { hasKeyword } from '../../engine/query.js';
 import { isGuardedHero, unitHasCover } from '../../engine/terrain.js';

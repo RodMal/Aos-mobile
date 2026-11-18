@@ -15,6 +15,7 @@
  * Readings are in docs/RULES-DECISIONS.md (I76 to I81).
  */
 import type { Weapon } from '../../data/profile.js';
+import { unitGrants } from '../../engine/abilities/effects.js';
 import { hasKeyword, inCombat, opponent, profileOf } from '../../engine/query.js';
 import type { GameState, PlayerId, Scenario, UnitState } from '../../engine/types.js';
 import type { Modifier } from '../core/modifiers.js';
@@ -243,13 +244,16 @@ function isSeraphon(scenario: Scenario, unit: UnitState): boolean {
   return hasKeyword(scenario, unit, 'SERAPHON');
 }
 
-/** Sotek the Deliverer: +2 to the Move characteristic (not to a Move of 0). */
+/**
+ * The Move characteristic as it stands: Sotek the Deliverer adds 2 and Kurnothi War-horn adds 2
+ * (neither to a Move of 0).
+ */
 export function moveOf(scenario: Scenario, state: GameState, unit: UnitState): number {
   const move = profileOf(scenario, unit).move;
-  if (move > 0 && isProphesied(state, unit.owner, SOTEK_ID) && isSeraphon(scenario, unit)) {
-    return move + 2;
-  }
-  return move;
+  if (move <= 0) return move;
+  let bonus = unitGrants(scenario, state, unit).moveBonus ?? 0;
+  if (isProphesied(state, unit.owner, SOTEK_ID) && isSeraphon(scenario, unit)) bonus += 2;
+  return move + bonus;
 }
 
 /** Tepok the Seer: +1 to casting rolls. */

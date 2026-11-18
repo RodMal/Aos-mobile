@@ -4,7 +4,14 @@
  * range of the chosen target attack. Line of sight comes in M3.
  */
 import { attackModifiers, sumModifiers } from '../rules/core/modifiers.js';
-import { clearExpiredEffects, effectiveWard, unitGrants } from './abilities/effects.js';
+import {
+  abilityWeapon,
+  clearExpiredEffects,
+  effectiveWard,
+  unitGrants,
+  wardRollModifier,
+} from './abilities/effects.js';
+import { glamourRerolls, spendGlamourweave } from './abilities/sylvaneth.js';
 import { hasAbility, rollAttackCount, rollAttackSequence, rollWard } from './attack.js';
 import { illegal, type Ctx } from './ctx.js';
 import { allocateDamage, runMortalFollowUp } from './damage.js';
@@ -31,6 +38,16 @@ import type {
   UnitState,
   WeaponTargets,
 } from './types.js';
+
+/** The weapon as `unit` uses it now: Asterism and Battle Damaged changes applied. */
+export function usedWeapon(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  weapon: Weapon,
+): Weapon {
+  return abilityWeapon(scenario, state, unit, asterismWeapon(scenario, state, unit, weapon));
+}
 
 /** True when the unit may shoot this turn at all (weapons and targets aside). */
 export function mayShoot(unit: UnitState, runAndShoot = false): boolean {
@@ -153,7 +170,7 @@ export function weaponTargets(
     const engaged = inCombat(scenario, state, unit);
     weapons = profile.weapons
       .filter((w) => w.kind === 'ranged' && (!engaged || hasAbility(w, 'shootInCombat')))
-      .map((w) => asterismWeapon(scenario, state, unit, w));
+      .map((w) => usedWeapon(scenario, state, unit, w));
     if (weapons.length === 0) return [];
     const maxRange = Math.max(
       ...weapons.map((w) => effectiveWeaponRange(scenario, state, unit, w.range)),
@@ -169,7 +186,7 @@ export function weaponTargets(
   } else {
     weapons = profile.weapons
       .filter((w) => w.kind === 'melee')
-      .map((w) => asterismWeapon(scenario, state, unit, w));
+      .map((w) => usedWeapon(scenario, state, unit, w));
     if (weapons.length === 0) return [];
     // Units within 3" of enemy faction terrain may attack it.
     candidates = enemiesWithin(scenario, state, unit, COMBAT_RANGE, true);
@@ -221,7 +238,7 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
   const profile = profileOf(scenario, attacker);
   const pending = new Map<string, number>();
   for (const alloc of frame.allocations) {
-    const weapon = asterismWeapon(
+    const weapon = usedWeapon(
       scenario,
       s,
       attacker,
@@ -256,8 +273,23 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
       attacks,
       mods,
       target: { save: tp.save, ward: targetWard },
+      rerolls: glamourRerolls(scenario, s, attacker, target),
     });
-    const ward = rollWard(ctx.rng, roll.damage + roll.mortal, targetWard);
+    const spent = roll.rerolled;
+    if (spent.hit || spent.wound || spent.save) {
+      spendGlamourweave(s, attacker, target, spent);
+      const kinds = (['hit', 'wound', 'save'] as const).filter((k) => spent[k]);
+      ctx.events.push({
+        t: 'note',
+        text: `Glamourweave: re-rolled a failed ${kinds.join(', ')} roll.`,
+      });
+    }
+    const ward = rollWard(
+      ctx.rng,
+      roll.damage + roll.mortal,
+      targetWard,
+      wardRollModifier(scenario, s, target),
+    );
     ctx.events.push({
       t: 'attacks',
       attacker: attacker.id,

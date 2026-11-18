@@ -14,12 +14,12 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4d Sylvaneth passives: wards, movement, Battle Damaged, Glamourweave
+### M4d-2 Glamourweave re-roll as a player choice
 
 - **Tier**: sonnet+review
-- **Touches**: engine, rules
-- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/sylvaneth.json` (Alarielle `135b-afc5-4fd9-3460`, Belthanos `59e8-f376-a5df-144c` and `c6b8-a8fd-b2-59fa`, Spirit of Durthu `2eb1-9bd5-1544-36d9` and artefact Glamourweave `cafd-9cf1-871c-f47e`, Drycha `a1f-39fd-6570-f3d5`, Warsong Revenant `3f73-3ee4-8f6b-b16b`, Dryads `f62f-75b0-48cd-101e`); `src/engine/abilities/effects.ts` (`passiveGrants`, `unitGrants`), `src/engine/eligibility.ts` (move and run options), `src/rules/core/modifiers.ts`, `src/data/profile.ts` (weapon Attacks), `src/engine/overgrowth.ts` (`inCreepingOvergrowth`)
-- **Done when**: one test per ability: Alarielle's Song (Ward 6+ for Sylvaneth within 12", -1 to enemy ward rolls within 12"), One With The Forest (-1 to hit and wound while wholly within the overgrowth), Terror Of The Deep Woods (enemies within 9" cannot Run or Retreat), Kurnothi War-horn (+2" Move), Battle Damaged on Alarielle, Belthanos and Spirit of Durthu (Attacks of the named weapon from 10 damage points), Glamourweave (one re-roll each of hit, wound and save per phase; the UI offers the re-roll). Update `docs/ABILITIES.md`.
+- **Touches**: engine, ui/prompts
+- **Read**: `docs/RULES-DECISIONS.md` I96; Glamourweave `cafd-9cf1-871c-f47e` in `data/factions/sylvaneth.json`; `src/engine/abilities/sylvaneth.ts`, `src/engine/attack.ts`, `src/engine/combat.ts`
+- **Done when**: the player is offered each phase's hit, wound and save re-roll at the moment of a failed roll and can keep it for later; the NPC decides deterministically; old saves follow the rules-version rule (HANDOVER); there are tests.
 
 ### M4e Sylvaneth commands: Fury of The Forest, The Land Awakens, The Goddess Of Life
 

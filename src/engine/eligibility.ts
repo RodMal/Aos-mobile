@@ -76,11 +76,11 @@ export function moveOptions(scenario: Scenario, state: GameState, unit: UnitStat
   if (unit.moved !== null || unit.setUpThisTurn || isFactionTerrainUnit(scenario, unit)) return [];
   const profile = profileOf(scenario, unit);
   if (profile.move <= 0 && !profile.moveDice) return [];
+  const grants = unitGrants(scenario, state, unit);
   if (inCombat(scenario, state, unit)) {
-    if (unit.isManifestation) return [];
+    if (unit.isManifestation || grants.cannotRetreat) return [];
     return [{ t: 'move', kind: 'retreat', allowance: moveOf(scenario, state, unit) }];
   }
-  const grants = unitGrants(scenario, state, unit);
   const move = moveOf(scenario, state, unit);
   const out: UnitOption[] = [{ t: 'move', kind: 'normal', allowance: move }];
   if (!grants.cannotRun && !unit.isManifestation) {
