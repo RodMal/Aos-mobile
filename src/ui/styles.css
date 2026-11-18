@@ -1978,3 +1978,10 @@ button {
   font-family: var(--serif);
   text-align: center;
 }
+.start-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  text-align: center;
+}

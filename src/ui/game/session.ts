@@ -3,6 +3,8 @@
  * before it (for undo) and the events it produced (for the log). Pure; the Zustand store in
  * store.ts wraps it.
  */
+import { LEGACY_RULES_VERSION, RULES_VERSION } from './rulesVersion.js';
+export { LEGACY_RULES_VERSION, RULES_VERSION };
 import { z } from 'zod';
 import {
   IllegalActionError,
@@ -33,13 +35,21 @@ export interface Session {
 /** What is saved: enough to rebuild the game by replaying it. */
 export interface GameRecord {
   v: 1;
+  /** The rules version the game was played under; see `RULES_VERSION`. */
+  rules: number;
   seed: number;
   humanPlayer: PlayerId;
   actions: Action[];
 }
 
+/** True when a saved game was played under older rules than the engine now has. */
+export function isOutdated(record: GameRecord): boolean {
+  return record.rules < RULES_VERSION;
+}
+
 const RecordSchema = z.object({
   v: z.literal(1),
+  rules: z.number().int().min(1).default(LEGACY_RULES_VERSION),
   seed: z.number().int(),
   humanPlayer: z.union([z.literal(0), z.literal(1)]),
   actions: z.array(z.looseObject({ t: z.string() })),
@@ -120,6 +130,7 @@ export function undo(session: Session): Session {
 export function toRecord(session: Session): GameRecord {
   return {
     v: 1,
+    rules: RULES_VERSION,
     seed: session.seed,
     humanPlayer: session.humanPlayer,
     actions: session.history.map((h) => h.action),

@@ -1,5 +1,6 @@
 /** Seraphon (Sunclaw Starhost): Vengeance of Azyr is asked at the end of a turn. */
 import { expect, test, type Page } from '@playwright/test';
+import { RULES_VERSION } from '../../src/ui/game/rulesVersion.js';
 
 /** Plays the computer on both sides until the Seraphon player is asked Vengeance of Azyr. */
 async function findVengeance(page: Page) {
@@ -27,7 +28,13 @@ async function findVengeance(page: Page) {
 }
 
 async function loadAt(page: Page, found: { seed: number; actions: unknown[] }) {
-  const record = JSON.stringify({ v: 1, seed: found.seed, humanPlayer: 1, actions: found.actions });
+  const record = JSON.stringify({
+    v: 1,
+    rules: RULES_VERSION,
+    seed: found.seed,
+    humanPlayer: 1,
+    actions: found.actions,
+  });
   await page.addInitScript((r) => localStorage.setItem('aos-mobile:game', r), record);
   await page.goto(`./?seed=${found.seed}&side=1&fast=1`);
 }

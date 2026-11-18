@@ -5,6 +5,7 @@
  */
 import type { Page } from '@playwright/test';
 import type { Action, Decision, Engine, GameState } from '../../src/engine/index.js';
+import { RULES_VERSION } from '../../src/ui/game/rulesVersion.js';
 
 interface Hooks {
   __aosTest?: {
@@ -34,7 +35,7 @@ export async function openPosition(
   await page.goto(`./?e2e=1&seed=${seed}&side=0&fast=1&new=1`);
   await page.waitForFunction(() => !!(window as unknown as Hooks).__aosTest);
   const position = await page.evaluate(
-    ({ seed, stopSource }) => {
+    ({ seed, stopSource, rules }) => {
       const { engine, chooseAction } = (window as unknown as Hooks).__aosTest!;
       const stopFn = new Function(`return (${stopSource})`)() as (
         e: Engine,
@@ -51,7 +52,7 @@ export async function openPosition(
           if (note !== null) {
             localStorage.setItem(
               'aos-mobile:game',
-              JSON.stringify({ v: 1, seed: k, humanPlayer: 0, actions }),
+              JSON.stringify({ v: 1, rules, seed: k, humanPlayer: 0, actions }),
             );
             return { seed: k, actions, state, note };
           }
@@ -62,7 +63,7 @@ export async function openPosition(
       }
       throw new Error(`seeds ${seed} to ${seed + 19}: the position was never reached`);
     },
-    { seed, stopSource: stop.toString() },
+    { seed, stopSource: stop.toString(), rules: RULES_VERSION },
   );
   await page.goto(`./?seed=${position.seed}&side=0&fast=1`);
   return position;

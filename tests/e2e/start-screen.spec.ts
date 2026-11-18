@@ -29,20 +29,36 @@ test('a saved game: Continue resumes it exactly', async ({ page }) => {
   expect(await page.evaluate((k) => localStorage.getItem(k), KEY)).toBe(saved);
 });
 
-test('a saved game that no longer replays shows the start screen without Continue', async ({
-  page,
-}) => {
+test('a saved game from an older version shows the notice, without Continue', async ({ page }) => {
+  await page.goto('./?fast=1');
+  await page.evaluate(
+    (k) => localStorage.setItem(k, JSON.stringify({ v: 1, seed: 5, humanPlayer: 0, actions: [] })),
+    KEY,
+  );
+  await page.reload();
+  await expect(page.getByTestId('start-screen')).toBeVisible();
+  await expect(page.getByTestId('outdated-notice')).toContainText('older version');
+  await expect(page.getByTestId('continue-game')).toHaveCount(0);
+  await page.screenshot({ path: `test-results/start-old-${test.info().project.name}.png` });
+  await page.getByTestId('start-new-game').click();
+  await expect(page.getByTestId('board')).toBeVisible();
+  const rec = JSON.parse((await page.evaluate((k) => localStorage.getItem(k), KEY))!);
+  expect(rec.rules).toBeGreaterThanOrEqual(2);
+});
+
+test('a saved game that no longer replays shows the notice, without Continue', async ({ page }) => {
   await page.goto('./?fast=1');
   await page.evaluate(
     (k) =>
       localStorage.setItem(
         k,
-        JSON.stringify({ v: 1, seed: 5, humanPlayer: 0, actions: [{ t: 'nonsense' }] }),
+        JSON.stringify({ v: 1, rules: 2, seed: 5, humanPlayer: 0, actions: [{ t: 'nonsense' }] }),
       ),
     KEY,
   );
   await page.reload();
   await expect(page.getByTestId('start-screen')).toBeVisible();
+  await expect(page.getByTestId('outdated-notice')).toBeVisible();
   await expect(page.getByTestId('continue-game')).toHaveCount(0);
 });
 
