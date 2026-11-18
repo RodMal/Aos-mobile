@@ -108,6 +108,16 @@ describe('session', () => {
     expect(replay(engine, record).state).toEqual(s.state);
   });
 
+  it('replays a game saved before Seraphon Asterisms existed (no answer to The Great Plan)', () => {
+    const s = toMovement();
+    const asks = s.history.filter((h) => engine.decision(h.before)?.kind === 'asterism');
+    expect(asks.length).toBeGreaterThan(0);
+    const old = toRecord(s);
+    old.actions = s.history.filter((h) => !asks.includes(h)).map((h) => h.action);
+    expect(old.actions.length).toBe(s.history.length - asks.length);
+    expect(replay(engine, old).state).toEqual(s.state);
+  });
+
   it('rejects malformed records', () => {
     expect(parseRecord(null)).toBeNull();
     expect(parseRecord('{nope')).toBeNull();

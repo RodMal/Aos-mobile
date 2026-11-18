@@ -14,6 +14,7 @@ import {
 import { boundingRadius, footprintPolygon, type Footprint } from '../../geom/index.js';
 import { engine, scenario } from '../game/engine.js';
 import { useDecision, useGameState, useHuman } from '../game/hooks.js';
+import { moveOf } from '../../rules/factions/seraphon.js';
 import { targetSummary } from '../game/attackPlan.js';
 import { useUi } from '../game/uiStore.js';
 import { rotate, unrotate, type Rot } from './view.js';
@@ -449,7 +450,12 @@ export function RangeLayer() {
       {profile.move > 0 && (
         <g className="reach move">
           {fps.map((fp, k) => (
-            <circle key={k} cx={fp.cx} cy={fp.cy} r={boundingRadius(fp) + profile.move} />
+            <circle
+              key={k}
+              cx={fp.cx}
+              cy={fp.cy}
+              r={boundingRadius(fp) + moveOf(scenario, state, unit)}
+            />
           ))}
         </g>
       )}

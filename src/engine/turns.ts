@@ -22,7 +22,8 @@ import {
   hasCreepingDread,
   seasonsUnit,
 } from '../rules/factions/seasons.js';
-import { PHASES, type PlayerId } from './types.js';
+import { asterismOptions, nextAsterismFrame, recordAsterism } from '../rules/factions/seraphon.js';
+import { PHASES, type Action, type PlayerId } from './types.js';
 
 // ─── Turn sequence ──────────────────────────────────────────────────────────────
 
@@ -161,6 +162,20 @@ export function continueRound(ctx: Ctx): void {
   )) {
     ctx.events.push({ t: 'note', text });
   }
+  finishRound(ctx);
+}
+
+/**
+ * The end of the start of the battle round: Seraphon prophecies (The Great Plan in round 1,
+ * Further the Great Plan later), then who takes the first turn.
+ */
+function finishRound(ctx: Ctx): void {
+  const { s, scenario } = ctx;
+  const asterism = nextAsterismFrame(scenario, s);
+  if (asterism) {
+    s.stack.push({ t: 'asterism', ...asterism });
+    return;
+  }
   if (s.round === 1) {
     roundOneFirstTurn(ctx);
     return;
@@ -187,6 +202,26 @@ export function roundOneFirstTurn(ctx: Ctx): void {
   // takes the first turn; in a quick-start game (no deployment) the attacker chooses.
   const chooser = s.deploymentFinishedFirst ?? attackerOf(scenario);
   s.stack.push({ t: 'priority', winner: chooser, rolls: [0, 0], reason: 'deployment' });
+}
+
+/** The answer to The Great Plan or Further the Great Plan (see `Decision` kind `asterism`). */
+export function chooseAsterism(ctx: Ctx, action: Action): void {
+  const { s, scenario } = ctx;
+  const frame = s.stack[s.stack.length - 1];
+  if (frame?.t !== 'asterism') illegal('There is no Asterism to pick.');
+  let id: string | null = null;
+  if (action.t === 'choose') {
+    const option = asterismOptions(scenario, s, frame.player, frame.stage).find(
+      (o) => o.id === action.value,
+    );
+    if (!option) illegal('Pick an Asterism that has not been picked before this battle.');
+    id = option.id;
+  } else if (action.t !== 'pass') {
+    illegal('Pick an Asterism to prophesy.');
+  }
+  s.stack.pop();
+  ctx.events.push({ t: 'note', text: recordAsterism(scenario, s, frame.player, frame.stage, id) });
+  finishRound(ctx);
 }
 
 export function chooseFugitive(ctx: Ctx, value: string): void {

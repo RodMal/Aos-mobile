@@ -9,6 +9,7 @@ import {
   eruptionOfFuryTargets,
   MAX_ERUPTION_RAGE_DICE,
 } from '../rules/core/fury.js';
+import { asterismOptions } from '../rules/factions/seraphon.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import { friendlyWyldwoods, isAwakenedWyldwood } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID, canSetUpWyldwood, checkWyldwoodSetUp } from './wyldwood.js';
@@ -124,6 +125,13 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
         };
       case 'creepingDread':
         return { kind: 'creepingDread', player: top.player, units: top.units, max: top.max };
+      case 'asterism':
+        return {
+          kind: 'asterism',
+          player: top.player,
+          stage: top.stage,
+          options: asterismOptions(scenario, state, top.player, top.stage),
+        };
       case 'fugitive':
         return { kind: 'fugitive', player: top.player, units: top.units };
       case 'resolve':

@@ -60,6 +60,13 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
       return mine
         ? { title: 'Creeping Dread', hint: 'Pick enemy units in the overgrowth, or pass.' }
         : { title: `${who} Creeping Dread`, hint: 'The opponent is choosing…' };
+    case 'asterism':
+      return mine
+        ? {
+            title: d.stage === 'great' ? 'The Great Plan' : 'Further the Great Plan',
+            hint: 'Prophesy an Asterism.',
+          }
+        : { title: `${who} prophesies`, hint: 'The opponent is choosing…' };
     case 'fugitive':
       return mine
         ? { title: 'Pick the fugitive', hint: 'Burning for Vengeance: pick an enemy Hero.' }

@@ -211,7 +211,7 @@ describe('Battle Tactics (GHB 2026-27)', () => {
     it('asks the player with the card to pick an enemy Hero before the first turn', () => {
       let s0 = engine.newGame(1);
       // Seasons Of War (start of the battle round) may come first.
-      while (engine.decision(s0)?.kind === 'alarielleSeason')
+      while (['alarielleSeason', 'asterism'].includes(engine.decision(s0)?.kind ?? ''))
         s0 = engine.apply(s0, engine.defaultAction(s0)).state;
       const d = engine.decision(s0)!;
       expect(d.kind).toBe('fugitive');
@@ -239,7 +239,7 @@ describe('Battle Tactics (GHB 2026-27)', () => {
 
     it('lets Quick Pursuit and then Bring Them In complete against the picked fugitive', () => {
       let s0 = engine.newGame(1);
-      while (engine.decision(s0)?.kind === 'alarielleSeason')
+      while (['alarielleSeason', 'asterism'].includes(engine.decision(s0)?.kind ?? ''))
         s0 = engine.apply(s0, engine.defaultAction(s0)).state;
       const d = engine.decision(s0)!;
       if (d.kind !== 'fugitive') throw new Error('expected a fugitive pick');

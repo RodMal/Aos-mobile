@@ -3,6 +3,8 @@ import { aliveCount, type UnitState } from '../../engine/index.js';
 import { diceText, type UnitProfile, type Weapon } from '../../data/profile.js';
 import { displayKeyword } from '../../data/markup.js';
 import { profileFor, scenario } from '../game/engine.js';
+import { useGameState } from '../game/hooks.js';
+import { moveOf } from '../../rules/factions/seraphon.js';
 import { AbilityView } from './AbilityView.js';
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -14,17 +16,18 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function moveText(p: UnitProfile): string {
+function moveText(p: UnitProfile, move: number): string {
   if (p.moveDice) return `${diceText(p.moveDice)}"`;
-  return p.move > 0 ? `${p.move}"` : '–';
+  return p.move > 0 ? `${move}"` : '–';
 }
 
 export function StatLine({ unit }: { unit: UnitState }) {
   const p = profileFor(unit);
+  const state = useGameState();
   const alive = aliveCount(unit);
   return (
     <div className="stats" data-testid="stat-line">
-      <Stat label="Move" value={moveText(p)} />
+      <Stat label="Move" value={moveText(p, moveOf(scenario, state, unit))} />
       <Stat label="Health" value={String(p.health)} />
       <Stat label="Save" value={p.save >= 7 ? '–' : `${p.save}+`} />
       <Stat label="Control" value={String(p.control)} />

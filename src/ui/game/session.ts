@@ -130,10 +130,24 @@ export function parseRecord(json: string | null): GameRecord | null {
   }
 }
 
+function isUnansweredAsterism(engine: Engine, session: Session, action: Action): boolean {
+  const d = engine.decision(session.state);
+  if (d?.kind !== 'asterism') return false;
+  if (action.t === 'pass') return false;
+  return !(action.t === 'choose' && d.options.some((o) => o.id === action.value));
+}
+
 /** Rebuilds a game by replaying its actions. Throws if an action is no longer legal. */
 export function replay(engine: Engine, record: GameRecord): Session {
   let session = newSession(engine, record.seed, record.humanPlayer);
-  for (const action of record.actions) session = applyToSession(engine, session, action).session;
+  for (const action of record.actions) {
+    // A game saved before Seraphon Asterisms existed has no answer to The Great Plan or Further
+    // the Great Plan: it replays as a pass (nothing prophesied), as it was played.
+    if (isUnansweredAsterism(engine, session, action)) {
+      session = applyToSession(engine, session, { t: 'pass' }).session;
+    }
+    session = applyToSession(engine, session, action).session;
+  }
   return session;
 }
 

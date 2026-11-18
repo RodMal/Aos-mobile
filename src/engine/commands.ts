@@ -1,4 +1,5 @@
 import { rallyPoints, rallySpend, RALLY_ROLLS } from '../rules/core/rally.js';
+import { moveOf } from '../rules/factions/seraphon.js';
 import { unitGrants } from './abilities/effects.js';
 import { d6, d6s, illegal, rollD3, type Ctx } from './ctx.js';
 import { inflictMortalDamage, returnPosition } from './damage.js';
@@ -147,7 +148,7 @@ export function powerThrough(ctx: Ctx, unitId: UnitId, targetId?: UnitId): void 
   useCommandOn(ctx, 'powerThrough', unit);
   const dmg = rollD3(ctx, unit.owner, 'Power Through (D3 mortal damage)');
   inflictMortalDamage(ctx, target, dmg, 'Power Through');
-  const allowance = profileOf(ctx.scenario, unit).move;
+  const allowance = moveOf(ctx.scenario, s, unit);
   // It may stay in combat with the units it is in combat with now, but no others
   // (owner's ruling, 2026-11-11).
   const engagedWith = enemiesInCombat(ctx.scenario, s, unit).map((e) => e.id);

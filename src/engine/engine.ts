@@ -32,6 +32,7 @@ import { eligibleFighters } from './eligibility.js';
 import { cloneState } from './clone.js';
 import {
   advancePhase,
+  chooseAsterism,
   chooseCreepingDread,
   chooseFugitive,
   choosePriority,
@@ -306,6 +307,9 @@ export function createEngine(scenario: Scenario): Engine {
         continueRound(ctx);
         break;
       }
+      case 'asterism':
+        chooseAsterism(ctx, action);
+        break;
       case 'creepingDread':
         if (action.t === 'pass') s.stack.pop();
         else if (action.t === 'choose') chooseCreepingDread(ctx, action.value);
@@ -388,6 +392,10 @@ export function createEngine(scenario: Scenario): Engine {
         return { t: 'choose', value: d.seasons[0]! };
       case 'fugitive':
         return { t: 'choose', value: suggestFugitive(scenario, state, d.player) ?? d.units[0]! };
+      case 'asterism':
+        // Optional for engine-driven games, like a Place of Power: the default prophesies
+        // nothing (the NPC picks, see `chooseAction`).
+        return { t: 'pass' };
       case 'creepingDread':
         return { t: 'pass' };
       case 'fightPick':
