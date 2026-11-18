@@ -653,6 +653,14 @@ button {
   fill: #9fd4ff;
   opacity: 0.12;
 }
+.enemy-zones {
+  fill: #ff6b6b;
+  stroke: #ff6b6b;
+  stroke-width: 6px; /* 3 inches each side of the base, in table units */
+  stroke-linejoin: round;
+  opacity: 0.16;
+  pointer-events: none;
+}
 .allowance-ring {
   fill: none;
   stroke: #cfe8ff;

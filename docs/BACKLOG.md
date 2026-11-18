@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### U5 3" enemy zones while moving
-
-- **Tier**: sonnet
-- **Touches**: ui/board
-- **Read**: `src/ui/board/GhostLayer.tsx`, `src/ui/board/layers.tsx`
-- **Done when**: during a normal move or run, the area within 3" of every enemy unit is shaded faintly; screenshot checked on phone and desktop.
-
 ### U6 Overgrowth shading
 
 - **Tier**: sonnet
