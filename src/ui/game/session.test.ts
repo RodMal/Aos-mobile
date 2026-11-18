@@ -13,6 +13,9 @@ import {
   canUndo,
   newSession,
   parseRecord,
+  isOutdated,
+  LEGACY_RULES_VERSION,
+  RULES_VERSION,
   parseUrlOptions,
   replay,
   shouldResume,
@@ -107,6 +110,16 @@ describe('session', () => {
     const record = parseRecord(json)!;
     expect(record.actions).toHaveLength(PRE_BATTLE + TO_MOVEMENT + 2);
     expect(replay(engine, record).state).toEqual(s.state);
+  });
+
+  it('versions records: new saves carry the current rules version, old ones read as legacy', () => {
+    const s = toMovement();
+    expect(parseRecord(JSON.stringify(toRecord(s)))!.rules).toBe(RULES_VERSION);
+    expect(isOutdated(parseRecord(JSON.stringify(toRecord(s)))!)).toBe(false);
+    const { rules: _rules, ...noVersion } = toRecord(s);
+    const legacy = parseRecord(JSON.stringify(noVersion))!;
+    expect(legacy.rules).toBe(LEGACY_RULES_VERSION);
+    expect(isOutdated(legacy)).toBe(true);
   });
 
   it('replays a game saved before Seraphon Asterisms existed (no answer to The Great Plan)', () => {
@@ -219,7 +232,13 @@ describe('url options', () => {
   });
 
   it('resumes only a matching saved game', () => {
-    const record = { v: 1 as const, seed: 4, humanPlayer: 0 as const, actions: [] };
+    const record = {
+      v: 1 as const,
+      rules: RULES_VERSION,
+      seed: 4,
+      humanPlayer: 0 as const,
+      actions: [],
+    };
     const base = parseUrlOptions('');
     expect(shouldResume(record, base)).toBe(true);
     expect(shouldResume(record, { ...base, fresh: true })).toBe(false);

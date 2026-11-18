@@ -12,6 +12,7 @@ import {
   applyToSession,
   canUndo,
   newSession,
+  isOutdated,
   parseRecord,
   replay,
   shouldResume,
@@ -50,6 +51,8 @@ interface GameStore {
   started: boolean;
   /** The start screen may offer Continue: a saved game replayed. */
   canContinue: boolean;
+  /** The start screen says the saved game is from an older version. */
+  outdated: boolean;
   resume(): void;
   showToast(text: string, tone?: Toast['tone']): void;
   clearToast(): void;
@@ -82,6 +85,8 @@ export interface Start {
   /** False: show the start screen first. */
   started: boolean;
   canContinue: boolean;
+  /** A saved game could not be continued (older rules version, or it no longer replays). */
+  outdated?: boolean;
 }
 
 /**
@@ -92,13 +97,16 @@ export function initialSession(opts: UrlOptions): Start {
   const direct = opts.seed !== null || opts.side !== null || opts.fresh || opts.deploy === true;
   const record = loadSaved();
   const resumable = !!record && (!direct || shouldResume(record, opts));
+  if (resumable && isOutdated(record)) {
+    return { session: placeholder(opts), started: false, canContinue: false, outdated: true };
+  }
   if (resumable) {
     try {
       return { session: replay(engine, record), started: direct, canContinue: true };
     } catch {
-      // The saved actions no longer replay (the engine changed): show the start screen
-      // without Continue, never a silent fresh game. Task S1 adds the proper notice.
-      return { session: placeholder(opts), started: false, canContinue: false };
+      // The saved actions no longer replay (the engine changed without a version bump): same
+      // notice as an older version, never a silent fresh game.
+      return { session: placeholder(opts), started: false, canContinue: false, outdated: true };
     }
   }
   const session = placeholder(opts);
@@ -136,6 +144,7 @@ export function createGameStore(initial: Start, fast: boolean) {
     session: initial.session,
     started: initial.started,
     canContinue: initial.canContinue,
+    outdated: initial.outdated ?? false,
     resume() {
       set({ started: true });
     },
@@ -177,7 +186,14 @@ export function createGameStore(initial: Start, fast: boolean) {
     newGame(seed, humanPlayer, options) {
       const session = newSession(engine, seed, humanPlayer, options);
       save(session);
-      set((s) => ({ session, started: true, toast: null, gameId: s.gameId + 1, lastFocus: null }));
+      set((s) => ({
+        session,
+        started: true,
+        outdated: false,
+        toast: null,
+        gameId: s.gameId + 1,
+        lastFocus: null,
+      }));
     },
     showToast(text, tone = 'info') {
       set({ toast: { id: ++toastId, text, tone } });

@@ -67,6 +67,15 @@ Things that cost time before:
 - **Git.** Conventional commits; never force-push; one task per branch `task/<id>` off `origin/main`, one PR per task into `main`.
 - **Proving no behaviour change.** `pnpm game-hashes --save` before a refactor or optimisation, `pnpm game-hashes` after: it must print `IDENTICAL`.
 
+## Saved games and the rules version
+
+A saved game is its seed plus its actions, replayed on load, so a rules change can make old actions mean something else. `GameRecord.rules` (`RULES_VERSION` in `src/ui/game/rulesVersion.ts`) says which rules it was played under. On load, a save with an older version, or one whose replay throws, gives the start screen a notice ("This saved game is from an older version — start a new game?") and no Continue; it is never silently replaced or replayed into a different game.
+
+- **Saves with no `rules` field** are read as version 1 (`LEGACY_RULES_VERSION`): they predate R5, M4b, M4c, R6 and B1, which changed how recorded actions replay, so they get the notice. `RULES_VERSION` became 2 with S1.
+- **When to bump** (`RULES_VERSION += 1`, in the same PR): any change that makes a recorded action sequence replay differently or fail: a new decision the game waits on, a changed legality check, dice drawn in a different order or number, a changed result for the same action. Do not bump for UI-only changes or for features no old action touches.
+- **Shims** (`missingAnswer` in `replay`: Asterisms, Vengeance of Azyr, prayers) only serve saves within one version. Prefer a shim when the missing answer can be supplied exactly; otherwise bump.
+- `pnpm game-hashes` shows whether a change moves the games: a difference you intended is a bump.
+
 ## Known gaps in what is deployed
 
 - Faction battle traits and warscroll abilities (about 90 abilities) are queued for M4: heroes currently rely on their profile stats, weapons, spells/prayers, commands, and season rules.

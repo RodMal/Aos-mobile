@@ -1,5 +1,6 @@
 /** Seraphon: The Great Plan is asked before round 1, and Sotek's +2 Move shows on the card. */
 import { expect, test } from '@playwright/test';
+import { RULES_VERSION } from '../../src/ui/game/rulesVersion.js';
 import { selectFromRoster } from './helpers.js';
 
 test('The Great Plan: pick an Asterism; Sotek the Deliverer adds 2 to the Move shown', async ({
@@ -76,6 +77,7 @@ test('Further the Great Plan: pick a key whose condition is met, then the Asteri
   // Set the save on the next load (the first page may still write its own save).
   const record = JSON.stringify({
     v: 1,
+    rules: RULES_VERSION,
     seed: found!.seed,
     humanPlayer: 1,
     actions: found!.actions,

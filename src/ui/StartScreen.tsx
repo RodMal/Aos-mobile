@@ -5,11 +5,17 @@ import { useGame } from './game/instance.js';
 export function StartScreen() {
   const canContinue = useGame((s) => s.canContinue);
   const resume = useGame((s) => s.resume);
+  const outdated = useGame((s) => s.outdated);
 
   return (
     <main className="start-screen" data-testid="start-screen">
       <div className="start-card">
         <h1>AoS Mobile</h1>
+        {outdated && (
+          <p className="start-notice" role="status" data-testid="outdated-notice">
+            This saved game is from an older version — start a new game?
+          </p>
+        )}
         {canContinue && (
           <button className="btn primary wide" onClick={resume} data-testid="continue-game">
             Continue
