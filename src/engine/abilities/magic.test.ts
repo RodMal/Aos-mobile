@@ -32,6 +32,7 @@ import {
   editable,
   keepOnly,
   passTo,
+  skipDeclareReactions,
   placeUnit,
   weapon,
   startGame,
@@ -1777,11 +1778,15 @@ describe('Warscroll Spells (Wizard-Specific)', () => {
     expect(unitGrants(scenario, s, s.units[ALARIELLE]!).ward).toBe(5);
     expect(unitGrants(scenario, s, s.units[ALARIELLE]!).disableWard).toBeUndefined();
 
-    const cast = applyUntil(
-      engine,
-      s,
-      { t: 'ability', unit: STARSEER, abilityId: CELESTIAL_DOOM, target: ALARIELLE },
-      (r) => r.events.some((e) => e.t === 'cast' && e.success),
+    // Coatl Familiar is offered at the declaration: skip it, then roll the cast.
+    const start = skipDeclareReactions(engine, s, {
+      t: 'ability',
+      unit: STARSEER,
+      abilityId: CELESTIAL_DOOM,
+      target: ALARIELLE,
+    });
+    const cast = applyUntil(engine, start.state, start.action, (r) =>
+      r.events.some((e) => e.t === 'cast' && e.success),
     );
     const afterDoom =
       engine.decision(cast.state)?.kind === 'reaction'
@@ -1792,11 +1797,14 @@ describe('Warscroll Spells (Wizard-Specific)', () => {
     // Subsequent mortal damage on Alarielle makes NO Ward roll
     afterDoom.units[ALARIELLE]!.castsUsed = 3; // no unbind left
     placeUnit(scenario, afterDoom, KROAK, 28, 22);
-    const nuked = applyUntil(
-      engine,
-      afterDoom,
-      { t: 'ability', unit: KROAK, abilityId: CELESTIAL_DELIVERANCE, target: ALARIELLE },
-      (r) => r.events.some((e) => e.t === 'cast' && e.success),
+    const second = skipDeclareReactions(engine, afterDoom, {
+      t: 'ability',
+      unit: KROAK,
+      abilityId: CELESTIAL_DELIVERANCE,
+      target: ALARIELLE,
+    });
+    const nuked = applyUntil(engine, second.state, second.action, (r) =>
+      r.events.some((e) => e.t === 'cast' && e.success),
     );
     expect(nuked.events.some((e) => e.t === 'roll' && e.label === 'Ward')).toBe(false);
   });

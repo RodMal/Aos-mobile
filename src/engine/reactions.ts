@@ -1,5 +1,5 @@
 import { COMMANDS } from '../rules/core/commands.js';
-import { resolvePendingSpell } from './abilities/magic.js';
+import { answerCastReaction, resolvePendingSpell } from './abilities/magic.js';
 import {
   FIGHT_THROUGH_THE_PAIN_ID,
   allocateOne,
@@ -53,6 +53,12 @@ export function answerReaction(ctx: Ctx, action: Action): void {
     s.stack.pop(); // reaction
     const frame = s.stack.pop() as Extract<Frame, { t: 'resolve' }>;
     resolveAttacks(ctx, { ...frame, choices: [...(frame.choices ?? []), reroll] });
+    return;
+  }
+
+  // 0b. Celestial Conduit and Coatl Familiar, offered when a spell is declared.
+  if (under?.t === 'castReact') {
+    answerCastReaction(ctx, action);
     return;
   }
 

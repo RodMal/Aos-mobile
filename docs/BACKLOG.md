@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4h Seraphon activated abilities
-
-- **Tier**: sonnet+review
-- **Touches**: engine, rules, ai, ui/prompts
-- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/seraphon.json` (Sunblood Pack Venomite Swarm `cf2e-d237-9320-1105`; Saurus Astrolith Bearer Celestial Conduit `153d-3737-615b-b904`; Skink Starseer Scry the Stars `b8a5-8e24-ad08-d213` and artefact Coatl Familiar `2302-6d4-c346-7bc6`; Bastiladon Ark of Sotek `714c-4cb6-fce8-6ef9` and trait Armour Cruncher `f6fe-3e8d-dd90-00b8`; Hunters of Huanchi Star-venom `c71d-2217-fcf1-6110`); `src/engine/decisions.ts` (activated options), `src/engine/abilities/magic.ts` (casting, for Coatl Familiar and Celestial Conduit), `src/rules/core/fury.ts` (rage dice and fury level, for Armour Cruncher), `src/rules/core/objectives.ts` (control score), `src/engine/abilities/lores.ts` (examples of mortal damage abilities)
-- **Done when**: one test per ability: Venomite Swarm (the Venomites token and D3 mortal damage on 2+), Celestial Conduit (+3 control score within 12" after a successful cast), Scry the Stars (dice by the battle round number, Ward 5+ on each 3+ for a Seraphon unit wholly within 18"), Coatl Familiar (add D6 to the casting roll), Ark of Sotek (D3 per target, mortal damage on 2+), Armour Cruncher (rage dice, fury level raise or save roll, -1 to saves), Star-venom (2+: -1 to wound on the target's combat attacks). Update `docs/ABILITIES.md`.
-
 ### M4i Sylvaneth healing and other activated abilities
 
 - **Tier**: sonnet+review

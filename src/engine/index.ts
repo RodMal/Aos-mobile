@@ -28,3 +28,12 @@ export {
 export { COMMANDS, type CommandDefinition } from '../rules/core/commands.js';
 export { controlScores } from '../rules/core/objectives.js';
 export { HUNTMASTERS_STRIKE_ID } from './abilities/sylvaneth.js';
+export {
+  ARK_OF_SOTEK_ID,
+  ARMOUR_CRUNCHER_ID,
+  COATL_FAMILIAR_ID,
+  SCRY_THE_STARS_ID,
+  STAR_VENOM_ID,
+  VENOMITE_SWARM_ID,
+  CELESTIAL_CONDUIT_ID,
+} from './abilities/seraphon.js';

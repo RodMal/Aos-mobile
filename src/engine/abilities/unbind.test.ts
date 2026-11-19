@@ -6,7 +6,14 @@
 import { describe, expect, it } from 'vitest';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../../data/lists.js';
 import { createEngine, createScenario, type GameState, type UnitId } from '../index.js';
-import { applyUntil, editable, keepOnly, placeUnit, startGame } from '../test-helpers.js';
+import {
+  applyUntil,
+  editable,
+  keepOnly,
+  placeUnit,
+  skipDeclareReactions,
+  startGame,
+} from '../test-helpers.js';
 import { eligibleUnbinders } from './magic.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
@@ -54,11 +61,15 @@ function castOnce(
   target: UnitId | undefined,
   unbinder: UnitId,
 ): { offered: UnitId[]; state: GameState } {
-  const cast = applyUntil(
-    engine,
-    s,
-    { t: 'ability', unit: caster, abilityId, ...(target ? { target } : {}) },
-    (r) => r.events.some((e) => e.t === 'cast' && e.success && e.total <= 10),
+  // The Starseer's Coatl Familiar is offered when the spell is declared: skip it.
+  const start = skipDeclareReactions(engine, s, {
+    t: 'ability',
+    unit: caster,
+    abilityId,
+    ...(target ? { target } : {}),
+  });
+  const cast = applyUntil(engine, start.state, start.action, (r) =>
+    r.events.some((e) => e.t === 'cast' && e.success && e.total <= 10),
   );
   const d = engine.decision(cast.state);
   const offered =
