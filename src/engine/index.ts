@@ -27,7 +27,14 @@ export {
 } from './expected.js';
 export { COMMANDS, type CommandDefinition } from '../rules/core/commands.js';
 export { controlScores } from '../rules/core/objectives.js';
-export { HUNTMASTERS_STRIKE_ID } from './abilities/sylvaneth.js';
+export {
+  ASPECT_OF_HEARTWOOD_ID,
+  GROUNDSHAKER_ID,
+  HUNTMASTERS_STRIKE_ID,
+  LIFEBLOOM_ID,
+  LIVING_BATTERING_RAM_ID,
+  WYLDWOOD_REVENANTS_ID,
+} from './abilities/sylvaneth.js';
 export {
   ARK_OF_SOTEK_ID,
   ARMOUR_CRUNCHER_ID,

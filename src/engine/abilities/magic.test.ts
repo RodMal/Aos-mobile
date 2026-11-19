@@ -25,6 +25,7 @@ import {
   type StepResult,
   type UnitId,
 } from '../index.js';
+import { LIFEBLOOM_ID, WYLDWOOD_REVENANTS_ID } from './sylvaneth.js';
 import { chooseAction } from '../../ai/baseline.js';
 import {
   applyUntil as applyUntilRaw,
@@ -238,7 +239,11 @@ describe('Magic & Prayers Core Mechanics', () => {
     expect(
       engine
         .unitOptions(r.state, ALARIELLE)
-        .filter((o) => o.t === 'ability' && o.abilityId !== 'place-of-power'),
+        // Lifebloom is not a spell: a damaged Alarielle may still use it.
+        .filter(
+          (o) =>
+            o.t === 'ability' && o.abilityId !== 'place-of-power' && o.abilityId !== LIFEBLOOM_ID,
+        ),
     ).toHaveLength(0);
     expect(r.state.effects?.some((e) => e.id === JADE_THORNS)).toBeFalsy();
   });
@@ -292,6 +297,8 @@ describe('Magic & Prayers Core Mechanics', () => {
   it('handles Chanting & ritual points: roll of 1 loses D3 points, banking accumulates, answering resets to 0', () => {
     const s = baseArena([WARSONG, DRYADS]);
     s.units[WARSONG]!.ritualPoints = 2;
+    // Wyldwood Revenants (a re-roll of the 1) is tested in sylvanethActive.test.ts: used up here.
+    s.players[0].usedOncePerTurn = [WYLDWOOD_REVENANTS_ID];
 
     // 1. Unmodified roll of 1 loses D3 ritual points
     const rolledOne = applyUntil(

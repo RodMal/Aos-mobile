@@ -5,6 +5,7 @@ import {
   CELESTIAL_CONDUIT_ID,
   COATL_FAMILIAR_ID,
   HUNTMASTERS_STRIKE_ID,
+  WYLDWOOD_REVENANTS_ID,
 } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
 import { COMMAND_NAMES, reactionText, triggerUnit } from '../game/eventText.js';
@@ -91,6 +92,21 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
                 }
               >
                 Huntmaster&apos;s Strike · {unitName} · Free
+              </button>
+            );
+          }
+          if (o.ability === 'wyldwoodRevenants') {
+            return (
+              <button
+                key={i}
+                className="btn wide"
+                data-testid="wyldwood-revenants"
+                {...hover}
+                onClick={() =>
+                  dispatch({ t: 'ability', unit: o.unit, abilityId: WYLDWOOD_REVENANTS_ID })
+                }
+              >
+                Wyldwood Revenants (re-roll the 1) · {unitName} · Free
               </button>
             );
           }

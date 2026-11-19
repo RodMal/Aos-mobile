@@ -37,6 +37,7 @@ import {
   type GameState,
   type PlayerId,
   type ReactionOption,
+  type Scenario,
   type UnitOption,
   type UnitState,
 } from '../engine/index.js';
@@ -44,6 +45,18 @@ import { diceMean } from '../data/profile.js';
 import { npcDeployPlacement } from '../engine/deployment.js';
 import { contestedObjective } from '../rules/core/objectives.js';
 import { chargePlacement, moveTowards, pileInPlacement } from './placement.js';
+import {
+  GROUNDSHAKER_ID,
+  LIFEBLOOM_ID,
+  LIVING_BATTERING_RAM_ID,
+  WYLDWOOD_REVENANTS_ID,
+} from '../engine/abilities/sylvaneth.js';
+import {
+  batteringRamOptions,
+  groundshakerOptions,
+  has,
+  lifebloomOptions,
+} from '../engine/sylvanethActive.js';
 import { npcAsterism } from '../rules/factions/seraphon.js';
 import { npcCreepingDreadTargets, npcSeason } from '../rules/factions/seasons.js';
 
@@ -85,6 +98,11 @@ export function chooseAction(engine: Engine, state: GameState): Action {
             boost.ability === 'celestialConduit' ? CELESTIAL_CONDUIT_ID : COATL_FAMILIAR_ID,
         };
       }
+      // Wyldwood Revenants re-rolls a chanting roll of 1: always used.
+      const revenants = d.options.find((o) => o.ability === 'wyldwoodRevenants');
+      if (revenants) {
+        return { t: 'ability', unit: revenants.unit, abilityId: WYLDWOOD_REVENANTS_ID };
+      }
       const unbindOpt = d.options.find((o) => o.ability === 'unbind');
       if (unbindOpt) {
         return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };
@@ -114,6 +132,8 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       );
       const ability = seraphonCombatAction(engine, state, d.player);
       if (ability) return ability;
+      const groundshaker = ownAbilityAction(engine, state, d.player, GROUNDSHAKER_ID);
+      if (groundshaker) return groundshaker;
       const best = maxBy(units, (u) => bestAllocations(engine, state, u, 'fight').value);
       if (!best) return engine.defaultAction(state);
       return { t: 'fight', unit: best.id };
@@ -244,6 +264,43 @@ function seraphonCombatAction(engine: Engine, state: GameState, player: PlayerId
     }
   }
   return null;
+}
+
+/**
+ * A once-per-turn ability of one of `player`'s units (Lifebloom, Living Battering Ram,
+ * Groundshaker), against the target worth the most points when it has targets.
+ */
+function ownAbilityAction(
+  engine: Engine,
+  state: GameState,
+  player: PlayerId,
+  abilityId: string,
+): Action | null {
+  for (const unit of unitsOf(state, player)) {
+    // The cheap per-ability check, not the whole option list of every unit at each decision.
+    const o = sylvanethOption(engine.scenario, state, unit, abilityId);
+    if (!o || o.t !== 'ability') continue;
+    if (o.targets.length === 0) return { t: 'ability', unit: unit.id, abilityId };
+    const best = maxBy(o.targets, (id) => points(engine, state, id))!;
+    return { t: 'ability', unit: unit.id, abilityId, target: best };
+  }
+  return null;
+}
+
+function sylvanethOption(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  abilityId: string,
+): UnitOption | undefined {
+  if (!has(scenario, unit, abilityId)) return undefined;
+  const options =
+    abilityId === LIFEBLOOM_ID
+      ? lifebloomOptions(scenario, state, unit)
+      : abilityId === LIVING_BATTERING_RAM_ID
+        ? batteringRamOptions(scenario, state, unit)
+        : groundshakerOptions(scenario, state, unit);
+  return options[0];
 }
 
 function points(engine: Engine, state: GameState, unitId: string): number {
@@ -500,6 +557,9 @@ function mainAction(
   const cp = state.players[player].cp;
   switch (phase) {
     case 'hero': {
+      // Lifebloom heals Alarielle for 2D6 whenever she is hurt.
+      const lifebloom = ownAbilityAction(engine, state, player, LIFEBLOOM_ID);
+      if (lifebloom) return lifebloom;
       const abilityAct = chooseHeroAbilityAction(engine, state, units);
       if (abilityAct) return abilityAct;
       if (cp < SPARE_CP) return null;
@@ -544,6 +604,10 @@ function mainAction(
       }
       return null;
     case 'charge':
+      {
+        const ram = ownAbilityAction(engine, state, player, LIVING_BATTERING_RAM_ID);
+        if (ram) return ram;
+      }
       for (const unit of units) {
         if (!engine.unitOptions(state, unit.id).some((o) => o.t === 'charge')) continue;
         if (isRanged(engine, unit) && !unit.isManifestation) continue;

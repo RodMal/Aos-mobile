@@ -27,7 +27,9 @@
  *    - Everdusk: Creeping Dread can pick up to 3 targets
  */
 import type { Ctx } from '../../engine/ctx.js';
-import { hasEffectiveKeyword } from '../../engine/abilities/effects.js';
+import { abilitiesOf, hasEffectiveKeyword } from '../../engine/abilities/effects.js';
+import { ASPECT_OF_HEARTWOOD_ID } from '../../engine/abilities/sylvaneth.js';
+import { battleKey, usedThisBattle } from '../../engine/relocate.js';
 import { returnPosition } from '../../engine/damage.js';
 import {
   closestFeatureWithoutToken,
@@ -39,7 +41,13 @@ import {
   isAwakenedWyldwood,
   terrainFeatures,
 } from '../../engine/overgrowth.js';
-import { opponent, profileOf, unitFootprints, unitsOf } from '../../engine/query.js';
+import {
+  opponent,
+  profileOf,
+  unitFootprints,
+  unitWhollyWithin,
+  unitsOf,
+} from '../../engine/query.js';
 import type { GameState, PlayerId, Scenario, UnitState } from '../../engine/types.js';
 
 export const CREEPING_DREAD_EFFECT_ID = 'sylvaneth:creeping-dread';
@@ -184,12 +192,32 @@ export function resolveEndlessGrowth(ctx: Ctx, player: PlayerId): void {
     return isWithinCreepingOvergrowth(scenario, s, u, player, true);
   });
 
+  // Aspect of Heartwood: a bearer wholly within the creeping overgrowth that has not used it.
+  const bearer = targets.find(
+    (u) =>
+      abilitiesOf(scenario, u).some((a) => a.id === ASPECT_OF_HEARTWOOD_ID) &&
+      !usedThisBattle(s, u, ASPECT_OF_HEARTWOOD_ID),
+  );
+  let spent = false;
   for (const u of targets) {
     const slain = u.models.flatMap((m, i) => (m.alive ? [] : [i]));
     if (u.damage === 0 && slain.length === 0) continue;
     const health = profileOf(scenario, u).health;
+    // For each target wholly within 12" of the bearer, once per battle: the reaction is taken at
+    // the first such target and the engine picks the effect (I106).
+    const aspect =
+      bearer !== undefined && (u.id === bearer.id || unitWhollyWithin(scenario, bearer, u, 12));
+    if (aspect && !spent) {
+      spent = true;
+      const p = s.players[player];
+      p.usedOncePerBattle = [
+        ...(p.usedOncePerBattle ?? []),
+        battleKey(bearer, ASPECT_OF_HEARTWOOD_ID),
+      ];
+      ctx.events.push({ t: 'note', text: `${bearer.name}: Aspect of Heartwood.` });
+    }
     if (titans && hasEffectiveKeyword(scenario, s, u, 'MONSTER')) {
-      const healed = Math.min(u.damage, 3);
+      const healed = Math.min(u.damage, aspect ? 6 : 3);
       u.damage -= healed;
       ctx.events.push({
         t: 'note',
@@ -197,7 +225,19 @@ export function resolveEndlessGrowth(ctx: Ctx, player: PlayerId): void {
       });
       continue;
     }
-    const roll = ctx.rng.int(1, 3);
+    if (aspect && slain.length > 0 && hasEffectiveKeyword(scenario, s, u, 'KURNOTHI')) {
+      // "Instead of rolling a D3 ... return 1 slain model to the target unit."
+      const at = returnPosition(scenario, s, u, slain[0]!);
+      if (at) {
+        Object.assign(u.models[slain[0]!]!, at, { alive: true });
+        ctx.events.push({
+          t: 'note',
+          text: `Endless Growth (Aspect of Heartwood): 1 slain model returns to ${u.name}.`,
+        });
+        continue;
+      }
+    }
+    const roll = ctx.rng.int(1, aspect ? 6 : 3);
     ctx.events.push({ t: 'roll', player, label: `Endless Growth (${u.name})`, dice: [roll] });
     let returned = 0;
     for (const i of slain.slice(0, Math.floor(roll / health))) {

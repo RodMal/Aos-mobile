@@ -52,6 +52,7 @@ import {
   castReactionOptions,
   spendCastReaction,
 } from '../seraphonActive.js';
+import { WYLDWOOD_REVENANTS_ID, chantRerollOptions, spendChantReroll } from '../sylvanethActive.js';
 import { addEffect, getAbility, legalTargetsForSpec } from './effects.js';
 import type { AbilityDefinition } from './types.js';
 
@@ -686,72 +687,152 @@ export function declareAbility(
   }
 
   if (def.kind === 'prayer') {
-    const cv = def.chantingValue ?? 4;
     markAbilityAttempted(ctx.s, unit, def.id, def.unlimited);
     const die = rollD6(ctx);
+    // Wyldwood Revenants: an unmodified roll of 1 may be re-rolled, before it costs points.
     if (die === 1) {
-      const lost = rollD3(ctx, unit.owner, 'Chanting roll of 1');
-      unit.ritualPoints = Math.max(0, (unit.ritualPoints ?? 0) - lost);
-      ctx.events.push({
-        t: 'chant',
-        unit: unit.id,
-        ability: def.name,
-        die,
-        total: 1,
-        targetValue: cv,
-        answered: false,
-        ritualPoints: unit.ritualPoints,
-      });
-      return;
+      const offers = chantRerollOptions(ctx.scenario, ctx.s, unit);
+      if (offers.length > 0) {
+        ctx.s.stack.push({
+          t: 'chantReact',
+          unit: unit.id,
+          abilityId: def.id,
+          ...(target ? { target: target.id } : {}),
+          legal: opt.targets,
+          action,
+          penalty,
+        });
+        ctx.s.stack.push({
+          t: 'reaction',
+          player: unit.owner,
+          options: offers,
+          trigger: `chant:${unit.id}:${def.name}`,
+        });
+        return;
+      }
     }
-
-    const modifiedDie = Math.max(
-      1,
-      die + penalty + channelledWrathBonus(ctx.s, unit) + reapingBonus(ctx.scenario, ctx.s, unit),
-    );
-    const currentPoints = (unit.ritualPoints ?? 0) + modifiedDie;
-    const bankOnly = action.choice === 'bank' || currentPoints < cv;
-    if (bankOnly) {
-      unit.ritualPoints = currentPoints;
-      ctx.events.push({
-        t: 'chant',
-        unit: unit.id,
-        ability: def.name,
-        die,
-        total: currentPoints,
-        targetValue: cv,
-        answered: false,
-        ritualPoints: unit.ritualPoints,
-      });
-      return;
-    }
-
-    // The roll answers the prayer: the player chooses to use it now or to bank the points.
-    let secondTarget: UnitState | undefined;
-    if (action.secondTarget && opt.targets.includes(action.secondTarget)) {
-      secondTarget = unitById(ctx.s, action.secondTarget);
-    } else if (
-      def.highChantThreshold &&
-      currentPoints >= def.highChantThreshold &&
-      opt.targets.length > 1
-    ) {
-      const otherId = opt.targets.find((id) => id !== target?.id);
-      if (otherId) secondTarget = unitById(ctx.s, otherId);
-    }
-    ctx.s.stack.push({
-      t: 'prayer',
-      unit: unit.id,
-      abilityId: def.id,
-      ...(target ? { target: target.id } : {}),
-      ...(secondTarget ? { secondTarget: secondTarget.id } : {}),
-      ...(action.choice ? { choice: action.choice } : {}),
-      die,
-      points: currentPoints,
-    });
+    resolveChant(ctx, unit, def, opt.targets, target, action, penalty, die);
     return;
   }
 
   def.resolve?.({ ctx, unit, target, choice: action.choice });
+}
+
+/** The answer to the Wyldwood Revenants reaction: re-roll the chanting roll of 1, or keep it. */
+export function answerChantReroll(ctx: StepCtx, action: Action): void {
+  const { s } = ctx;
+  const reaction = s.stack[s.stack.length - 1];
+  const frame = s.stack[s.stack.length - 2];
+  if (reaction?.t !== 'reaction' || frame?.t !== 'chantReact') {
+    throw new IllegalActionError('There is no chanting roll to re-roll.');
+  }
+  let die = 1;
+  if (action.t === 'ability') {
+    const offer = reaction.options.find(
+      (o) => o.ability === 'wyldwoodRevenants' && o.unit === action.unit,
+    );
+    if (!offer || action.abilityId !== WYLDWOOD_REVENANTS_ID) {
+      throw new IllegalActionError('That reaction is not available.');
+    }
+    spendChantReroll(ctx, unitById(s, offer.unit));
+    die = rollD6(ctx);
+    ctx.events.push({
+      t: 'roll',
+      player: reaction.player,
+      label: 'Wyldwood Revenants (re-roll)',
+      dice: [die],
+    });
+  } else if (action.t !== 'pass') {
+    throw new IllegalActionError('Re-roll the chanting roll or keep it.');
+  }
+  s.stack.pop(); // reaction
+  s.stack.pop(); // chantReact
+  const def = getAbility(frame.abilityId);
+  if (!def) return;
+  resolveChant(
+    ctx,
+    unitById(s, frame.unit),
+    def,
+    frame.legal,
+    frame.target ? unitById(s, frame.target) : undefined,
+    frame.action,
+    frame.penalty,
+    die,
+  );
+}
+
+/** What a chanting roll does once it is final: lose points on a 1, else bank or answer. */
+function resolveChant(
+  ctx: StepCtx,
+  unit: UnitState,
+  def: AbilityDefinition,
+  legalTargets: UnitId[],
+  target: UnitState | undefined,
+  action: Extract<Action, { t: 'ability' }>,
+  penalty: number,
+  die: number,
+): void {
+  const cv = def.chantingValue ?? 4;
+  if (die === 1) {
+    const lost = rollD3(ctx, unit.owner, 'Chanting roll of 1');
+    unit.ritualPoints = Math.max(0, (unit.ritualPoints ?? 0) - lost);
+    ctx.events.push({
+      t: 'chant',
+      unit: unit.id,
+      ability: def.name,
+      die,
+      total: 1,
+      targetValue: cv,
+      answered: false,
+      ritualPoints: unit.ritualPoints,
+    });
+    return;
+  }
+
+  const modifiedDie = Math.max(
+    1,
+    die + penalty + channelledWrathBonus(ctx.s, unit) + reapingBonus(ctx.scenario, ctx.s, unit),
+  );
+  const currentPoints = (unit.ritualPoints ?? 0) + modifiedDie;
+  const bankOnly = action.choice === 'bank' || currentPoints < cv;
+  if (bankOnly) {
+    unit.ritualPoints = currentPoints;
+    ctx.events.push({
+      t: 'chant',
+      unit: unit.id,
+      ability: def.name,
+      die,
+      total: currentPoints,
+      targetValue: cv,
+      answered: false,
+      ritualPoints: unit.ritualPoints,
+    });
+    return;
+  }
+
+  // The roll answers the prayer: the player chooses to use it now or to bank the points.
+  let secondTarget: UnitState | undefined;
+  if (action.secondTarget && legalTargets.includes(action.secondTarget)) {
+    secondTarget = unitById(ctx.s, action.secondTarget);
+  } else if (
+    def.highChantThreshold &&
+    currentPoints >= def.highChantThreshold &&
+    legalTargets.length > 1
+  ) {
+    const otherId = legalTargets.find((id) => id !== target?.id);
+    if (otherId) secondTarget = unitById(ctx.s, otherId);
+  }
+  ctx.s.stack.push({
+    t: 'prayer',
+    unit: unit.id,
+    abilityId: def.id,
+    ...(target ? { target: target.id } : {}),
+    ...(secondTarget ? { secondTarget: secondTarget.id } : {}),
+    ...(action.choice ? { choice: action.choice } : {}),
+    die,
+    points: currentPoints,
+  });
+  return;
 }
 
 /** The answer to a `prayer` decision: `use` answers the prayer now, `bank` keeps the points. */

@@ -54,13 +54,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: I104/I105 in `docs/RULES-DECISIONS.md`; `src/engine/seraphonActive.ts`, `src/rules/factions/conduit.ts`, `src/engine/abilities/magic.ts`, `src/engine/deployment.ts`, the Covering Fire reaction in `src/engine/reactions.ts`
 - **Done when**: (1) Scry the Stars rolls its dice, then asks which units get each success; the NPC picks too. The NPC uses each of these abilities only when it helps its plan to win (judged by its expected-damage and objective heuristics, not on every chance). (3) A test shows a failed casting roll gives no Conduit effect (fix it if it does). (4) The player places the Venomites token next to the Sunblood Pack when deploying it; the NPC places its own. (5) Star-venom is offered after the Dartpipe damages an enemy in any shooting phase, including Covering Fire in the enemy turn. One test per point; e2e full-game still passes on phone and desktop. Bump the rules version.
 
-### M4i Sylvaneth healing and other activated abilities
-
-- **Tier**: sonnet+review
-- **Touches**: engine, rules, ai, ui/prompts
-- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/sylvaneth.json` (Alarielle Lifebloom `e4b4-8e4d-5f0-eb6a` and Living Battering Ram `5abd-6507-dbee-ed76`; Spirit of Durthu Groundshaker `7124-769a-aafd-7b38`; Warsong Revenant Wyldwood Revenants `dc61-1f39-51f9-52da`; Dryads trait Aspect of Heartwood `0770-09a1-99c6-1a99`); `src/engine/damage.ts` (`healUnit`), `src/rules/factions/sylvaneth.ts` (`resolveEndlessGrowth`, which Aspect of Heartwood changes; M4n makes its effect a player choice), `src/engine/abilities/magic.ts` (chanting rolls, for the re-roll), `src/engine/decisions.ts`
-- **Done when**: one test per ability: Lifebloom (Heal (2D6)), Living Battering Ram (3+: mortal damage equal to the roll), Groundshaker (3+: Strike-last on the target for the turn), Wyldwood Revenants (re-roll a chanting roll), Aspect of Heartwood (D6 instead of D3 for targets wholly within 12", Heal 6 instead of Heal 3, or return a slain model to a Kurnothi target). Update `docs/ABILITIES.md`.
-
 ### M4j Reserve and ambush: Hidden Hunters, Chameleon Ambush
 
 - **Tier**: sonnet+review

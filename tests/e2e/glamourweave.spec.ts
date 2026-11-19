@@ -42,12 +42,12 @@ test('re-rolling is noted in the log', async ({ page }) => {
   // A later failed roll of another kind may be asked about: keep those.
   const keep = page.getByTestId('reroll-keep');
   const log = page.getByRole('button', { name: 'Log' });
-  const dialog = page.getByRole('dialog', { name: 'Glamourweave' });
-  await page.waitForTimeout(500);
-  for (let i = 0; i < 40 && (await dialog.count()) > 0; i++) {
+  // Any other reaction the game offers meanwhile (Covering Fire, say) is skipped.
+  const skip = page.getByTestId('reaction').getByRole('button', { name: 'Skip', exact: true });
+  await expect(async () => {
     if (await keep.isVisible()) await keep.click();
-    await page.waitForTimeout(150);
-  }
-  await log.click();
+    else if (await skip.isVisible()) await skip.click();
+    await log.click({ timeout: 500 });
+  }).toPass({ timeout: 90_000, intervals: [150] });
   await expect(page.getByTestId('log-list')).toContainText('Glamourweave: re-rolled a failed');
 });

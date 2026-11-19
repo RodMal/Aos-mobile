@@ -1,5 +1,5 @@
 import { COMMANDS } from '../rules/core/commands.js';
-import { answerCastReaction, resolvePendingSpell } from './abilities/magic.js';
+import { answerCastReaction, answerChantReroll, resolvePendingSpell } from './abilities/magic.js';
 import {
   FIGHT_THROUGH_THE_PAIN_ID,
   allocateOne,
@@ -59,6 +59,12 @@ export function answerReaction(ctx: Ctx, action: Action): void {
   // 0b. Celestial Conduit and Coatl Familiar, offered when a spell is declared.
   if (under?.t === 'castReact') {
     answerCastReaction(ctx, action);
+    return;
+  }
+
+  // 0c. Wyldwood Revenants, offered on a chanting roll of 1.
+  if (under?.t === 'chantReact') {
+    answerChantReroll(ctx, action);
     return;
   }
 

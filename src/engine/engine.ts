@@ -27,6 +27,7 @@ import {
   useSetUpAbility,
 } from './relocating.js';
 import { SERAPHON_ACTIVATED_IDS, useSeraphonAbility } from './seraphonActive.js';
+import { SYLVANETH_ACTIVATED_IDS, useSylvanethAbility } from './sylvanethActive.js';
 import { RHYTHM_OF_THE_CHASE_ID } from './abilities/sylvaneth.js';
 import { SET_UP_ABILITY_IDS } from './relocate.js';
 import { choosePrayer } from './abilities/magic.js';
@@ -155,6 +156,8 @@ export function createEngine(scenario: Scenario): Engine {
           useSetUpAbility(ctx, action);
         } else if (action.t === 'ability' && SERAPHON_ACTIVATED_IDS.includes(action.abilityId)) {
           useSeraphonAbility(ctx, action);
+        } else if (action.t === 'ability' && SYLVANETH_ACTIVATED_IDS.includes(action.abilityId)) {
+          useSylvanethAbility(ctx, action);
         } else if (action.t === 'ability' && action.abilityId === 'place-of-power') {
           illegal('A Place of Power can only be activated at the start of a turn.');
         } else if (action.t === 'ability' && d.phase === 'hero') {
@@ -264,6 +267,8 @@ export function createEngine(scenario: Scenario): Engine {
           rhythmOfTheChase(ctx, action.unit, action.target);
         } else if (action.t === 'ability' && SERAPHON_ACTIVATED_IDS.includes(action.abilityId)) {
           useSeraphonAbility(ctx, action);
+        } else if (action.t === 'ability' && SYLVANETH_ACTIVATED_IDS.includes(action.abilityId)) {
+          useSylvanethAbility(ctx, action);
         } else if (action.t === 'pass' && d.canPass) {
           // Declines to attack faction terrain with every optional fighter of this tier.
           for (const u of eligibleFighters(scenario, s, d.player)) {
