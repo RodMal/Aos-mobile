@@ -16,6 +16,7 @@ import {
   currentPlacement,
   enemiesInCombat,
   expectedDamage,
+  npcGlamourweaveReroll,
   opponent,
   profileOf,
   unitCentre,
@@ -55,10 +56,14 @@ export function chooseAction(engine: Engine, state: GameState): Action {
     }
     case 'reaction': {
       if (d.options.length === 0) return { t: 'pass' };
-      // Glamourweave: re-roll the first failed roll offered (never worse than keeping it, and
-      // the same every time).
+      // Glamourweave: spend the re-roll on the failed roll of the attack with the most potential
+      // damage (keep it while a better attack is still to be rolled); the same every time.
       const glamour = d.options.find((o) => o.ability === 'glamourweave');
-      if (glamour) return { t: 'ability', unit: glamour.unit, abilityId: 'glamourweave' };
+      if (glamour) {
+        return npcGlamourweaveReroll(engine.scenario, state, glamour)
+          ? { t: 'ability', unit: glamour.unit, abilityId: 'glamourweave' }
+          : { t: 'pass' };
+      }
       const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
       if (pain) return painAction(engine, state, pain);
       const unbindOpt = d.options.find((o) => o.ability === 'unbind');

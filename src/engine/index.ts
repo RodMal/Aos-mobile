@@ -13,7 +13,12 @@ export {
   powerThroughTargets,
 } from './engine.js';
 export { formatInches, PILE_IN_DISTANCE } from './movement.js';
-export { expectedWeaponDamage, weaponTargets } from './combat.js';
+export {
+  expectedWeaponDamage,
+  npcGlamourweaveReroll,
+  pendingAttackDamage,
+  weaponTargets,
+} from './combat.js';
 export {
   expectedAttacks,
   expectedDamage,

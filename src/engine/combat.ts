@@ -34,6 +34,8 @@ import type {
   Allocation,
   AttackMode,
   Frame,
+  ReactionOption,
+  UnitId,
   GameState,
   Scenario,
   UnitState,
@@ -229,6 +231,65 @@ export function checkAllocations(options: WeaponTargets[], allocations: Allocati
       illegal(`${option.weaponName} cannot reach that target.`);
     }
   }
+}
+
+/**
+ * The expected damage of each allocation of a `resolve` frame from the one being rolled
+ * (`frame.at`) onward, in order (0 for one that cannot attack). The NPC compares these to decide
+ * which failed roll a Glamourweave re-roll is worth spending on.
+ */
+export function pendingAttackDamage(
+  scenario: Scenario,
+  s: GameState,
+  frame: Extract<Frame, { t: 'resolve' }>,
+): { target: UnitId; damage: number }[] {
+  const attacker = s.units[frame.unit]!;
+  const profile = profileOf(scenario, attacker);
+  const out: { target: UnitId; damage: number }[] = [];
+  for (let at = frame.at ?? 0; at < frame.allocations.length; at++) {
+    const alloc = frame.allocations[at]!;
+    const target = s.units[alloc.target]!;
+    const base = profile.weapons.find((w) => w.id === alloc.weaponId);
+    let damage = 0;
+    if (base && target.status === 'battlefield') {
+      const weapon = usedWeapon(scenario, s, attacker, base);
+      let range = frame.mode === 'shoot' ? weapon.range : COMBAT_RANGE;
+      if (frame.mode === 'shoot') {
+        range = effectiveWeaponRange(scenario, s, attacker, weapon.range);
+        if (isGuardedHero(scenario, s, target).infantry) range = Math.min(range, 12);
+      }
+      const indices = attackingModels(scenario, attacker, target, weapon, range);
+      if (indices.length > 0) {
+        damage = expectedWeaponDamage(scenario, s, attacker, target, weapon, frame.mode, indices, {
+          allOutAttack: frame.allOutAttack,
+          allOutDefence: frame.defended.includes(target.id),
+          coveringFire: frame.coveringFire,
+        });
+      }
+    }
+    out.push({ target: alloc.target, damage });
+  }
+  return out;
+}
+
+/**
+ * The NPC's answer to a Glamourweave question: re-roll this failed roll only when its attack has
+ * the most potential damage (expected damage) among the attacks still to be rolled in this
+ * phase's attack that the same re-roll could be spent on (ties go to the earlier one), else keep
+ * it for the better one. A save re-roll counts only the attacks on the unit that holds it.
+ */
+export function npcGlamourweaveReroll(
+  scenario: Scenario,
+  s: GameState,
+  option: ReactionOption,
+): boolean {
+  const reroll = option.reroll;
+  const frame = s.stack[s.stack.length - 2];
+  if (!reroll || frame?.t !== 'resolve') return true;
+  const pending = pendingAttackDamage(scenario, s, frame);
+  const comparable = pending.filter((p) => reroll.kind !== 'save' || p.target === option.unit);
+  const here = pending[0]?.damage ?? 0;
+  return comparable.every((p) => p.damage <= here);
 }
 
 /**

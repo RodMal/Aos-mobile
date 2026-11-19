@@ -8,7 +8,7 @@ import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../../da
 import { attackModifiers } from '../../rules/core/modifiers.js';
 import { moveOf } from '../../rules/factions/seraphon.js';
 import { rollAttackSequence, rollWard } from '../attack.js';
-import { usedWeapon } from '../combat.js';
+import { npcGlamourweaveReroll, pendingAttackDamage, usedWeapon } from '../combat.js';
 import { moveOptions } from '../eligibility.js';
 import {
   createEngine,
@@ -31,6 +31,7 @@ import {
 } from '../test-helpers.js';
 import { applyUntil } from '../test-helpers.js';
 import { clearExpiredEffects, effectiveWard, unitGrants, wardRollModifier } from './effects.js';
+import { chooseAction } from '../../ai/baseline.js';
 import { glamourRerolls, spendGlamourweave } from './sylvaneth.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
@@ -387,6 +388,75 @@ describe('Glamourweave (cafd-9cf1-871c-f47e)', () => {
     expect(rerollOf(r.state)!.unit).toBe(DURTHU);
     const d = engine.decision(r.state)!;
     expect(d.kind === 'reaction' && d.player).toBe(0);
+  });
+
+  /**
+   * The NPC's answer at the first failed roll of `kind`, with the two weapons allocated in
+   * either order: it re-rolls only when the attack being rolled has the most potential damage.
+   */
+  function npcAnswers(kind: 'hit' | 'wound' | 'save', start: GameState, attacker: UnitId) {
+    const targets = engine.targetOptions(start, attacker, 'fight');
+    const [wa, wb] = targets.map((w) => w.weaponId);
+    const target = targets[0]!.targets[0]!.unit;
+    const orders = [
+      [wa!, wb!],
+      [wb!, wa!],
+    ];
+    const answers: { reroll: boolean; first: number; second: number }[] = [];
+    for (const order of orders) {
+      const action: Action = {
+        t: 'targets',
+        allocations: order.map((weaponId) => ({ weaponId, target })),
+      };
+      let found: { reroll: boolean; first: number; second: number } | null = null;
+      for (let rng = 1; rng < 3000 && !found; rng++) {
+        const r = engine.apply({ ...start, rng }, action);
+        const o = rerollOf(r.state);
+        if (o?.reroll?.kind !== kind) continue;
+        const top = r.state.stack[r.state.stack.length - 2]!;
+        if (top.t !== 'resolve') continue;
+        const [first, second] = pendingAttackDamage(scenario, r.state, top).map((p) => p.damage);
+        const again = npcGlamourweaveReroll(scenario, r.state, o);
+        // The NPC itself and the engine's default agree.
+        const want: Action = again ? reroll(o.unit) : keep;
+        expect(chooseAction(engine, r.state)).toEqual(want);
+        expect(engine.defaultAction(r.state)).toEqual(want);
+        found = { reroll: again, first: first!, second: second! };
+      }
+      expect(found).not.toBeNull();
+      answers.push(found!);
+    }
+    return answers;
+  }
+
+  it('the NPC spends a hit re-roll on the attack with the most potential damage', () => {
+    const [a, b] = npcAnswers('hit', durthuFights(), DURTHU);
+    expect(a!.first).not.toBe(a!.second);
+    expect(a!.reroll).toBe(a!.first >= a!.second);
+    expect(b!.reroll).toBe(b!.first >= b!.second);
+    expect(a!.reroll).not.toBe(b!.reroll);
+  });
+
+  it('the NPC spends a wound re-roll on the attack with the most potential damage', () => {
+    const [a, b] = npcAnswers('wound', durthuFights(), DURTHU);
+    expect(a!.reroll).toBe(a!.first >= a!.second);
+    expect(b!.reroll).toBe(b!.first >= b!.second);
+    expect(a!.reroll).not.toBe(b!.reroll);
+  });
+
+  it('the NPC spends a save re-roll against the attack with the most potential damage', () => {
+    let s = durthuFights();
+    s = keepAll(engine.apply(s, engine.defaultAction(s))).state;
+    s = editable(s);
+    s.effects = [];
+    if (engine.decision(s)?.kind === 'fightPick') {
+      s = engine.apply(s, { t: 'fight', unit: ENEMY }).state;
+      s = engine.apply(s, { t: 'pass' }).state;
+    }
+    const [a, b] = npcAnswers('save', s, ENEMY);
+    expect(a!.reroll).toBe(a!.first >= a!.second);
+    expect(b!.reroll).toBe(b!.first >= b!.second);
+    expect(a!.reroll).not.toBe(b!.reroll);
   });
 
   it('nothing is asked when no unit in the fight has the artefact', () => {

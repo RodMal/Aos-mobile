@@ -56,7 +56,7 @@ import {
   redeploy,
   setUpWyldwood,
 } from './commands.js';
-import { flushMortalDamage } from './combat.js';
+import { flushMortalDamage, npcGlamourweaveReroll } from './combat.js';
 import { declareCharge, place, skipPlace } from './placing.js';
 import { answerReaction, offerEndOfPhaseReaction } from './reactions.js';
 import { declareFight, declareShoot, declareTargets, settle } from './declare.js';
@@ -412,9 +412,13 @@ export function createEngine(scenario: Scenario): Engine {
       case 'creepingDread':
         return { t: 'pass' };
       case 'reaction': {
-        // A Glamourweave re-roll is taken, as it always was before the choice existed.
+        // A Glamourweave re-roll goes to the attack with the most potential damage, as the NPC's.
         const glamour = d.options.find((o) => o.ability === 'glamourweave');
-        if (glamour) return { t: 'ability', unit: glamour.unit, abilityId: GLAMOURWEAVE_REROLL_ID };
+        if (glamour) {
+          return npcGlamourweaveReroll(scenario, state, glamour)
+            ? { t: 'ability', unit: glamour.unit, abilityId: GLAMOURWEAVE_REROLL_ID }
+            : { t: 'pass' };
+        }
         return { t: 'pass' };
       }
       case 'vengeance':
