@@ -98,7 +98,10 @@ export function UnitPanel({ unitId }: { unitId: string }) {
       )}
       {/* This unit has nothing to do: point at the ones that do, so the prompt is not hidden. */}
       {options.length === 0 && (decision?.kind === 'main' || decision?.kind === 'fightPick') && (
-        <ReadyUnits label={decision.kind === 'fightPick' ? 'Can fight' : 'Can act'} />
+        <ReadyUnits
+          label={decision.kind === 'fightPick' ? 'Can fight' : 'Can act'}
+          only={decision.kind === 'fightPick' ? 'fight' : undefined}
+        />
       )}
       {options.length === 0 && decision?.kind === 'main' && (
         <button className="btn primary wide" onClick={endPhase} data-testid="end-phase">
