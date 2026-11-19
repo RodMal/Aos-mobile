@@ -94,12 +94,18 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
  * The human's units that can do something under the current decision, as one-tap chips.
  * Finding a highlighted unit on a small screen is slow; this is the shortcut.
  */
-export function ReadyUnits({ label }: { label: string }) {
+export function ReadyUnits({ label, only }: { label: string; only?: 'fight' }) {
   const state = useGameState();
   const human = useHuman();
   const ready = useMemo(
-    () => unitsOf(state, human).filter((u) => engine.unitOptions(state, u.id).length > 0),
-    [state, human],
+    () =>
+      unitsOf(state, human).filter((u) => {
+        const options = engine.unitOptions(state, u.id);
+        // "Can fight" lists fighters only: a unit with just a combat ability (Rhythm of the
+        // Chase) is not waiting to be picked.
+        return only ? options.some((o) => o.t === only) : options.length > 0;
+      }),
+    [state, human, only],
   );
   if (ready.length === 0) return null;
   const choose = (id: string) => {
@@ -139,7 +145,7 @@ export function DecisionPanel() {
         <p className="panel-hint">{hint}</p>
       </div>
       {mine && d.kind === 'main' && <ReadyUnits label="Can act" />}
-      {mine && d.kind === 'fightPick' && <ReadyUnits label="Can fight" />}
+      {mine && d.kind === 'fightPick' && <ReadyUnits label="Can fight" only="fight" />}
       {mine && d.kind === 'main' && (
         <button className="btn primary wide" onClick={endPhase} data-testid="end-phase">
           End {d.phase === 'end' ? 'turn' : `${phaseName(d.phase).toLowerCase()} phase`}

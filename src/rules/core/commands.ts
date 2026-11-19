@@ -144,6 +144,16 @@ export const COMMANDS: Record<CommandId, CommandDefinition> = {
     effect:
       'Once per battle, even if destroyed: set up a replacement unit with 8 damage points allocated to it (no ward rolls) wholly within the creeping overgrowth and more than 9" from all enemy units.',
   },
+  mercilessAmbush: {
+    id: 'mercilessAmbush',
+    name: 'Merciless Ambush',
+    cost: 1,
+    phases: ['charge'],
+    turn: 'your',
+    implemented: true,
+    effect:
+      'A unit not in combat that has not run or retreated makes a charge roll of 2D6, then may be set up again within 1/2" of an enemy unit and wholly within X" of a terrain feature that has a friendly overgrown token, X being the charge roll. If it is, it has charged.',
+  },
 };
 
 /**

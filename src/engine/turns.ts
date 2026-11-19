@@ -6,6 +6,7 @@ import { clearExpiredEffects } from './abilities/effects.js';
 import { d6, illegal, type Ctx } from './ctx.js';
 import { attackerOf, opponent, unitsOf } from './query.js';
 import { canFuryOfTheForest } from './eligibility.js';
+import { canHuntmaster } from './relocate.js';
 import {
   evaluateEndOfTurnTactics,
   initBattleTactics,
@@ -54,6 +55,7 @@ export function startTurn(ctx: Ctx): void {
   for (const p of s.players) {
     p.spellsAttempted = [];
     p.furyUsedThisTurn = [];
+    p.usedOncePerTurn = [];
   }
   s.usedPlacesOfPower = [];
   s.placeOfPowerUsedBy = [];
@@ -390,6 +392,13 @@ function offerFuryOfTheForest(ctx: Ctx): void {
 function beginTurnEnd(ctx: Ctx): void {
   const { s, scenario } = ctx;
   s.stack.push({ t: 'turnEnd' });
+  // Huntmaster's Strike ("End of Any Turn"): a unit that charged this turn, the active player first.
+  for (const player of [opponent(s.active), s.active]) {
+    const options: ReactionOption[] = unitsOf(s, player)
+      .filter((u) => canHuntmaster(scenario, s, u))
+      .map((u) => ({ ability: 'huntmastersStrike', unit: u.id, cost: 0 }));
+    if (options.length > 0) s.stack.push({ t: 'reaction', player, options, trigger: 'end:turn' });
+  }
   for (const player of [opponent(s.active), s.active]) {
     if (vengeanceCandidates(scenario, s, player).length > 0) {
       s.stack.push({ t: 'vengeance', player, stage: 'pick', queue: [] });

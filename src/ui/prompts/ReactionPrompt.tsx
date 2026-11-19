@@ -1,6 +1,7 @@
 /** A generic reaction. */
 import { useEffect, useState } from 'react';
 import type { Decision } from '../../engine/index.js';
+import { HUNTMASTERS_STRIKE_ID } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
 import { COMMAND_NAMES, reactionText, triggerUnit } from '../game/eventText.js';
 import { logContext } from '../game/engine.js';
@@ -67,6 +68,25 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
                 onClick={() => dispatch({ t: 'ability', unit: o.unit, abilityId: 'unbind' })}
               >
                 Unbind · {unitName} · Free
+              </button>
+            );
+          }
+          if (o.ability === 'huntmastersStrike') {
+            return (
+              <button
+                key={i}
+                className="btn wide"
+                data-testid="huntmasters-strike"
+                {...hover}
+                onClick={() =>
+                  dispatch({
+                    t: 'ability',
+                    unit: o.unit,
+                    abilityId: HUNTMASTERS_STRIKE_ID,
+                  })
+                }
+              >
+                Huntmaster&apos;s Strike · {unitName} · Free
               </button>
             );
           }

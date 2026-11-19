@@ -20,6 +20,14 @@ import { type AlarielleSeason } from '../rules/factions/sylvaneth.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import { friendlyWyldwoods } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID } from './wyldwood.js';
+import {
+  mercilessAmbush,
+  rhythmOfTheChase,
+  undoRelocation,
+  useSetUpAbility,
+} from './relocating.js';
+import { RHYTHM_OF_THE_CHASE_ID } from './abilities/sylvaneth.js';
+import { SET_UP_ABILITY_IDS } from './relocate.js';
 import { choosePrayer } from './abilities/magic.js';
 import { chooseVengeance } from './vengeance.js';
 import {
@@ -142,6 +150,8 @@ export function createEngine(scenario: Scenario): Engine {
           declareMove(ctx, action.unit, action.kind, action.atTheDouble);
         } else if (action.t === 'ability' && action.abilityId === WYLDWOOD_SETUP_ID) {
           setUpWyldwood(ctx, action.unit);
+        } else if (action.t === 'ability' && SET_UP_ABILITY_IDS.includes(action.abilityId)) {
+          useSetUpAbility(ctx, action);
         } else if (action.t === 'ability' && action.abilityId === 'place-of-power') {
           illegal('A Place of Power can only be activated at the start of a turn.');
         } else if (action.t === 'ability' && d.phase === 'hero') {
@@ -196,6 +206,8 @@ export function createEngine(scenario: Scenario): Engine {
             landAwakens(ctx, action.unit, action.target);
           } else if (d.phase === 'movement' && action.command === 'goddessOfLife') {
             goddessOfLife(ctx, action.unit, action.target);
+          } else if (d.phase === 'charge' && action.command === 'mercilessAmbush') {
+            mercilessAmbush(ctx, action.unit);
           } else {
             illegal(`Command "${action.command}" is not available in the ${d.phase} phase.`);
           }
@@ -229,6 +241,9 @@ export function createEngine(scenario: Scenario): Engine {
           } else if (d.reason === 'replacement') {
             const frame = s.stack.pop();
             if (frame?.t === 'place') undoReplacement(ctx, frame);
+          } else if (d.reason === 'relocate') {
+            const frame = s.stack.pop();
+            if (frame?.t === 'place') undoRelocation(ctx, frame);
           } else skipPlace(ctx);
         } else if (action.t === 'place') place(ctx, action.placement);
         else if (
@@ -242,7 +257,9 @@ export function createEngine(scenario: Scenario): Engine {
         break;
       case 'fightPick':
         if (action.t === 'fight') declareFight(ctx, d.player, action.unit);
-        else if (action.t === 'pass' && d.canPass) {
+        else if (action.t === 'ability' && action.abilityId === RHYTHM_OF_THE_CHASE_ID) {
+          rhythmOfTheChase(ctx, action.unit, action.target);
+        } else if (action.t === 'pass' && d.canPass) {
           // Declines to attack faction terrain with every optional fighter of this tier.
           for (const u of eligibleFighters(scenario, s, d.player)) {
             s.units[u.id]!.declinedTerrainFight = true;
