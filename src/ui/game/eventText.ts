@@ -222,12 +222,12 @@ export function toastLine(lines: readonly LogLine[]): LogLine | null {
   return best;
 }
 
-/** `declare:<unit id>:<spell name>`; unit ids hold colons ("1:6", "m:1:...") so they are matched whole. */
-const DECLARE = /^declare:(m:\d+:[^:]+|\d+:[^:]+):(.*)$/;
+/** `declare:` or `spell:<unit id>:<spell name>`; unit ids hold colons ("1:6", "m:1:...") so they are matched whole. */
+const SPELL_TRIGGER = /^(?:declare|spell):(m:\d+:[^:]+|\d+:[^:]+):(.*)$/;
 
 /** The unit that caused a reaction (the caster, mover, shooter or fighter), if there is one. */
 export function triggerUnit(trigger: string): string | null {
-  const declared = DECLARE.exec(trigger);
+  const declared = SPELL_TRIGGER.exec(trigger);
   if (declared) return declared[1]!;
   const m = /^(?:spell|move|pain|shoot|fight|charge):([^:]+)/.exec(trigger);
   return m ? m[1]! : null;
@@ -236,11 +236,11 @@ export function triggerUnit(trigger: string): string | null {
 /** A reaction trigger such as "shoot:1:5" in words. */
 export function reactionText(trigger: string, ctx: LogContext): string {
   if (trigger.startsWith('spell:')) {
-    const [, casterId, abilityName] = trigger.split(':');
+    const [, casterId, abilityName] = SPELL_TRIGGER.exec(trigger) ?? [];
     return `${casterId ? ctx.unitName(casterId) : 'Enemy Wizard'} cast ${abilityName ?? 'a spell'}. Unbind?`;
   }
   if (trigger.startsWith('declare:')) {
-    const [, casterId, abilityName] = DECLARE.exec(trigger) ?? [];
+    const [, casterId, abilityName] = SPELL_TRIGGER.exec(trigger) ?? [];
     return `${casterId ? ctx.unitName(casterId) : 'Your Wizard'} is casting ${abilityName ?? 'a spell'}. React before the casting roll?`;
   }
   if (trigger.startsWith('move:')) {

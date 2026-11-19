@@ -101,6 +101,10 @@ describe('eventLine', () => {
   it('describes reaction triggers', () => {
     expect(reactionText('shoot:b', ctx)).toBe('Saurus Warriors is about to shoot.');
     expect(reactionText('something else', ctx)).toBe('something else');
+    expect(reactionText('declare:0:3:Celestial Doom', ctx)).toBe(
+      '0:3 is casting Celestial Doom. React before the casting roll?',
+    );
+    expect(reactionText('spell:0:3:Celestial Doom', ctx)).toBe('0:3 cast Celestial Doom. Unbind?');
     expect(reactionText('start:combat', ctx)).toMatch(/Combat phase is starting/);
     expect(reactionText('move:a', ctx)).toBe('Dryads finished a move nearby.');
     expect(reactionText('phase:movement', ctx)).toContain('Movement phase');
@@ -109,6 +113,10 @@ describe('eventLine', () => {
   it('finds the unit that triggered a reaction', () => {
     expect(triggerUnit('shoot:b')).toBe('b');
     expect(triggerUnit('spell:a:Smite')).toBe('a');
+    // Unit ids hold colons.
+    expect(triggerUnit('declare:0:3:Celestial Doom')).toBe('0:3');
+    expect(triggerUnit('spell:1:6:Celestial Doom')).toBe('1:6');
+    expect(triggerUnit('declare:m:0:abc-1:Pendulum')).toBe('m:0:abc-1');
     expect(triggerUnit('pain:b:3')).toBe('b');
     expect(triggerUnit('phase:hero')).toBeNull();
   });

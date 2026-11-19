@@ -228,7 +228,8 @@ function seraphonCombatAction(engine: Engine, state: GameState, player: PlayerId
   for (const unit of unitsOf(state, player)) {
     for (const o of engine.unitOptions(state, unit.id)) {
       if (o.t !== 'ability' || o.targets.length === 0) continue;
-      if (![VENOMITE_SWARM_ID, ARK_OF_SOTEK_ID, ARMOUR_CRUNCHER_ID].includes(o.abilityId)) continue;
+      const known = [VENOMITE_SWARM_ID, ARK_OF_SOTEK_ID, ARMOUR_CRUNCHER_ID];
+      if (!known.some((id) => o.abilityId.startsWith(id))) continue;
       const ranked = [...o.targets].sort(
         (a, b) => points(engine, state, b) - points(engine, state, a),
       );

@@ -45,12 +45,16 @@ import type {
 type AbilityAction = Extract<Action, { t: 'ability' }>;
 type AbilityOption = Extract<UnitOption, { t: 'ability' }>;
 
+/** Armour Cruncher without spending a rage dice: the `ability` action id of that choice. */
+export const ARMOUR_CRUNCHER_ROLL_ID = 'f6fe-3e8d-dd90-00b8:roll';
+
 /** The abilities that are one `ability` action by the unit itself (the reactions are answers). */
 export const SERAPHON_ACTIVATED_IDS: readonly string[] = [
   VENOMITE_SWARM_ID,
   SCRY_THE_STARS_ID,
   ARK_OF_SOTEK_ID,
   ARMOUR_CRUNCHER_ID,
+  ARMOUR_CRUNCHER_ROLL_ID,
   STAR_VENOM_ID,
 ];
 
@@ -167,13 +171,14 @@ export function combatOptions(scenario: Scenario, state: GameState, unit: UnitSt
       );
     }
   }
-  if (
-    has(scenario, unit, ARMOUR_CRUNCHER_ID) &&
-    !usedByUnit(unit, ARMOUR_CRUNCHER_ID) &&
-    (state.players[unit.owner].rageDice ?? 0) > 0
-  ) {
+  if (has(scenario, unit, ARMOUR_CRUNCHER_ID) && !usedByUnit(unit, ARMOUR_CRUNCHER_ID)) {
     const targets = cruncherTargets(scenario, state, unit);
-    if (targets.length > 0) out.push(option(ARMOUR_CRUNCHER_ID, 'Armour Cruncher', targets));
+    if (targets.length > 0) {
+      if ((state.players[unit.owner].rageDice ?? 0) > 0) {
+        out.push(option(ARMOUR_CRUNCHER_ID, 'Armour Cruncher (spend a rage dice)', targets));
+      }
+      out.push(option(ARMOUR_CRUNCHER_ROLL_ID, 'Armour Cruncher (roll a dice)', targets));
+    }
   }
   return out;
 }
@@ -228,7 +233,9 @@ export function useSeraphonAbility(ctx: Ctx, action: AbilityAction): void {
     case ARK_OF_SOTEK_ID:
       return arkOfSotek(ctx, unit, targets);
     case ARMOUR_CRUNCHER_ID:
-      return armourCruncher(ctx, unit, targets[0]!);
+      return armourCruncher(ctx, unit, targets[0]!, true);
+    case ARMOUR_CRUNCHER_ROLL_ID:
+      return armourCruncher(ctx, unit, targets[0]!, false);
     default:
       return starVenom(ctx, unit, targets[0]!);
   }
@@ -294,24 +301,27 @@ function arkOfSotek(ctx: Ctx, unit: UnitState, targets: UnitState[]): void {
 }
 
 /**
- * Armour Cruncher: spend 1 rage dice. When the opponent's fury level is lower than yours it
- * rises by 1 (to 7) and the target has -1 to save rolls for the rest of the turn; otherwise a
- * dice is rolled and the -1 applies on the target's Save or more (I105).
+ * Armour Cruncher: "You can spend 1 rage dice. If you do: apply the effect, and if your
+ * opponent's fury level is lower than yours they raise it by 1 (to 7). Otherwise, roll a dice:
+ * on the target's Save or more, apply the effect" (I105). Spending always applies the -1 to
+ * save rolls for the rest of the turn; not spending rolls for it.
  */
-function armourCruncher(ctx: Ctx, unit: UnitState, target: UnitState): void {
+function armourCruncher(ctx: Ctx, unit: UnitState, target: UnitState, spend: boolean): void {
   const { s, scenario } = ctx;
   const me = s.players[unit.owner];
   const them = s.players[opponent(unit.owner)];
-  me.rageDice = Math.max(0, (me.rageDice ?? 0) - 1);
   markUnit(unit, ARMOUR_CRUNCHER_ID);
   let applies: boolean;
-  if ((them.furyLevel ?? 0) < (me.furyLevel ?? 0)) {
-    them.furyLevel = clampFury((them.furyLevel ?? 0) + 1);
+  if (spend) {
+    me.rageDice = Math.max(0, (me.rageDice ?? 0) - 1);
     applies = true;
-    ctx.events.push({
-      t: 'note',
-      text: `${unit.name}: Armour Cruncher raises the opponent's fury level to ${them.furyLevel}.`,
-    });
+    if ((them.furyLevel ?? 0) < (me.furyLevel ?? 0)) {
+      them.furyLevel = clampFury((them.furyLevel ?? 0) + 1);
+      ctx.events.push({
+        t: 'note',
+        text: `${unit.name}: Armour Cruncher raises the opponent's fury level to ${them.furyLevel}.`,
+      });
+    }
   } else {
     const die = rollD6(ctx);
     roll(ctx, unit, 'Armour Cruncher', [die]);

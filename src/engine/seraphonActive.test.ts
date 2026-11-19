@@ -19,6 +19,9 @@ import {
   STAR_VENOM_ID,
   VENOMITE_SWARM_ID,
 } from './abilities/seraphon.js';
+import { RngCursor } from './rng.js';
+import { endTurn } from './turns.js';
+import { ARMOUR_CRUNCHER_ROLL_ID } from './seraphonActive.js';
 import { createEngine, createScenario, type GameState } from './index.js';
 import { profileOf } from './query.js';
 import type { Action, GameEvent, StepResult, UnitId } from './types.js';
@@ -183,21 +186,31 @@ describe('Armour Cruncher (f6fe-3e8d-dd90-00b8)', () => {
     return s;
   };
   const cruncher = () => use(BASTILADON, ARMOUR_CRUNCHER_ID, { target: DRYADS });
+  const rolled = () => use(BASTILADON, ARMOUR_CRUNCHER_ROLL_ID, { target: DRYADS });
 
-  it('needs a rage dice and an enemy unit in combat with the unit', () => {
+  it('offers spending a rage dice (with one) or rolling a dice (always) against a unit in combat', () => {
     const s = field();
     expect(option(s, BASTILADON, ARMOUR_CRUNCHER_ID)).toMatchObject({ targets: [DRYADS] });
+    expect(option(s, BASTILADON, ARMOUR_CRUNCHER_ROLL_ID)).toMatchObject({ targets: [DRYADS] });
     s.players[0].rageDice = 0;
     expect(option(s, BASTILADON, ARMOUR_CRUNCHER_ID)).toBeUndefined();
+    expect(option(s, BASTILADON, ARMOUR_CRUNCHER_ROLL_ID)).toBeDefined();
   });
 
-  it('spends the dice and, against a lower fury level, raises it by 1 with no roll', () => {
+  it('spending a rage dice always applies the effect, and raises a lower fury level by 1', () => {
     const s = field();
     const r = engine.apply(s, cruncher());
     expect(r.state.players[0].rageDice).toBe(2);
     expect(r.state.players[1].furyLevel).toBe(2);
     expect(rolls(r.events, 'Armour Cruncher')).toEqual([]);
     expect(effectsOf(r.state, ARMOUR_CRUNCHER_ID, DRYADS)).toHaveLength(1);
+    // Not lower: the effect still applies, the fury level stays.
+    const even = field();
+    even.players[1].furyLevel = 3;
+    const e = engine.apply(even, cruncher());
+    expect(e.state.players[1].furyLevel).toBe(3);
+    expect(e.state.players[0].rageDice).toBe(2);
+    expect(effectsOf(e.state, ARMOUR_CRUNCHER_ID, DRYADS)).toHaveLength(1);
   });
 
   it('does not raise the fury level above 7', () => {
@@ -205,32 +218,34 @@ describe('Armour Cruncher (f6fe-3e8d-dd90-00b8)', () => {
     s.players[0].furyLevel = 7;
     s.players[1].furyLevel = 6;
     expect(engine.apply(s, cruncher()).state.players[1].furyLevel).toBe(7);
+    s.players[1].furyLevel = 7;
+    expect(engine.apply(s, cruncher()).state.players[1].furyLevel).toBe(7);
   });
 
-  it('otherwise rolls a dice: the Save or more applies the effect, less does not', () => {
+  it('not spending rolls a dice: the Save or more applies the effect, less does not', () => {
     const save = profileOf(scenario, field().units[DRYADS]!).save;
-    const equal = () => {
-      const s = field();
-      s.players[1].furyLevel = 3;
-      return s;
-    };
     const hit = applyUntil(
       engine,
-      equal(),
-      cruncher(),
+      field(),
+      rolled(),
       (x) => rolls(x.events, 'Armour Cruncher')[0]! >= save,
     );
-    expect(hit.state.players[1].furyLevel).toBe(3);
-    expect(hit.state.players[0].rageDice).toBe(2);
+    expect(hit.state.players[0].rageDice).toBe(3);
+    expect(hit.state.players[1].furyLevel).toBe(1);
     expect(effectsOf(hit.state, ARMOUR_CRUNCHER_ID, DRYADS)).toHaveLength(1);
     const miss = applyUntil(
       engine,
-      equal(),
-      cruncher(),
+      field(),
+      rolled(),
       (x) => rolls(x.events, 'Armour Cruncher')[0]! < save,
     );
-    expect(miss.state.players[0].rageDice).toBe(2);
+    expect(miss.state.players[0].rageDice).toBe(3);
     expect(effectsOf(miss.state, ARMOUR_CRUNCHER_ID)).toHaveLength(0);
+    // With no rage dice at all, rolling is still possible.
+    const none = field();
+    none.players[0].rageDice = 0;
+    expect(() => engine.apply(none, rolled())).not.toThrow();
+    expect(() => engine.apply(none, cruncher())).toThrow();
   });
 
   it('subtracts 1 from the target’s save rolls and lasts the turn', () => {
@@ -497,6 +512,79 @@ describe('Celestial Conduit (153d-3737-615b-b904) and Coatl Familiar (2302-6d4-c
       (x) => castOf(x.events)?.t === 'cast' && !castOf(x.events)!.success,
     );
     expect(effectsOf(failed.state, CELESTIAL_CONDUIT_ID)).toHaveLength(0);
+  });
+
+  it('an unbound spell gives no Celestial Conduit effect', () => {
+    // Alarielle (a Wizard in range) may unbind it.
+    const t2 = arena(
+      {
+        [STARSEER]: [30, 20],
+        [ASTROLITH]: [30, 26],
+        [DRYADS]: [30, 34],
+        '1:0': [30, 40],
+      },
+      'hero',
+    );
+    const declared = engine.apply(t2, cast(t2));
+    const picked = engine.apply(declared.state, use(ASTROLITH, CELESTIAL_CONDUIT_ID));
+    const asked = applyUntil(
+      engine,
+      picked.state,
+      { t: 'pass' },
+      (x) => castOf(x.events)?.t === 'cast' && castOf(x.events)!.success,
+    );
+    expect(engine.decision(asked.state)).toMatchObject({ kind: 'reaction', player: 1 });
+    // Unbound: no effect.
+    const unbound = applyUntil(
+      engine,
+      asked.state,
+      { t: 'ability', unit: '1:0', abilityId: 'unbind' },
+      (x) => x.events.some((e) => e.t === 'unbind' && e.unbound),
+    );
+    expect(effectsOf(unbound.state, CELESTIAL_CONDUIT_ID)).toHaveLength(0);
+    // Not unbound: the effect arrives after the unbind roll.
+    const held = applyUntil(
+      engine,
+      asked.state,
+      { t: 'ability', unit: '1:0', abilityId: 'unbind' },
+      (x) => x.events.some((e) => e.t === 'unbind' && !e.unbound),
+    );
+    expect(effectsOf(held.state, CELESTIAL_CONDUIT_ID)).toHaveLength(1);
+  });
+
+  it('the +3 can flip an objective at the end of the turn, before the effect is cleared', () => {
+    const objective = scenario.battlefield.objectives.find((o) => o.id === 'golden-lions-1')!;
+    const s = arena({ [WARRIORS]: [0, 0], [ASTROLITH]: [0, 0], [BELTHANOS]: [0, 0] }, 'end');
+    placeUnit(scenario, s, WARRIORS, objective.x, objective.y);
+    placeUnit(scenario, s, ASTROLITH, objective.x + 7, objective.y);
+    placeUnit(scenario, s, BELTHANOS, objective.x, objective.y + 3);
+    s.objectives.find((o) => o.id === objective.id)!.controller = 1;
+    // Warriors lose models until the enemy leads by one or two.
+    const enemy = controlScores(scenario, s).get(objective.id)![1];
+    const warriors = s.units[WARRIORS]!;
+    const keep = Math.max(1, enemy - 1);
+    warriors.models.forEach((m, i) => {
+      if (i >= keep) m.alive = false;
+    });
+    const mine = controlScores(scenario, s).get(objective.id)![0];
+    expect(mine).toBeLessThan(enemy);
+    expect(mine + 3).toBeGreaterThan(enemy);
+    const without = editable(s);
+    endTurn({ scenario, s: without, events: [], rng: new RngCursor(1) });
+    expect(without.objectives.find((o) => o.id === objective.id)!.controller).toBe(1);
+    s.effects = [
+      {
+        id: CELESTIAL_CONDUIT_ID,
+        name: 'Celestial Conduit',
+        sourceUnit: ASTROLITH,
+        targetUnit: ASTROLITH,
+        owner: 0,
+        expires: 'turn',
+      },
+    ];
+    endTurn({ scenario, s, events: [], rng: new RngCursor(1) });
+    expect(s.objectives.find((o) => o.id === objective.id)!.controller).toBe(0);
+    expect(effectsOf(s, CELESTIAL_CONDUIT_ID)).toHaveLength(0);
   });
 
   it('reactions are offered only for a Seraphon Wizard', () => {
