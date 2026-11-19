@@ -26,6 +26,13 @@ export const SHADOWCREEP_ID = '76b2-ce61-8aec-f6c1';
 export const REALMROOT_GUIDE_ID = 'c133-8f0c-936d-30d3';
 export const GUARDIAN_OF_THE_GLADES_ID = 'ea9f-5c5b-8b97-78aa';
 
+/** Activated abilities of task M4i; who may use them is in `../sylvanethActive.ts`. */
+export const LIFEBLOOM_ID = 'e4b4-8e4d-5f0-eb6a';
+export const LIVING_BATTERING_RAM_ID = '5abd-6507-dbee-ed76';
+export const GROUNDSHAKER_ID = '7124-769a-aafd-7b38';
+export const WYLDWOOD_REVENANTS_ID = 'dc61-1f39-51f9-52da';
+export const ASPECT_OF_HEARTWOOD_ID = '0770-09a1-99c6-1a99';
+
 const BATTLE_DAMAGED_FROM = 10;
 
 function battleDamaged(id: string, weaponName: string, attacks: number): AbilityDefinition {
@@ -125,6 +132,18 @@ export const SYLVANETH_PASSIVES: AbilityDefinition[] = [
     bsdata: true,
     effectGrants: () => ({ chargeRollModifier: 2 }),
   },
+  { id: LIFEBLOOM_ID, name: 'Lifebloom', kind: 'activated', bsdata: true },
+  { id: LIVING_BATTERING_RAM_ID, name: 'Living Battering Ram', kind: 'activated', bsdata: true },
+  {
+    // "the target has Strike-last for the rest of the turn"
+    id: GROUNDSHAKER_ID,
+    name: 'Groundshaker',
+    kind: 'activated',
+    bsdata: true,
+    effectGrants: () => ({ keywords: ['STRIKE-LAST'] }),
+  },
+  { id: WYLDWOOD_REVENANTS_ID, name: 'Wyldwood Revenants', kind: 'activated', bsdata: true },
+  { id: ASPECT_OF_HEARTWOOD_ID, name: 'Aspect of Heartwood', kind: 'activated', bsdata: true },
   // The re-rolls are applied by `glamourRerolls` / `spendGlamourweave` (combat.ts).
   { id: GLAMOURWEAVE_ID, name: 'Glamourweave', kind: 'passive', bsdata: true },
 ];

@@ -223,7 +223,7 @@ export function toastLine(lines: readonly LogLine[]): LogLine | null {
 }
 
 /** `declare:` or `spell:<unit id>:<spell name>`; unit ids hold colons ("1:6", "m:1:...") so they are matched whole. */
-const SPELL_TRIGGER = /^(?:declare|spell):(m:\d+:[^:]+|\d+:[^:]+):(.*)$/;
+const SPELL_TRIGGER = /^(?:declare|spell|chant):(m:\d+:[^:]+|\d+:[^:]+):(.*)$/;
 
 /** The unit that caused a reaction (the caster, mover, shooter or fighter), if there is one. */
 export function triggerUnit(trigger: string): string | null {
@@ -242,6 +242,10 @@ export function reactionText(trigger: string, ctx: LogContext): string {
   if (trigger.startsWith('declare:')) {
     const [, casterId, abilityName] = SPELL_TRIGGER.exec(trigger) ?? [];
     return `${casterId ? ctx.unitName(casterId) : 'Your Wizard'} is casting ${abilityName ?? 'a spell'}. React before the casting roll?`;
+  }
+  if (trigger.startsWith('chant:')) {
+    const [, casterId, abilityName] = SPELL_TRIGGER.exec(trigger) ?? [];
+    return `${casterId ? ctx.unitName(casterId) : 'Your Priest'} rolled a 1 chanting ${abilityName ?? 'a prayer'}. Re-roll it?`;
   }
   if (trigger.startsWith('move:')) {
     const [, moverId] = trigger.split(':');

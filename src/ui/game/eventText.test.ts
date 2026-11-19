@@ -105,6 +105,9 @@ describe('eventLine', () => {
       '0:3 is casting Celestial Doom. React before the casting roll?',
     );
     expect(reactionText('spell:0:3:Celestial Doom', ctx)).toBe('0:3 cast Celestial Doom. Unbind?');
+    expect(reactionText('chant:0:5:Song Of War', ctx)).toBe(
+      '0:5 rolled a 1 chanting Song Of War. Re-roll it?',
+    );
     expect(reactionText('start:combat', ctx)).toMatch(/Combat phase is starting/);
     expect(reactionText('move:a', ctx)).toBe('Dryads finished a move nearby.');
     expect(reactionText('phase:movement', ctx)).toContain('Movement phase');
@@ -117,6 +120,7 @@ describe('eventLine', () => {
     expect(triggerUnit('declare:0:3:Celestial Doom')).toBe('0:3');
     expect(triggerUnit('spell:1:6:Celestial Doom')).toBe('1:6');
     expect(triggerUnit('declare:m:0:abc-1:Pendulum')).toBe('m:0:abc-1');
+    expect(triggerUnit('chant:0:5:Song Of War')).toBe('0:5');
     expect(triggerUnit('pain:b:3')).toBe('b');
     expect(triggerUnit('phase:hero')).toBeNull();
   });
