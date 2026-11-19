@@ -11,6 +11,7 @@ import {
   unitGrants,
   wardRollModifier,
 } from './abilities/effects.js';
+import { recordDartpipeDamage } from './abilities/seraphon.js';
 import { RerollNeeded } from './attack.js';
 import { applyStarspawned } from './starspawned.js';
 import { glamourRerolls, spendGlamourweave } from './abilities/sylvaneth.js';
@@ -413,6 +414,9 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
       dice: { ...roll.dice, ward: ward.dice },
     });
     pending.set(target.id, (pending.get(target.id) ?? 0) + ward.taken);
+    if (ward.taken > 0 && frame.mode === 'shoot') {
+      recordDartpipeDamage(scenario, s, attacker, weapon, target);
+    }
   }
   clearExpiredEffects(s, 'attack');
   allocatePending(ctx, {

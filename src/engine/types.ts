@@ -95,6 +95,8 @@ export interface UnitState {
   ritualPoints?: number;
   /** Ability IDs used by this unit in the current turn (Rule of One per unit). */
   abilitiesUsed?: string[];
+  /** Sunblood Pack: its Venomites token was removed from the battlefield (Venomite Swarm rolled a 1). */
+  venomitesGone?: boolean;
   /** Set when a unit/manifestation was set up on the battlefield this turn (bars movement-phase moves). */
   setUpThisTurn?: boolean;
   /** True for summoned manifestation units. */
@@ -243,6 +245,18 @@ export type Frame =
       /** Several targets picked for the spell (`Action.targets`). */
       targets?: UnitId[];
       roll: number;
+      /** Celestial Conduit Bearers that reacted to the declaration (the effect waits for an unbind). */
+      conduits?: UnitId[];
+    }
+  /**
+   * A spell or summon declared and waiting under a `reaction` frame while Celestial Conduit and
+   * Coatl Familiar are offered (M4h). Answering the last of them declares `action` again with
+   * `used` as the reactions taken. Never the top frame when a decision is asked for.
+   */
+  | {
+      t: 'castReact';
+      action: Extract<Action, { t: 'ability' }>;
+      used: { ability: 'celestialConduit' | 'coatlFamiliar'; unit: UnitId }[];
     }
   /**
    * A Wizard or Priest using Magical Intervention in the enemy hero phase to cast or chant once.
@@ -594,7 +608,13 @@ export interface ReactionOption {
    * `fightThroughThePain`: answer with `{ t: 'ability', unit, abilityId: 'fight-through-the-pain',
    * rageDice }`, or pass to take all the damage.
    */
-  ability?: 'unbind' | 'fightThroughThePain' | 'glamourweave' | 'huntmastersStrike';
+  ability?:
+    | 'unbind'
+    | 'fightThroughThePain'
+    | 'glamourweave'
+    | 'huntmastersStrike'
+    | 'celestialConduit'
+    | 'coatlFamiliar';
   unit: UnitId;
   cost: number;
   /** Fight Through the Pain: the damage points about to be allocated to `unit`. */

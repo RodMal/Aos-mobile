@@ -10,6 +10,7 @@ import { footprintGap, type Footprint } from '../../geom/index.js';
 import { DIST_EPS, modelFootprint, profileOf } from '../../engine/query.js';
 import type { GameState, PlayerId, Scenario, UnitState } from '../../engine/types.js';
 import { battleplanRules } from '../battleplans/index.js';
+import { conduitControlBonus } from '../factions/conduit.js';
 
 /** Edge-of-base distance from a footprint to a point. */
 export function footprintToPoint(fp: Footprint, x: number, y: number): number {
@@ -55,6 +56,11 @@ export function controlScores(scenario: Scenario, state: GameState): Map<string,
         scores.get(o.id)![unit.owner] += profile.control;
       }
     });
+    // Celestial Conduit: added to the unit's control score, once for each objective it contests.
+    const conduit = contestingObjectives.size > 0 ? conduitControlBonus(scenario, state, unit) : 0;
+    if (conduit > 0) {
+      for (const objId of contestingObjectives) scores.get(objId)![unit.owner] += conduit;
+    }
     if (bp.controlBonus && contestingObjectives.size > 0) {
       for (const objId of contestingObjectives) {
         const obj = scenario.battlefield.objectives.find((o) => o.id === objId)!;

@@ -89,6 +89,21 @@ export function applyUntil(
   throw new Error('no RNG state gave the wanted outcome');
 }
 
+/**
+ * Celestial Conduit and Coatl Familiar are offered when a spell is declared. For a test that
+ * wants the casting roll: the state and action to roll it from (the reactions skipped with a
+ * pass when they are offered, else the declaration itself).
+ */
+export function skipDeclareReactions(
+  engine: Engine,
+  state: GameState,
+  action: Action,
+): { state: GameState; action: Action } {
+  const d = engine.decision(engine.apply(state, action).state);
+  if (d?.kind !== 'reaction' || !d.trigger.startsWith('declare:')) return { state, action };
+  return { state: engine.apply(state, action).state, action: { t: 'pass' } };
+}
+
 /** Passes main decisions until the given phase of the current turn. */
 export function passTo(engine: Engine, state: GameState, phase: Phase): GameState {
   let s = state;

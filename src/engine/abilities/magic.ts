@@ -44,6 +44,14 @@ import {
   type UnitOption,
   type UnitState,
 } from '../types.js';
+import {
+  CONDUIT_REACTION,
+  COATL_REACTION,
+  applyConduit,
+  castReactionAbilityId,
+  castReactionOptions,
+  spendCastReaction,
+} from '../seraphonActive.js';
 import { addEffect, getAbility, legalTargetsForSpec } from './effects.js';
 import type { AbilityDefinition } from './types.js';
 
@@ -456,12 +464,73 @@ function markAbilityAttempted(
   }
 }
 
-export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'ability' }>): void {
+type CastReactionsTaken = Extract<Frame, { t: 'castReact' }>['used'];
+
+/** The target or targets an ability action names, checked against the legal ones. */
+function pickTargets(
+  ctx: StepCtx,
+  def: AbilityDefinition,
+  legal: UnitId[],
+  action: Extract<Action, { t: 'ability' }>,
+): { target?: UnitState; targets?: UnitState[] } {
+  if (def.target && action.targets) {
+    const max = def.maxTargets ?? 1;
+    const ids = action.targets;
+    if (ids.length < 1 || ids.length > max) {
+      throw new IllegalActionError(`${def.name} takes 1 to ${max} targets.`);
+    }
+    if (new Set(ids).size !== ids.length) {
+      throw new IllegalActionError(`${def.name}: each target can be picked only once.`);
+    }
+    const bad = ids.find((id) => !legal.includes(id));
+    if (bad) {
+      const name = ctx.s.units[bad]?.name ?? bad;
+      throw new IllegalActionError(`${name} is not a legal target for ${def.name}.`);
+    }
+    const targets = ids.map((id) => unitById(ctx.s, id));
+    return { target: targets[0], targets };
+  }
+  if (def.target) {
+    const targetId = action.target ?? legal[0];
+    if (!targetId || !legal.includes(targetId)) {
+      throw new IllegalActionError(`${def.name} requires a legal target`);
+    }
+    return { target: unitById(ctx.s, targetId) };
+  }
+  return {};
+}
+
+/**
+ * `taken` is set when the spell is declared again after Celestial Conduit and Coatl Familiar were
+ * offered (the reactions taken, possibly none); without it they are offered first.
+ */
+export function declareAbility(
+  ctx: StepCtx,
+  action: Extract<Action, { t: 'ability' }>,
+  taken?: CastReactionsTaken,
+): void {
   const unit = unitById(ctx.s, action.unit);
   const options = magicOptionsForUnit(ctx.scenario, ctx.s, unit);
   const opt = options.find((o) => o.t === 'ability' && o.abilityId === action.abilityId);
   if (!opt || opt.t !== 'ability') {
     throw new IllegalActionError(`${unit.name} cannot use ability ${action.abilityId} now`);
+  }
+
+  // Celestial Conduit and Coatl Familiar react to the declaration, before the casting roll.
+  const declared = getAbility(action.abilityId);
+  if (!taken && declared && (declared.kind === 'spell' || declared.kind === 'summon')) {
+    pickTargets(ctx, declared, opt.targets, action);
+    const offers = castReactionOptions(ctx.scenario, ctx.s, unit);
+    if (offers.length > 0) {
+      ctx.s.stack.push({ t: 'castReact', action, used: [] });
+      ctx.s.stack.push({
+        t: 'reaction',
+        player: unit.owner,
+        options: offers,
+        trigger: `declare:${unit.id}:${declared.name}`,
+      });
+      return;
+    }
   }
 
   if (action.abilityId === ARCANE_VASSAL_ID) {
@@ -531,31 +600,7 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
   const def = getAbility(action.abilityId);
   if (!def) throw new IllegalActionError(`unknown ability ${action.abilityId}`);
 
-  let target: UnitState | undefined;
-  let targets: UnitState[] | undefined;
-  if (def.target && action.targets) {
-    const max = def.maxTargets ?? 1;
-    const ids = action.targets;
-    if (ids.length < 1 || ids.length > max) {
-      throw new IllegalActionError(`${def.name} takes 1 to ${max} targets.`);
-    }
-    if (new Set(ids).size !== ids.length) {
-      throw new IllegalActionError(`${def.name}: each target can be picked only once.`);
-    }
-    const bad = ids.find((id) => !opt.targets.includes(id));
-    if (bad) {
-      const name = ctx.s.units[bad]?.name ?? bad;
-      throw new IllegalActionError(`${name} is not a legal target for ${def.name}.`);
-    }
-    targets = ids.map((id) => unitById(ctx.s, id));
-    target = targets[0];
-  } else if (def.target) {
-    const targetId = action.target ?? opt.targets[0];
-    if (!targetId || !opt.targets.includes(targetId)) {
-      throw new IllegalActionError(`${def.name} requires a legal target`);
-    }
-    target = unitById(ctx.s, targetId);
-  }
+  const { target, targets } = pickTargets(ctx, def, opt.targets, action);
 
   if (def.kind === 'spell' || def.kind === 'summon') {
     const cv = def.castingValue ?? 6;
@@ -571,10 +616,23 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
     markAbilityAttempted(ctx.s, unit, def.id, def.unlimited);
     const dice = roll2D6(ctx);
     const miscast = dice[0] === 1 && dice[1] === 1;
+    // Coatl Familiar: add D6 to the casting roll.
+    let coatl = 0;
+    for (const r of (taken ?? []).filter((x) => x.ability === COATL_REACTION)) {
+      const die = rollD6(ctx);
+      coatl += die;
+      ctx.events.push({ t: 'roll', player: unit.owner, label: 'Coatl Familiar', dice: [die] });
+      ctx.events.push({
+        t: 'note',
+        text: `${unitById(ctx.s, r.unit).name}: Coatl Familiar adds ${die} to the casting roll.`,
+      });
+    }
+    const conduits = (taken ?? []).filter((x) => x.ability === CONDUIT_REACTION).map((x) => x.unit);
     const total = Math.max(
       2,
       dice[0] +
         dice[1] +
+        coatl +
         penalty +
         channelledWrathBonus(ctx.s, unit) +
         reapingBonus(ctx.scenario, ctx.s, unit) +
@@ -611,6 +669,7 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
         target: target?.id,
         ...(targets ? { targets: targets.map((u) => u.id) } : {}),
         roll: total,
+        ...(conduits.length > 0 ? { conduits } : {}),
       });
       ctx.s.stack.push({
         t: 'reaction',
@@ -621,6 +680,7 @@ export function declareAbility(ctx: StepCtx, action: Extract<Action, { t: 'abili
       return;
     }
 
+    for (const bearer of conduits) applyConduit(ctx, bearer);
     resolveSpellOrSummon(ctx, origin, def, target, total, targets);
     return;
   }
@@ -770,6 +830,7 @@ export function resolvePendingSpell(
     });
     if (unbound) return;
   }
+  for (const bearer of frame.conduits ?? []) applyConduit(ctx, bearer);
 
   const target = frame.target ? ctx.s.units[frame.target] : undefined;
   const targets = frame.targets?.map((id) => unitById(ctx.s, id));
@@ -837,3 +898,44 @@ export function resolveSpellOrSummon(
 }
 
 export type { AbilityOptionKind };
+
+/**
+ * An answer to the reactions offered for a declared spell: use Celestial Conduit or Coatl
+ * Familiar (`ability` action by the unit), or pass. Once nothing more is offered, or on a pass,
+ * the spell is declared again with the reactions taken.
+ */
+export function answerCastReaction(ctx: StepCtx, action: Action): void {
+  const { s } = ctx;
+  const reaction = s.stack[s.stack.length - 1];
+  const frame = s.stack[s.stack.length - 2];
+  if (reaction?.t !== 'reaction' || frame?.t !== 'castReact') {
+    throw new IllegalActionError('There is no spell reaction to answer.');
+  }
+  const caster = unitById(s, frame.action.unit);
+  let used = frame.used;
+  if (action.t === 'ability') {
+    const offer = reaction.options.find(
+      (o) =>
+        o.unit === action.unit &&
+        (o.ability === CONDUIT_REACTION || o.ability === COATL_REACTION) &&
+        castReactionAbilityId(o.ability) === action.abilityId,
+    );
+    if (!offer || (offer.ability !== CONDUIT_REACTION && offer.ability !== COATL_REACTION)) {
+      throw new IllegalActionError('That reaction is not available.');
+    }
+    spendCastReaction(ctx, offer.ability, unitById(s, offer.unit));
+    used = [...used, { ability: offer.ability, unit: offer.unit }];
+    const more = castReactionOptions(ctx.scenario, s, caster, used);
+    if (more.length > 0) {
+      s.stack.pop();
+      s.stack[s.stack.length - 1] = { ...frame, used };
+      s.stack.push({ ...reaction, options: more });
+      return;
+    }
+  } else if (action.t !== 'pass') {
+    throw new IllegalActionError('Use a reaction or pass.');
+  }
+  s.stack.pop(); // reaction
+  s.stack.pop(); // castReact
+  declareAbility(ctx, frame.action, used);
+}

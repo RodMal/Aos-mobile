@@ -11,6 +11,13 @@
  *   when enough CP are in hand.
  */
 import {
+  ARK_OF_SOTEK_ID,
+  ARMOUR_CRUNCHER_ID,
+  CELESTIAL_CONDUIT_ID,
+  COATL_FAMILIAR_ID,
+  SCRY_THE_STARS_ID,
+  STAR_VENOM_ID,
+  VENOMITE_SWARM_ID,
   aliveIndices,
   controlScores,
   currentPlacement,
@@ -66,6 +73,18 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       }
       const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
       if (pain) return painAction(engine, state, pain);
+      // Celestial Conduit and Coatl Familiar cost nothing and only help the spell: always used.
+      const boost = d.options.find(
+        (o) => o.ability === 'celestialConduit' || o.ability === 'coatlFamiliar',
+      );
+      if (boost) {
+        return {
+          t: 'ability',
+          unit: boost.unit,
+          abilityId:
+            boost.ability === 'celestialConduit' ? CELESTIAL_CONDUIT_ID : COATL_FAMILIAR_ID,
+        };
+      }
       const unbindOpt = d.options.find((o) => o.ability === 'unbind');
       if (unbindOpt) {
         return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };
@@ -93,6 +112,8 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       const units = unitsOf(state, d.player).filter((u) =>
         engine.unitOptions(state, u.id).some((o) => o.t === 'fight'),
       );
+      const ability = seraphonCombatAction(engine, state, d.player);
+      if (ability) return ability;
       const best = maxBy(units, (u) => bestAllocations(engine, state, u, 'fight').value);
       if (!best) return engine.defaultAction(state);
       return { t: 'fight', unit: best.id };
@@ -196,6 +217,33 @@ export function painAction(engine: Engine, state: GameState, option: ReactionOpt
   const rageDice = Math.min(option.maxRageDice ?? 0, damage);
   if (rageDice < 1) return { t: 'pass' };
   return { t: 'ability', unit: unit.id, abilityId: 'fight-through-the-pain', rageDice };
+}
+
+/**
+ * Venomite Swarm, Ark of Sotek and Armour Cruncher while a fighter is picked: each is once per
+ * turn (or needs a rage dice), so using them first never loops. The target worth the most
+ * points; the Ark takes as many as it may.
+ */
+function seraphonCombatAction(engine: Engine, state: GameState, player: PlayerId): Action | null {
+  for (const unit of unitsOf(state, player)) {
+    for (const o of engine.unitOptions(state, unit.id)) {
+      if (o.t !== 'ability' || o.targets.length === 0) continue;
+      const known = [VENOMITE_SWARM_ID, ARK_OF_SOTEK_ID, ARMOUR_CRUNCHER_ID];
+      if (!known.some((id) => o.abilityId.startsWith(id))) continue;
+      const ranked = [...o.targets].sort(
+        (a, b) => points(engine, state, b) - points(engine, state, a),
+      );
+      return o.abilityId === ARK_OF_SOTEK_ID
+        ? {
+            t: 'ability',
+            unit: unit.id,
+            abilityId: o.abilityId,
+            targets: ranked.slice(0, o.maxTargets ?? 1),
+          }
+        : { t: 'ability', unit: unit.id, abilityId: o.abilityId, target: ranked[0]! };
+    }
+  }
+  return null;
 }
 
 function points(engine: Engine, state: GameState, unitId: string): number {
@@ -354,6 +402,21 @@ function chooseHeroAbilityAction(
       .filter((o): o is Extract<UnitOption, { t: 'ability' }> => o.t === 'ability');
     if (abilOpts.length === 0) continue;
 
+    // Scry the Stars (once a battle): from round 2, when it rolls at least two dice. The
+    // units it may protect, the most valuable first.
+    const scry = abilOpts.find((o) => o.abilityId === SCRY_THE_STARS_ID);
+    if (scry && state.round >= 2 && scry.targets.length > 0) {
+      const ranked = [...scry.targets].sort(
+        (a, b) => points(engine, state, b) - points(engine, state, a),
+      );
+      return {
+        t: 'ability',
+        unit: unit.id,
+        abilityId: scry.abilityId,
+        targets: ranked.slice(0, scry.maxTargets ?? 1),
+      };
+    }
+
     // 1. Banish enemy manifestations first
     const banish = abilOpts.find((o) => o.kind === 'banish');
     if (banish && banish.targets.length > 0) {
@@ -456,6 +519,18 @@ function mainAction(
       return null;
     case 'shooting':
       for (const unit of units) {
+        // Star-venom, once the Dartpipe has done damage.
+        const venom = engine
+          .unitOptions(state, unit.id)
+          .find((o) => o.t === 'ability' && o.abilityId === STAR_VENOM_ID);
+        if (venom && venom.t === 'ability' && venom.targets.length > 0) {
+          return {
+            t: 'ability',
+            unit: unit.id,
+            abilityId: STAR_VENOM_ID,
+            target: venom.targets[0],
+          };
+        }
         if (!engine.unitOptions(state, unit.id).some((o) => o.t === 'shoot')) continue;
         const { allocations, value } = bestAllocations(engine, state, unit, 'shoot');
         if (allocations.length === 0) continue;

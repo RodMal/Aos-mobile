@@ -1,7 +1,11 @@
 /** A generic reaction. */
 import { useEffect, useState } from 'react';
 import type { Decision } from '../../engine/index.js';
-import { HUNTMASTERS_STRIKE_ID } from '../../engine/index.js';
+import {
+  CELESTIAL_CONDUIT_ID,
+  COATL_FAMILIAR_ID,
+  HUNTMASTERS_STRIKE_ID,
+} from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
 import { COMMAND_NAMES, reactionText, triggerUnit } from '../game/eventText.js';
 import { logContext } from '../game/engine.js';
@@ -87,6 +91,26 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
                 }
               >
                 Huntmaster&apos;s Strike · {unitName} · Free
+              </button>
+            );
+          }
+          if (o.ability === 'celestialConduit' || o.ability === 'coatlFamiliar') {
+            const conduit = o.ability === 'celestialConduit';
+            return (
+              <button
+                key={i}
+                className="btn wide"
+                data-testid={conduit ? 'celestial-conduit' : 'coatl-familiar'}
+                {...hover}
+                onClick={() =>
+                  dispatch({
+                    t: 'ability',
+                    unit: o.unit,
+                    abilityId: conduit ? CELESTIAL_CONDUIT_ID : COATL_FAMILIAR_ID,
+                  })
+                }
+              >
+                {conduit ? 'Celestial Conduit' : 'Coatl Familiar (add D6)'} · {unitName} · Free
               </button>
             );
           }

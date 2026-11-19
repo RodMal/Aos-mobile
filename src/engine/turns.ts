@@ -293,7 +293,8 @@ export function endTurn(ctx: Ctx): void {
   resolveEndlessGrowth(ctx, s.active);
   resolveEndlessGrowth(ctx, opponent(s.active));
   deadForInnumerableAges(ctx);
-  clearExpiredEffects(s, 'turn');
+  // "For the rest of the turn" lasts through objective control (Celestial Conduit), which is
+  // why the turn's effects are cleared after it.
   for (const change of resolveControl(scenario, s)) {
     s.objectives.find((o) => o.id === change.id)!.controller = change.controller;
     ctx.events.push({ t: 'objective', objective: change.id, controller: change.controller });
@@ -317,6 +318,7 @@ export function endTurn(ctx: Ctx): void {
         : `${st.cardName} — ${tier}: ${st.tacticName}`;
     ctx.events.push({ t: 'score', player, vp: st.vp, reason });
   }
+  clearExpiredEffects(s, 'turn');
 }
 
 /**
