@@ -259,6 +259,21 @@ export type Frame =
       used: { ability: 'celestialConduit' | 'coatlFamiliar'; unit: UnitId }[];
     }
   /**
+   * A chanting roll of 1 waiting under a `reaction` frame while Wyldwood Revenants is offered
+   * (M4i). Answering resolves the chant with the original 1 or the re-roll. Never the top frame
+   * when a decision is asked for.
+   */
+  | {
+      t: 'chantReact';
+      unit: UnitId;
+      abilityId: string;
+      target?: UnitId;
+      /** The legal targets of the prayer, for a second target. */
+      legal: UnitId[];
+      action: Extract<Action, { t: 'ability' }>;
+      penalty: number;
+    }
+  /**
    * A Wizard or Priest using Magical Intervention in the enemy hero phase to cast or chant once.
    */
   | {
@@ -614,7 +629,8 @@ export interface ReactionOption {
     | 'glamourweave'
     | 'huntmastersStrike'
     | 'celestialConduit'
-    | 'coatlFamiliar';
+    | 'coatlFamiliar'
+    | 'wyldwoodRevenants';
   unit: UnitId;
   cost: number;
   /** Fight Through the Pain: the damage points about to be allocated to `unit`. */

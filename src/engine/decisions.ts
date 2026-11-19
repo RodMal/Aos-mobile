@@ -12,6 +12,7 @@ import {
 import { VENGEANCE_MAX, vengeanceCandidates, vengeanceFoes } from '../rules/factions/kroak.js';
 import { asterismOptions } from '../rules/factions/seraphon.js';
 import { combatOptions, scryOptions, starVenomOptions } from './seraphonActive.js';
+import { batteringRamOptions, groundshakerOptions, lifebloomOptions } from './sylvanethActive.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import {
   chargeSetUpOptions,
@@ -183,6 +184,7 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
       case 'allocate':
       case 'spell':
       case 'castReact':
+      case 'chantReact':
       case 'endPhase':
         throw new Error(`internal: unresolved ${top.t} frame on top of the stack`);
     }
@@ -253,6 +255,7 @@ export function unitOptionsInner(
       ...fight,
       ...combatSetUpOptions(scenario, state, unit),
       ...combatOptions(scenario, state, unit),
+      ...groundshakerOptions(scenario, state, unit),
     ];
   }
   if (d.kind !== 'main') return [];
@@ -262,7 +265,7 @@ export function unitOptionsInner(
       if (canRally(scenario, state, unit)) {
         opts.push({ t: 'command', command: 'rally', cost: 1 });
       }
-      opts.push(...scryOptions(scenario, state, unit));
+      opts.push(...scryOptions(scenario, state, unit), ...lifebloomOptions(scenario, state, unit));
       return opts;
     }
     case 'movement': {
@@ -301,7 +304,10 @@ export function unitOptionsInner(
       ) {
         opts.push({ t: 'command', command: 'forwardToVictory', cost: 1 });
       }
-      opts.push(...chargeSetUpOptions(scenario, state, unit));
+      opts.push(
+        ...chargeSetUpOptions(scenario, state, unit),
+        ...batteringRamOptions(scenario, state, unit),
+      );
       return opts;
     }
     case 'end': {
