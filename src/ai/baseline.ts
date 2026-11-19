@@ -37,6 +37,7 @@ import {
   type GameState,
   type PlayerId,
   type ReactionOption,
+  type Scenario,
   type UnitOption,
   type UnitState,
 } from '../engine/index.js';
@@ -50,6 +51,12 @@ import {
   LIVING_BATTERING_RAM_ID,
   WYLDWOOD_REVENANTS_ID,
 } from '../engine/abilities/sylvaneth.js';
+import {
+  batteringRamOptions,
+  groundshakerOptions,
+  has,
+  lifebloomOptions,
+} from '../engine/sylvanethActive.js';
 import { npcAsterism } from '../rules/factions/seraphon.js';
 import { npcCreepingDreadTargets, npcSeason } from '../rules/factions/seasons.js';
 
@@ -270,15 +277,30 @@ function ownAbilityAction(
   abilityId: string,
 ): Action | null {
   for (const unit of unitsOf(state, player)) {
-    const o = engine
-      .unitOptions(state, unit.id)
-      .find((x) => x.t === 'ability' && x.abilityId === abilityId);
+    // The cheap per-ability check, not the whole option list of every unit at each decision.
+    const o = sylvanethOption(engine.scenario, state, unit, abilityId);
     if (!o || o.t !== 'ability') continue;
     if (o.targets.length === 0) return { t: 'ability', unit: unit.id, abilityId };
     const best = maxBy(o.targets, (id) => points(engine, state, id))!;
     return { t: 'ability', unit: unit.id, abilityId, target: best };
   }
   return null;
+}
+
+function sylvanethOption(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  abilityId: string,
+): UnitOption | undefined {
+  if (!has(scenario, unit, abilityId)) return undefined;
+  const options =
+    abilityId === LIFEBLOOM_ID
+      ? lifebloomOptions(scenario, state, unit)
+      : abilityId === LIVING_BATTERING_RAM_ID
+        ? batteringRamOptions(scenario, state, unit)
+        : groundshakerOptions(scenario, state, unit);
+  return options[0];
 }
 
 function points(engine: Engine, state: GameState, unitId: string): number {

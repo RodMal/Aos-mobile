@@ -50,8 +50,18 @@ export const RAM_RANGE = 1;
 /** Wyldwood Revenants: a Priest "wholly within 12" of this unit". */
 export const REVENANTS_RANGE = 12;
 
-const has = (scenario: Scenario, unit: UnitState, id: string): boolean =>
-  abilitiesOf(scenario, unit).some((a) => a.id === id);
+/** The ability ids of each army unit (warscroll and enhancements), per scenario: they never change. */
+const ABILITY_IDS = new WeakMap<Scenario, Map<string, Set<string>>>();
+
+/** True when the unit's warscroll or an enhancement it carries has ability `id` (cached). */
+export function has(scenario: Scenario, unit: UnitState, id: string): boolean {
+  let byUnit = ABILITY_IDS.get(scenario);
+  if (!byUnit) ABILITY_IDS.set(scenario, (byUnit = new Map()));
+  const key = `${unit.owner}:${unit.armyIndex}:${unit.profileId}`;
+  let ids = byUnit.get(key);
+  if (!ids) byUnit.set(key, (ids = new Set(abilitiesOf(scenario, unit).map((a) => a.id))));
+  return ids.has(id);
+}
 
 const usable = (scenario: Scenario, unit: UnitState): boolean =>
   unit.status === 'battlefield' &&
@@ -71,7 +81,7 @@ export function lifebloomOptions(
   unit: UnitState,
 ): UnitOption[] {
   if (state.phase !== 'hero' || state.active !== unit.owner || state.stack.length > 0) return [];
-  if (!usable(scenario, unit) || !has(scenario, unit, LIFEBLOOM_ID)) return [];
+  if (!has(scenario, unit, LIFEBLOOM_ID) || !usable(scenario, unit)) return [];
   if (unit.damage <= 0 || usedThisTurn(state, unit, LIFEBLOOM_ID)) return [];
   return [option(LIFEBLOOM_ID, 'Lifebloom', [])];
 }
@@ -83,7 +93,7 @@ export function batteringRamOptions(
   unit: UnitState,
 ): UnitOption[] {
   if (state.phase !== 'charge' || state.active !== unit.owner || state.stack.length > 0) return [];
-  if (!usable(scenario, unit) || !has(scenario, unit, LIVING_BATTERING_RAM_ID)) return [];
+  if (!has(scenario, unit, LIVING_BATTERING_RAM_ID) || !usable(scenario, unit)) return [];
   if (!unit.charged || usedThisTurn(state, unit, LIVING_BATTERING_RAM_ID)) return [];
   const targets = enemiesWithin(scenario, state, unit, RAM_RANGE)
     .filter((e) => isUnitVisible(scenario, state, unit, e))
@@ -108,8 +118,9 @@ export function groundshakerOptions(
   state: GameState,
   unit: UnitState,
 ): UnitOption[] {
-  if (state.phase !== 'combat' || state.stack.length > 0 || !usable(scenario, unit)) return [];
-  if (!has(scenario, unit, GROUNDSHAKER_ID) || usedThisTurn(state, unit, GROUNDSHAKER_ID)) {
+  if (state.phase !== 'combat' || state.stack.length > 0) return [];
+  if (!has(scenario, unit, GROUNDSHAKER_ID) || !usable(scenario, unit)) return [];
+  if (usedThisTurn(state, unit, GROUNDSHAKER_ID)) {
     return [];
   }
   const targets = enemiesInCombat(scenario, state, unit)
