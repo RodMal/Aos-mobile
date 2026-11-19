@@ -14,6 +14,46 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
+### R8 The NPC uses The Land Awakens and The Goddess Of Life
+
+- **Tier**: sonnet
+- **Touches**: ai
+- **Ruling**: I99.5 (owner, 2026-11-19): "let it use it".
+- **Read**: I99 in `docs/RULES-DECISIONS.md`; `src/ai/baseline.ts` (command choice, and `placeAction` for the `replacement` place reason, which currently passes); `src/engine/commands.ts` (`startReplacement`), `src/engine/placing.ts`.
+- **Done when**: when the NPC can afford it and it helps its plan to win (judged by its expected-damage and objective heuristics, not on every chance), it uses The Land Awakens in its end phase on the destroyed qualifying unit worth the most (e.g. by points or model count), and The Goddess Of Life in its movement phase once Alarielle is destroyed. It places the replacement at a legal spot wholly within the overgrowth and more than 9" from enemies, preferring one nearest an objective. It stays deterministic. Tests cover each command being used, being skipped when CP is short, and a legal placement. Bump the rules version if replay changes.
+
+### R9 Revivifying Energies counts a ward from auras
+
+- **Tier**: sonnet
+- **Touches**: engine, rules
+- **Ruling**: I100–I102 (owner, 2026-11-19): Revivifying Energies' "already Ward (6+)" also counts a Ward (6+) from auras and other effects, not only the printed ward.
+- **Read**: I100–I102 in `docs/RULES-DECISIONS.md`; `src/engine/abilities/seraphon.ts` (Revivifying Energies), `src/engine/abilities/effects.ts` (how wards from passives, auras and effects combine).
+- **Done when**: an Infantry unit within 12" of the Astrolith Bearer that already has Ward 6+ from any source (printed, aura, or effect such as another ability) gets Ward 5+. A unit with no ward gets 6+. A unit that already has a better ward keeps it. There is no circular dependency: Revivifying Energies' own 6+ doesn't count as "already". Tests cover each case. Bump the rules version.
+
+### R10 Sylvaneth set-up and charge rulings: no move after re-set-up, Rhythm at start of combat, Merciless Ambush confirm
+
+- **Tier**: sonnet+review
+- **Touches**: engine, ui/prompts
+- **Ruling**: I103 (owner, 2026-11-19), points 1–3
+- **Read**: I103 in `docs/RULES-DECISIONS.md`; `src/engine/relocate.ts`, `src/engine/relocating.ts`, `src/engine/decisions.ts` (fight pick), `src/engine/engine.ts` (combat phase start), `src/engine/reactions.ts`, `src/engine/eligibility.ts`
+- **Done when**: (1) a unit set up again by any of the M4g abilities can't move again in the same phase, but can in later phases; (2) Rhythm of the Chase is offered at the start of the combat phase, before the fight pick: the active player's start-of-combat abilities first, then the defender's, then alternating fights; (3) Merciless Ambush shows the map and asks the player to confirm or cancel (with refund) before its dice are rolled. One test per point. The full-game e2e spec still passes on phone and desktop. Bump the rules version.
+
+### R11 The NPC uses the Sylvaneth set-up and charge abilities
+
+- **Tier**: sonnet
+- **Touches**: ai
+- **Ruling**: I103.7 and the general NPC ruling (owner, 2026-11-19)
+- **Read**: I103 in `docs/RULES-DECISIONS.md`; `src/ai/baseline.ts` (`placeAction` passes on a `relocate` set-up today), `src/engine/relocate.ts`, `src/engine/relocating.ts`
+- **Done when**: the NPC uses Huntmaster's Strike, Rhythm of the Chase, Merciless Ambush, Shadowcreep, Realmroot Guide and Guardian Of The Glades each only when it helps its plan to win, judged by its existing expected-damage and objective heuristics, not on every chance. It picks legal set-up spots: toward objectives or into combat as the ability intends. It stays deterministic, with a test per ability. Do it after R10 if R10 is not yet merged.
+
+### R12 Seraphon activated rulings: Scry the Stars order, Star-venom in any shooting phase, Venomites set-up, Conduit on a failed cast
+
+- **Tier**: sonnet+review
+- **Touches**: engine, ai, ui/prompts
+- **Ruling**: I104/I105 (owner, 2026-11-19), points 1, 3, 4, 5
+- **Read**: I104/I105 in `docs/RULES-DECISIONS.md`; `src/engine/seraphonActive.ts`, `src/rules/factions/conduit.ts`, `src/engine/abilities/magic.ts`, `src/engine/deployment.ts`, the Covering Fire reaction in `src/engine/reactions.ts`
+- **Done when**: (1) Scry the Stars rolls its dice, then asks which units get each success; the NPC picks too. The NPC uses each of these abilities only when it helps its plan to win (judged by its expected-damage and objective heuristics, not on every chance). (3) A test shows a failed casting roll gives no Conduit effect (fix it if it does). (4) The player places the Venomites token next to the Sunblood Pack when deploying it; the NPC places its own. (5) Star-venom is offered after the Dartpipe damages an enemy in any shooting phase, including Covering Fire in the enemy turn. One test per point; e2e full-game still passes on phone and desktop. Bump the rules version.
+
 ### M4j Reserve and ambush: Hidden Hunters, Chameleon Ambush
 
 - **Tier**: sonnet+review
