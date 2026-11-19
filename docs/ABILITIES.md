@@ -10,7 +10,7 @@ Status, judged from the code and the tests:
 
 Abilities are looked up by id: spells, prayers and summons are registered in `src/engine/abilities/lores.ts`; the Sylvaneth battle traits live in `src/rules/factions/{sylvaneth,seasons}.ts` and `src/engine/{overgrowth,wyldwood}.ts`. No warscroll ability (passive, activated or command) other than those is read by the engine. Simplifications recorded in `docs/RULES-DECISIONS.md` are cited as S/I numbers.
 
-Counts: **29 implemented, 5 partly, 60 missing** (94 rows). Ability-only counts, leaving out the four battle tactic cards: **27 implemented, 3 partly, 60 missing**.
+Counts: **32 implemented, 5 partly, 57 missing** (94 rows). Ability-only counts, leaving out the four battle tactic cards: **30 implemented, 3 partly, 57 missing**.
 
 The "Task" column names the backlog task that closes each gap.
 
@@ -22,8 +22,8 @@ The "Task" column names the backlog task that closes each gap.
 | ----------------------- | ------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | The Creeping Overgrowth | bf2f-f70a-be1e-4d63 | Implemented | `src/engine/overgrowth.test.ts` (range by token count, spells use it, shading); I37, I66, I68                                                                          |      |
 | Endless Growth          | 3ff5-8812-c55e-7f5a | Partly      | `sylvaneth.test.ts`. The engine picks heal or return itself (S7); the player never chooses the effect                                                                  | M4n  |
-| The Land Awakens        | dcad-fc9a-65a3-b46f | Missing     | Command: set up a replacement unit with half the models, wholly within the overgrowth and more than 9" from enemies                                                    | M4e  |
-| Fury of The Forest      | 081a-ebf2-6a79-c4db | Missing     | Command: the unit has Strike-first for the rest of the turn. `STRIKE-FIRST` itself works (`magic.test.ts`); only the command is absent                                 | M4e  |
+| The Land Awakens        | dcad-fc9a-65a3-b46f | Implemented | `sylvaneth-commands.test.ts` (destroyed Dryads or Revenant Infantry, half the models, overgrowth and 9" limits, cancel refunds); I99                                   |      |
+| Fury of The Forest      | 081a-ebf2-6a79-c4db | Implemented | `sylvaneth-commands.test.ts` (reaction at the start of the enemy combat phase, 1 enemy, wholly within the overgrowth); I99                                             |      |
 | Reclaimed By Nature     | cea9-4cb0-e5fb-bd3e | Implemented | `src/engine/wyldwood.test.ts` (limits, three-piece cap, NPC); I46, I61                                                                                                 |      |
 | Creeping Dread          | c9cf-21d7-880d-e59f | Implemented | `seasons.test.ts` (offer, 3 targets under Everdusk, no Hero, +1 CP unless within 12" of a Hero); I54, I63. An unaffordable command is not offered rather than "wasted" |      |
 | Nature's Titans         | 470d-dce9-5e70-29fb | Implemented | `sylvaneth.test.ts` (Heal 3 on a Monster, no roll)                                                                                                                     |      |
@@ -40,7 +40,7 @@ The "Task" column names the backlog task that closes each gap.
 | Battle Damaged              | Alarielle the Everqueen | 135b-afc5-4fd9-3460 | Implemented | `sylvaneth.test.ts` (Antlers Attacks 4 from 10 damage points); I95                                                                                |      |
 | Lifebloom                   | Alarielle the Everqueen | e4b4-8e4d-5f0-eb6a  | Missing     | Heal (2D6) this unit                                                                                                                              | M4i  |
 | Living Battering Ram        | Alarielle the Everqueen | 5abd-6507-dbee-ed76 | Missing     | D6 roll, on 3+ mortal damage equal to the roll                                                                                                    | M4i  |
-| The Goddess Of Life         | Alarielle the Everqueen | 4f7c-2ca1-ae3f-d2d3 | Missing     | Command: replacement unit with 8 damage, no wards on them                                                                                         | M4e  |
+| The Goddess Of Life         | Alarielle the Everqueen | 4f7c-2ca1-ae3f-d2d3 | Implemented | `sylvaneth-commands.test.ts` (8 damage points, no ward rolls, once per battle, 2 CP, cancel); I99                                                 |      |
 | Huntmaster's Strike         | Belthanos               | 61d2-55e1-7873-e100 | Missing     | After a charge, re-set up more than 6" from enemies within the overgrowth                                                                         | M4g  |
 | Kurnothi War-horn           | Belthanos               | 59e8-f376-a5df-144c | Implemented | `sylvaneth.test.ts` (+2" for Belthanos himself, in the move allowance, card and ring); I91                                                        |      |
 | Rhythm of the Chase         | Belthanos               | b29c-dd1a-502d-27c4 | Missing     | D3 mortal damage on 2+, then re-set up within 1" of the target                                                                                    | M4g  |

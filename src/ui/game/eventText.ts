@@ -41,6 +41,9 @@ export const COMMAND_NAMES: Record<CommandId, string> = {
   coveringFire: 'Covering Fire',
   magicalIntervention: 'Magical Intervention',
   powerThrough: 'Power Through',
+  furyOfTheForest: 'Fury of The Forest',
+  landAwakens: 'The Land Awakens',
+  goddessOfLife: 'The Goddess Of Life',
 };
 
 export function inches(n: number): string {
@@ -57,6 +60,7 @@ const MOVE_VERB: Record<PlaceReason, string> = {
   summon: 'is summoned',
   powerThrough: 'powers through',
   setUp: 'is set up',
+  replacement: 'is set up as a replacement',
 };
 
 function plural(n: number, word: string): string {
@@ -235,6 +239,9 @@ export function reactionText(trigger: string, ctx: LogContext): string {
   if (trigger.startsWith('pain:')) {
     const [, unitId, amount] = trigger.split(':');
     return `${unitId ? ctx.unitName(unitId) : 'Your unit'} is about to take ${amount} damage. Fight Through the Pain?`;
+  }
+  if (trigger === 'start:combat') {
+    return "Your opponent's Combat phase is starting. You may react with one of these units.";
   }
   if (trigger.startsWith('phase:')) {
     const phase = PHASE_NAMES[trigger.slice(6)];

@@ -13,14 +13,27 @@ import {
   unitsWithin,
 } from './query.js';
 import { WYLDWOOD_SETUP_ID, nextWyldwoodPiece, suggestWyldwoodSetUp } from './wyldwood.js';
-import { type CommandId, type MoveKind, type UnitId, type UnitState } from './types.js';
+import { addEffect } from './abilities/effects.js';
+import { FURY_OF_THE_FOREST_ID } from './abilities/commands.js';
 import {
+  type CommandId,
+  type Frame,
+  type MoveKind,
+  type PlayerState,
+  type UnitId,
+  type UnitState,
+} from './types.js';
+import {
+  GODDESS_OF_LIFE_DAMAGE,
   canCounterCharge,
+  canFuryOfTheForest,
   canMagicalIntervention,
   canRally,
   canRedeploy,
   commandBlocker,
   coveringFireAllocations,
+  goddessOfLifeUnits,
+  landAwakensTargets,
   payCommand,
   powerThroughTargets,
 } from './eligibility.js';
@@ -221,4 +234,88 @@ export function cancelWyldwood(ctx: Ctx, unitId: UnitId): void {
   s.units = Object.fromEntries(Object.entries(s.units).filter(([id]) => id !== unitId));
   s.unitOrder = s.unitOrder.filter((id) => id !== unitId);
   delete s.players[unit.owner].wyldwoodSetUpTurn;
+}
+
+/** Fury of The Forest: the unit has Strike-first for the rest of the turn. */
+export function furyOfTheForest(ctx: Ctx, unitId: UnitId): void {
+  const unit = ctx.s.units[unitId];
+  if (!unit || !canFuryOfTheForest(ctx.scenario, ctx.s, unit)) {
+    illegal('That unit cannot use Fury of The Forest now.');
+  }
+  useCommandOn(ctx, 'furyOfTheForest', unit);
+  addEffect(ctx.s, {
+    id: FURY_OF_THE_FOREST_ID,
+    name: 'Fury of The Forest',
+    sourceUnit: unit.id,
+    targetUnit: unit.id,
+    owner: unit.owner,
+    expires: 'turn',
+  });
+  ctx.events.push({ t: 'note', text: `${unit.name} has Strike-first for the rest of the turn.` });
+}
+
+/**
+ * Pays for a replacement command and starts the set-up: the unit keeps `keep` models (the
+ * others stay slain), its damage is cleared and a `place` frame follows. Passing the frame
+ * undoes everything (`undoReplacement`).
+ */
+function startReplacement(
+  ctx: Ctx,
+  command: CommandId,
+  unit: UnitState,
+  keep: number,
+  damage?: number,
+): void {
+  const { s } = ctx;
+  const blocker = commandBlocker(ctx.scenario, s, unit.owner, command, unit, true);
+  if (blocker) illegal(blocker);
+  const undo = {
+    unit: JSON.parse(JSON.stringify(unit)) as UnitState,
+    player: JSON.parse(JSON.stringify(s.players[unit.owner])) as PlayerState,
+  };
+  payCommand(ctx.scenario, s, unit.owner, command, unit);
+  ctx.events.push({ t: 'command', player: unit.owner, command, unit: unit.id });
+  unit.models.forEach((m, i) => {
+    m.alive = i < keep;
+  });
+  unit.damage = 0;
+  s.stack.push({
+    t: 'place',
+    unit: unit.id,
+    reason: 'replacement',
+    allowance: 0,
+    dice: [],
+    replacement: { undo, ...(damage !== undefined ? { damage } : {}) },
+  });
+}
+
+/** The Land Awakens: a destroyed unit comes back with half its models, rounded up. */
+export function landAwakens(ctx: Ctx, handleId: UnitId, targetId?: UnitId): void {
+  const { s } = ctx;
+  const target = s.units[targetId ?? handleId];
+  if (!target || !landAwakensTargets(ctx.scenario, s, target.owner).includes(target.id)) {
+    illegal('The Land Awakens needs a destroyed non-Hero Revenant Infantry or Dryads unit.');
+  }
+  startReplacement(ctx, 'landAwakens', target, Math.ceil(target.models.length / 2));
+}
+
+/** The Goddess Of Life: a replacement unit with 8 damage points (no ward rolls). */
+export function goddessOfLife(ctx: Ctx, handleId: UnitId, targetId?: UnitId): void {
+  const { s } = ctx;
+  const target = s.units[targetId ?? handleId];
+  if (!target || !goddessOfLifeUnits(ctx.scenario, s, target.owner).includes(target.id)) {
+    illegal('That unit cannot use The Goddess Of Life now.');
+  }
+  startReplacement(ctx, 'goddessOfLife', target, target.models.length, GODDESS_OF_LIFE_DAMAGE);
+  s.players[target.owner].goddessOfLifeUsed = true;
+}
+
+/** Declining to set up a replacement unit: the command is taken back, its cost refunded. */
+export function undoReplacement(ctx: Ctx, frame: Extract<Frame, { t: 'place' }>): void {
+  const undo = frame.replacement?.undo;
+  if (!undo) return;
+  // Frames are copied shallowly between states: copy the snapshot before it is edited.
+  const copy = JSON.parse(JSON.stringify(undo)) as typeof undo;
+  ctx.s.units[copy.unit.id] = copy.unit;
+  ctx.s.players[copy.unit.owner] = copy.player;
 }

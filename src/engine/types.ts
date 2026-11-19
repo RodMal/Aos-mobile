@@ -117,6 +117,8 @@ export interface PlayerState {
   vpByRound: number[];
   /** Commands this army has used in the current phase (each command once per army per phase). */
   commandsUsed?: CommandId[];
+  /** The Goddess Of Life has been used (once per battle). */
+  goddessOfLifeUsed?: boolean;
   /** Non-UNLIMITED spell and prayer ability IDs attempted by this army in the current turn. */
   spellsAttempted?: string[];
   /** GHB 2026-27 Scourge of Aqshy Fury level (0..7; attacker starts at 1, defender at 2). */
@@ -180,6 +182,11 @@ export type Frame =
       minEnemyGap?: number;
       /** For `reason: 'powerThrough'`: the enemy units it was in combat with at the start. */
       engagedWith?: UnitId[];
+      /**
+       * For `reason: 'replacement'`: the unit and army as they were before the command, so that
+       * `pass` can undo it, and the damage points allocated to the unit once it is set up.
+       */
+      replacement?: { undo: { unit: UnitState; player: PlayerState }; damage?: number };
     }
   | { t: 'targets'; unit: UnitId; mode: AttackMode }
   | { t: 'reaction'; player: PlayerId; options: ReactionOption[]; trigger: string }
@@ -309,7 +316,9 @@ export type PlaceReason =
   | 'powerThrough'
   | 'deploy'
   /** A further Awakened Wyldwood set up in the hero phase; `pass` cancels it. */
-  | 'setUp';
+  | 'setUp'
+  /** A replacement unit set up by The Land Awakens or The Goddess Of Life; `pass` undoes it. */
+  | 'replacement';
 export type AttackMode = 'shoot' | 'fight';
 export type FightTier = 'strikeFirst' | 'normal' | 'strikeLast';
 
@@ -552,7 +561,10 @@ export type CommandId =
   | 'counterCharge'
   | 'coveringFire'
   | 'magicalIntervention'
-  | 'powerThrough';
+  | 'powerThrough'
+  | 'furyOfTheForest'
+  | 'landAwakens'
+  | 'goddessOfLife';
 
 export interface ReactionOption {
   command?: CommandId;

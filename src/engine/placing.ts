@@ -1,9 +1,9 @@
 import { fireTriggers } from './abilities/effects.js';
 import { resolveAttacks } from './combat.js';
 import { illegal, type Ctx } from './ctx.js';
-import { doomedByQueuedDamage, inflictMortalDamage } from './damage.js';
+import { allocateDamage, doomedByQueuedDamage, inflictMortalDamage } from './damage.js';
 import { placementDistance } from './movement.js';
-import { isFactionTerrainUnit, opponent } from './query.js';
+import { isFactionTerrainUnit, opponent, profileOf } from './query.js';
 import { dwindling } from '../rules/factions/seasons.js';
 import {
   type Allocation,
@@ -27,7 +27,10 @@ export function place(ctx: Ctx, placement: Placement): void {
   if (violations.length > 0) illegal(violations[0]!.message, violations);
   const unit = s.units[frame.unit]!;
   const distance =
-    frame.reason === 'summon' || frame.reason === 'deploy' || frame.reason === 'setUp'
+    frame.reason === 'summon' ||
+    frame.reason === 'deploy' ||
+    frame.reason === 'setUp' ||
+    frame.reason === 'replacement'
       ? 0
       : placementDistance(unit, placement);
   for (const m of placement.models) {
@@ -45,6 +48,27 @@ export function place(ctx: Ctx, placement: Placement): void {
     if (!(frame.reason === 'normal' && unit.moved === 'run')) unit.moved = frame.reason;
   }
   if (frame.reason === 'charge') unit.charged = true;
+  if (frame.reason === 'replacement') {
+    // The replacement is a new unit on the battlefield: it has done nothing this turn.
+    unit.status = 'battlefield';
+    unit.setUpThisTurn = true;
+    unit.moved = null;
+    unit.charged = false;
+    unit.shot = false;
+    unit.fought = false;
+    unit.chargeDeclared = false;
+    const damage = frame.replacement?.damage ?? 0;
+    if (damage > 0) {
+      // "Ward rolls cannot be made for those damage points": allocated as they are.
+      const health = profileOf(ctx.scenario, unit).health;
+      if (damage >= health) allocateDamage(ctx, unit, damage, 'The Goddess Of Life');
+      else unit.damage = damage;
+    }
+    ctx.events.push({
+      t: 'note',
+      text: `${unit.name} is set up as a replacement unit${damage > 0 ? ` with ${damage} damage points` : ''}.`,
+    });
+  }
   s.stack.pop();
   if (frame.reason === 'deploy' && s.deploymentFinishedFirst == null) {
     const more = s.stack.some(
@@ -75,6 +99,7 @@ export function place(ctx: Ctx, placement: Placement): void {
     frame.reason !== 'summon' &&
     frame.reason !== 'deploy' &&
     frame.reason !== 'setUp' &&
+    frame.reason !== 'replacement' &&
     frame.reason !== 'pileIn' &&
     unit.status === 'battlefield' &&
     !doomedByQueuedDamage(ctx, unit)

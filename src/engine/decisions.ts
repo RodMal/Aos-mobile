@@ -38,6 +38,9 @@ import {
   moveOptions,
   optionalFighter,
   powerThroughTargets,
+  goddessOfLifeUnits,
+  landAwakensTargets,
+  replacementHandle,
 } from './eligibility.js';
 
 /** The player who picks the next fighter, and the units they may pick from. */
@@ -248,10 +251,18 @@ export function unitOptionsInner(
     case 'movement': {
       const moves = moveOptions(scenario, state, unit);
       const canRun = moves.some((o) => o.t === 'move' && o.kind === 'run');
+      const opts: UnitOption[] = [...moves];
       if (canRun && !commandBlocker(scenario, state, unit.owner, 'atTheDouble', unit)) {
-        return [...moves, { t: 'command', command: 'atTheDouble', cost: 1 }];
+        opts.push({ t: 'command', command: 'atTheDouble', cost: 1 });
       }
-      return moves;
+      // The Goddess Of Life: offered on any Sylvaneth unit, as the unit using it may be destroyed.
+      const goddess = replacementHandle(scenario, unit)
+        ? goddessOfLifeUnits(scenario, state, unit.owner)
+        : [];
+      if (goddess.length > 0) {
+        opts.push({ t: 'command', command: 'goddessOfLife', cost: 2, targets: goddess });
+      }
+      return opts;
     }
     case 'shooting': {
       const grants = unitGrants(scenario, state, unit);
@@ -274,6 +285,12 @@ export function unitOptionsInner(
     }
     case 'end': {
       const opts: UnitOption[] = [];
+      const awakens = replacementHandle(scenario, unit)
+        ? landAwakensTargets(scenario, state, unit.owner)
+        : [];
+      if (awakens.length > 0) {
+        opts.push({ t: 'command', command: 'landAwakens', cost: 1, targets: awakens });
+      }
       const targets = powerThroughTargets(scenario, state, unit);
       if (targets.length > 0) {
         opts.push({ t: 'command', command: 'powerThrough', cost: 1, targets });
