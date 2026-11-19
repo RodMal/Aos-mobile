@@ -20,7 +20,7 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Touches**: ai
 - **Ruling**: I99.5 (owner, 2026-11-19): "let it use it".
 - **Read**: I99 in `docs/RULES-DECISIONS.md`; `src/ai/baseline.ts` (command choice, and `placeAction` for the `replacement` place reason, which currently passes); `src/engine/commands.ts` (`startReplacement`), `src/engine/placing.ts`.
-- **Done when**: when the NPC can afford it, it uses The Land Awakens in its end phase on the destroyed qualifying unit worth the most (e.g. by points or model count), and The Goddess Of Life in its movement phase once Alarielle is destroyed. It places the replacement at a legal spot wholly within the overgrowth and more than 9" from enemies, preferring one nearest an objective. It stays deterministic. Tests cover each command being used, being skipped when CP is short, and a legal placement. Bump the rules version if replay changes.
+- **Done when**: when the NPC can afford it and it helps its plan to win (judged by its expected-damage and objective heuristics, not on every chance), it uses The Land Awakens in its end phase on the destroyed qualifying unit worth the most (e.g. by points or model count), and The Goddess Of Life in its movement phase once Alarielle is destroyed. It places the replacement at a legal spot wholly within the overgrowth and more than 9" from enemies, preferring one nearest an objective. It stays deterministic. Tests cover each command being used, being skipped when CP is short, and a legal placement. Bump the rules version if replay changes.
 
 ### R9 Revivifying Energies counts a ward from auras
 
@@ -44,7 +44,15 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Touches**: ai
 - **Ruling**: I103.7 and the general NPC ruling (owner, 2026-11-19)
 - **Read**: I103 in `docs/RULES-DECISIONS.md`; `src/ai/baseline.ts` (`placeAction` passes on a `relocate` set-up today), `src/engine/relocate.ts`, `src/engine/relocating.ts`
-- **Done when**: the NPC uses Huntmaster's Strike, Rhythm of the Chase, Merciless Ambush, Shadowcreep, Realmroot Guide and Guardian Of The Glades when they help, using its existing expected-damage and objective heuristics. It picks legal set-up spots: toward objectives or into combat as the ability intends. It stays deterministic, with a test per ability. Do it after R10 if R10 is not yet merged.
+- **Done when**: the NPC uses Huntmaster's Strike, Rhythm of the Chase, Merciless Ambush, Shadowcreep, Realmroot Guide and Guardian Of The Glades each only when it helps its plan to win, judged by its existing expected-damage and objective heuristics, not on every chance. It picks legal set-up spots: toward objectives or into combat as the ability intends. It stays deterministic, with a test per ability. Do it after R10 if R10 is not yet merged.
+
+### R12 Seraphon activated rulings: Scry the Stars order, Star-venom in any shooting phase, Venomites set-up, Conduit on a failed cast
+
+- **Tier**: sonnet+review
+- **Touches**: engine, ai, ui/prompts
+- **Ruling**: I104/I105 (owner, 2026-11-19), points 1, 3, 4, 5
+- **Read**: I104/I105 in `docs/RULES-DECISIONS.md`; `src/engine/seraphonActive.ts`, `src/rules/factions/conduit.ts`, `src/engine/abilities/magic.ts`, `src/engine/deployment.ts`, the Covering Fire reaction in `src/engine/reactions.ts`
+- **Done when**: (1) Scry the Stars rolls its dice, then asks which units get each success; the NPC picks too. The NPC uses each of these abilities only when it helps its plan to win (judged by its expected-damage and objective heuristics, not on every chance). (3) A test shows a failed casting roll gives no Conduit effect (fix it if it does). (4) The player places the Venomites token next to the Sunblood Pack when deploying it; the NPC places its own. (5) Star-venom is offered after the Dartpipe damages an enemy in any shooting phase, including Covering Fire in the enemy turn. One test per point; e2e full-game still passes on phone and desktop. Bump the rules version.
 
 ### M4i Sylvaneth healing and other activated abilities
 
