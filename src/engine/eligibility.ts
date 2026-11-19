@@ -10,6 +10,7 @@ import {
   DIST_EPS,
   enemiesInCombat,
   enemiesWithin,
+  hasKeyword,
   inCombat,
   isFactionTerrainUnit,
   nearEnemyFactionTerrain,
@@ -18,6 +19,7 @@ import {
   unitDistance,
   unitsOf,
 } from './query.js';
+import { inCreepingOvergrowth } from './overgrowth.js';
 import { moveOf } from '../rules/factions/seraphon.js';
 import { creepingDreadSurcharge, dwindling } from '../rules/factions/seasons.js';
 import {
@@ -44,6 +46,7 @@ export function commandBlocker(
   player: PlayerId,
   command: CommandId,
   unit: UnitState,
+  destroyedUnit = false,
 ): string | null {
   return baseCommandBlocker(
     state,
@@ -51,6 +54,7 @@ export function commandBlocker(
     command,
     unit,
     creepingDreadSurcharge(scenario, state, unit),
+    destroyedUnit,
   );
 }
 
@@ -264,3 +268,90 @@ export function powerThroughTargets(
 }
 
 // ─── Engine ─────────────────────────────────────────────────────────────────────
+
+// ─── Sylvaneth commands ─────────────────────────────────────────────────────────
+
+/** The Goddess Of Life (Alarielle the Everqueen, 4f7c-2ca1-ae3f-d2d3). */
+export const GODDESS_OF_LIFE_ID = '4f7c-2ca1-ae3f-d2d3';
+/** Damage points the replacement unit of The Goddess Of Life has allocated to it. */
+export const GODDESS_OF_LIFE_DAMAGE = 8;
+
+/**
+ * Fury of The Forest: a Sylvaneth unit wholly within its creeping overgrowth and in combat
+ * with only 1 enemy unit.
+ */
+export function canFuryOfTheForest(scenario: Scenario, state: GameState, unit: UnitState): boolean {
+  if (commandBlocker(scenario, state, unit.owner, 'furyOfTheForest', unit)) return false;
+  if (isFactionTerrainUnit(scenario, unit) || !hasKeyword(scenario, unit, 'SYLVANETH')) {
+    return false;
+  }
+  if (!inCreepingOvergrowth(scenario, state, unit, unit.owner, true)) return false;
+  return enemiesInCombat(scenario, state, unit).length === 1;
+}
+
+/**
+ * The Land Awakens targets: a destroyed non-Hero Revenant Infantry unit or Dryads unit
+ * (printed text; the bold keywords read as one phrase, so Hero, Revenant and Infantry are all
+ * needed to be excluded: see docs/RULES-DECISIONS.md).
+ */
+export function isLandAwakensTarget(scenario: Scenario, unit: UnitState): boolean {
+  if (unit.status !== 'destroyed' || unit.isManifestation) return false;
+  const p = profileOf(scenario, unit);
+  if (p.isFactionTerrain || !hasKeyword(scenario, unit, 'SYLVANETH')) return false;
+  if (hasKeyword(scenario, unit, 'DRYADS') || p.name === 'Dryads') return true;
+  return (
+    hasKeyword(scenario, unit, 'REVENANT') &&
+    hasKeyword(scenario, unit, 'INFANTRY') &&
+    !hasKeyword(scenario, unit, 'HERO')
+  );
+}
+
+/** Destroyed units `player` could bring back with The Land Awakens now. */
+export function landAwakensTargets(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+): UnitId[] {
+  if (state.stack.length > 0) return [];
+  return unitsOfAny(state, player)
+    .filter(
+      (u) =>
+        isLandAwakensTarget(scenario, u) &&
+        !commandBlocker(scenario, state, player, 'landAwakens', u, true),
+    )
+    .map((u) => u.id);
+}
+
+/**
+ * Units of `player` that have The Goddess Of Life and may use it now. It is offered once the
+ * unit is destroyed (the printed "even if it has been destroyed"; docs/RULES-DECISIONS.md).
+ */
+export function goddessOfLifeUnits(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+): UnitId[] {
+  if (state.stack.length > 0 || state.players[player].goddessOfLifeUsed) return [];
+  return unitsOfAny(state, player)
+    .filter(
+      (u) =>
+        u.status === 'destroyed' &&
+        profileOf(scenario, u).abilities.some((a) => a.id === GODDESS_OF_LIFE_ID) &&
+        !commandBlocker(scenario, state, player, 'goddessOfLife', u, true),
+    )
+    .map((u) => u.id);
+}
+
+function unitsOfAny(state: GameState, player: PlayerId): UnitState[] {
+  return state.unitOrder.map((id) => state.units[id]!).filter((u) => u.owner === player);
+}
+
+/** The units on the battlefield that carry the option to use a replacement command. */
+export function replacementHandle(scenario: Scenario, unit: UnitState): boolean {
+  return (
+    unit.status === 'battlefield' &&
+    !isFactionTerrainUnit(scenario, unit) &&
+    !unit.isManifestation &&
+    hasKeyword(scenario, unit, 'SYLVANETH')
+  );
+}

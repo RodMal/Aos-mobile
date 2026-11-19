@@ -52,6 +52,9 @@ import {
   forwardToVictory,
   magicalIntervention,
   powerThrough,
+  landAwakens,
+  goddessOfLife,
+  undoReplacement,
   rally,
   redeploy,
   setUpWyldwood,
@@ -188,6 +191,10 @@ export function createEngine(scenario: Scenario): Engine {
             counterCharge(ctx, action.unit);
           } else if (d.phase === 'end' && action.command === 'powerThrough') {
             powerThrough(ctx, action.unit, action.target);
+          } else if (d.phase === 'end' && action.command === 'landAwakens') {
+            landAwakens(ctx, action.unit, action.target);
+          } else if (d.phase === 'movement' && action.command === 'goddessOfLife') {
+            goddessOfLife(ctx, action.unit, action.target);
           } else {
             illegal(`Command "${action.command}" is not available in the ${d.phase} phase.`);
           }
@@ -218,6 +225,9 @@ export function createEngine(scenario: Scenario): Engine {
           if (d.reason === 'setUp') {
             s.stack.pop();
             cancelWyldwood(ctx, d.unit);
+          } else if (d.reason === 'replacement') {
+            const frame = s.stack.pop();
+            if (frame?.t === 'place') undoReplacement(ctx, frame);
           } else skipPlace(ctx);
         } else if (action.t === 'place') place(ctx, action.placement);
         else if (

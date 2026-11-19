@@ -1342,7 +1342,10 @@ describe('Six Remaining Commands', () => {
     s.units[DURTHU]!.charged = true;
     expect(inCombat(scenario, s, s.units[DURTHU]!)).toBe(true);
 
-    expect(engine.unitOptions(s, DURTHU).filter((o) => o.t === 'command')).toEqual([
+    // (The other Sylvaneth units were destroyed to clear the board: The Land Awakens is also offered.)
+    const powerThroughs = (o: { t: string; command?: string }) =>
+      o.t === 'command' && o.command === 'powerThrough';
+    expect(engine.unitOptions(s, DURTHU).filter(powerThroughs)).toEqual([
       { t: 'command', command: 'powerThrough', cost: 1, targets: [SAURUS_GUARD] },
     ]);
 

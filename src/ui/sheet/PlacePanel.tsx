@@ -27,6 +27,7 @@ const TITLES: Record<string, string> = {
   powerThrough: 'Power Through',
   deploy: 'Deploy',
   setUp: 'Set up',
+  replacement: 'Set up replacement',
 };
 
 function Tool({
@@ -60,7 +61,8 @@ export function PlacePanel() {
   const d = useDecision();
   if (!draft || !d || d.kind !== 'place') return null;
   const unit = state.units[draft.unit]!;
-  const dist = maxDistance(unit, draft.placement);
+  // A set-up has no move distance (the models stand where the unit was slain).
+  const dist = d.reason === 'replacement' ? 0 : maxDistance(unit, draft.placement);
   const first = draft.violations[0];
   // A summoned manifestation is measured from its caster, not from where it was suggested.
   const reach = setUpReach(scenario, state, draft.placement);
@@ -91,15 +93,17 @@ export function PlacePanel() {
             ? 'Piled in towards the nearest enemy. Each model may move up to 3" and must not end further from it.'
             : d.reason === 'summon'
               ? 'Drag to set up wholly within range of the caster, then confirm.'
-              : d.reason === 'setUp'
-                ? 'Drag or rotate: more than 3" from objectives and enemy units, 12" from your other Wyldwoods, 1" from other terrain.'
-                : d.reason === 'powerThrough'
-                  ? 'Move up to your allowance. You may stay in combat with the units you were fighting, or leave, but not enter combat with any other unit.'
-                  : draft.adjust
-                    ? `${tapWord()} a model, then drag anywhere to move it.`
-                    : finePointer()
-                      ? 'Drag anywhere to move the unit. The wheel zooms; Enter confirms.'
-                      : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
+              : d.reason === 'replacement'
+                ? 'Drag to set up wholly within your creeping overgrowth and more than 9" from all enemy units. Cancel takes the command back.'
+                : d.reason === 'setUp'
+                  ? 'Drag or rotate: more than 3" from objectives and enemy units, 12" from your other Wyldwoods, 1" from other terrain.'
+                  : d.reason === 'powerThrough'
+                    ? 'Move up to your allowance. You may stay in combat with the units you were fighting, or leave, but not enter combat with any other unit.'
+                    : draft.adjust
+                      ? `${tapWord()} a model, then drag anywhere to move it.`
+                      : finePointer()
+                        ? 'Drag anywhere to move the unit. The wheel zooms; Enter confirms.'
+                        : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
   const canForwardToVictory =
     d.reason === 'charge' &&
     !commandBlocker(state, d.player, 'forwardToVictory', unit) &&
@@ -119,11 +123,13 @@ export function PlacePanel() {
         <p className="panel-hint">
           {d.reason === 'setUp'
             ? 'Hero phase · anywhere legal'
-            : reach
-              ? `Wholly within ${inches(reach.range)} of ${reach.caster.name}`
-              : Number.isFinite(d.allowance)
-                ? `Up to ${inches(d.allowance)}`
-                : 'Anywhere legal'}
+            : d.reason === 'replacement'
+              ? 'Set up · anywhere legal'
+              : reach
+                ? `Wholly within ${inches(reach.range)} of ${reach.caster.name}`
+                : Number.isFinite(d.allowance)
+                  ? `Up to ${inches(d.allowance)}`
+                  : 'Anywhere legal'}
           {diceText}
         </p>
       </header>

@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4e Sylvaneth commands: Fury of The Forest, The Land Awakens, The Goddess Of Life
-
-- **Tier**: sonnet+review
-- **Touches**: engine, rules, ai, ui/prompts
-- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/sylvaneth.json` (Fury of The Forest `081a-ebf2-6a79-c4db`, The Land Awakens `dcad-fc9a-65a3-b46f`, The Goddess Of Life `4f7c-2ca1-ae3f-d2d3`); `src/rules/core/commands.ts` (the command table and `commandBlocker`; `CommandId` is in `src/engine/types.ts`, change it additively), `src/engine/commands.ts`, `src/engine/reactions.ts`, `src/engine/placing.ts` and `src/engine/damage.ts` (`returnPosition`, set-up of a unit), `src/engine/abilities/commands.ts`
-- **Done when**: one test per ability: Fury of The Forest (Strike-first for the rest of the turn), The Land Awakens (a replacement unit with half the models, rounded up, set up wholly within the creeping overgrowth and more than 9" from enemies; say in `docs/RULES-DECISIONS.md` what happens to the target unit and the timing), The Goddess Of Life (a replacement unit with 8 damage points that wards cannot save, same set-up limits). Timing and cost of each follow the printed text; the commands appear in the command list only for the army that has them; the NPC does not need to use them.
-
 ### M4f Seraphon unit passives
 
 - **Tier**: sonnet+review

@@ -114,11 +114,15 @@ describe('faction terrain (owner ruling, 2026-11-11)', () => {
     const dryads = named(s, 'Dryads');
     expect(inCombat(scenario, s, dryads)).toBe(false);
     const move = passTo(engine, s, 'movement');
-    expect(engine.unitOptions(move, dryads.id).map((o) => o.t === 'move' && o.kind)).toEqual([
-      'normal',
-      'run',
-      false,
-    ]);
+    // (A destroyed Alarielle also offers The Goddess Of Life on any Sylvaneth unit: not a move.)
+    expect(
+      engine.unitOptions(move, dryads.id).flatMap((o) => (o.t === 'move' ? [o.kind] : [])),
+    ).toEqual(['normal', 'run']);
+    expect(
+      engine
+        .unitOptions(move, dryads.id)
+        .some((o) => o.t === 'command' && o.command === 'atTheDouble'),
+    ).toBe(true);
     // A normal move that stays 1.5" from the engine is legal: no combat range.
     const step = engine.apply(move, { t: 'move', unit: dryads.id, kind: 'normal' }).state;
     const placement = {

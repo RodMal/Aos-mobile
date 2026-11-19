@@ -26,6 +26,7 @@ import {
   unitFootprints,
   unitsOf,
 } from './query.js';
+import { modelsOutsideOvergrowth } from './overgrowth.js';
 import { blockedTerrainViolations, pathBlockedModels } from './terrain.js';
 import type {
   GameState,
@@ -101,10 +102,27 @@ export function checkMovePlacement(
     });
   }
 
-  if (rules.reason === 'summon') {
+  // A summoned manifestation and a replacement unit are set up, not moved: no allowance.
+  const setUp = rules.reason === 'summon' || rules.reason === 'replacement';
+  if (rules.reason === 'replacement') {
+    const outside = modelsOutsideOvergrowth(
+      scenario,
+      state,
+      unit.owner,
+      placement.models.map((m) => ({ i: m.i, fp: ends.get(m.i)! })),
+    );
+    if (outside.length > 0) {
+      violations.push({
+        code: 'OUTSIDE_TERRITORY',
+        message: 'Must be set up wholly within your creeping overgrowth.',
+        models: outside,
+      });
+    }
+  }
+  if (setUp) {
     const caster = rules.caster ? state.units[rules.caster] : undefined;
     const casterFps = caster ? unitFootprints(scenario, caster) : [];
-    const notWhollyWithin = placement.models
+    const notWhollyWithin = (rules.reason === 'summon' ? placement.models : [])
       .filter((m) => !footprintWhollyWithin(ends.get(m.i)!, casterFps, rules.allowance))
       .map((m) => m.i);
     if (notWhollyWithin.length > 0) {
@@ -153,7 +171,7 @@ export function checkMovePlacement(
   for (const id of state.unitOrder) {
     const other = state.units[id]!;
     if (other.id === unit.id || other.status !== 'battlefield') continue;
-    if (rules.reason !== 'summon') {
+    if (!setUp) {
       const b = unitBounds(scenario, other);
       if (Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r > rules.allowance + 1) continue;
     }
@@ -301,15 +319,14 @@ export function checkMovePlacement(
   if (onTerrain.length > 0) {
     violations.push({
       code: 'BLOCKED',
-      message:
-        rules.reason === 'summon'
-          ? 'Models cannot be set up on that terrain feature: it is too tall to stand on.'
-          : 'Models cannot end a move on that terrain feature: it is too tall to stand on.',
+      message: setUp
+        ? 'Models cannot be set up on that terrain feature: it is too tall to stand on.'
+        : 'Models cannot end a move on that terrain feature: it is too tall to stand on.',
       models: onTerrain,
     });
   }
 
-  if (rules.reason !== 'summon') {
+  if (!setUp) {
     const blocked = pathBlockedModels(scenario, state, unit, placement);
     if (blocked.length > 0) {
       violations.push({

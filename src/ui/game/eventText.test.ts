@@ -101,6 +101,7 @@ describe('eventLine', () => {
   it('describes reaction triggers', () => {
     expect(reactionText('shoot:b', ctx)).toBe('Saurus Warriors is about to shoot.');
     expect(reactionText('something else', ctx)).toBe('something else');
+    expect(reactionText('start:combat', ctx)).toMatch(/Combat phase is starting/);
     expect(reactionText('move:a', ctx)).toBe('Dryads finished a move nearby.');
     expect(reactionText('phase:movement', ctx)).toContain('Movement phase');
   });

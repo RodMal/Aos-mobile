@@ -315,6 +315,8 @@ function placeAction(
     // A further Awakened Wyldwood starts at a legal spot near an objective: keep it there.
     return { t: 'place', placement: currentPlacement(unit) };
   }
+  // The NPC never uses the replacement commands; if one is pending, take it back.
+  if (d.reason === 'replacement') return { t: 'pass' };
   if (d.reason === 'summon') {
     const cur = currentPlacement(unit);
     if (engine.checkPlacement(state, cur).length === 0) {

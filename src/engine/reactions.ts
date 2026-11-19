@@ -29,6 +29,7 @@ import {
   counterCharge,
   coveringFire,
   magicalIntervention,
+  furyOfTheForest,
   powerThrough,
   rally,
   redeploy,
@@ -156,6 +157,9 @@ export function executeReactionCommand(
       break;
     case 'powerThrough':
       powerThrough(ctx, unitId, targetId);
+      break;
+    case 'furyOfTheForest':
+      furyOfTheForest(ctx, unitId);
       break;
     default:
       illegal(`Command ${command} cannot be used here.`);

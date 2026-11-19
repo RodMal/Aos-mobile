@@ -210,6 +210,32 @@ export function inCreepingOvergrowth(
 }
 
 /**
+ * The models of a placement that are not wholly within `player`'s creeping overgrowth: every
+ * model if there is no token, none under a whole-battlefield range, otherwise the failures
+ * measured from the one feature that fits the most models (as `inCreepingOvergrowth` does).
+ */
+export function modelsOutsideOvergrowth(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+  models: readonly { i: number; fp: Footprint }[],
+): number[] {
+  const ids = overgrownTokenIds(scenario, state, player);
+  if (ids.length === 0) return models.map((m) => m.i);
+  const range = creepingOvergrowthRange(ids.length);
+  if (range === Infinity) return [];
+  let best: number[] | null = null;
+  for (const f of terrainFeatures(scenario, state)) {
+    if (!ids.includes(f.id)) continue;
+    const failing = models
+      .filter((m) => !whollyWithinFeature(scenario, f, [m.fp], range))
+      .map((m) => m.i);
+    if (best === null || failing.length < best.length) best = failing;
+  }
+  return best ?? models.map((m) => m.i);
+}
+
+/**
  * Player who controls the feature: the higher total Control of models within 3" of it
  * (manifestations and faction terrain do not count), or null when tied.
  */

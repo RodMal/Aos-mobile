@@ -17,14 +17,19 @@ export function GhostLayer({ rot }: { rot: Rot }) {
   if (!unit) return null;
   // Deployment and set-up have no distance limit (the engine stores 0 to keep plain JSON).
   const allowance =
-    decision.reason === 'deploy' || decision.reason === 'setUp' ? Infinity : decision.allowance;
+    decision.reason === 'deploy' || decision.reason === 'setUp' || decision.reason === 'replacement'
+      ? Infinity
+      : decision.allowance;
   const bad = new Set(draft.violations.flatMap((v) => v.models ?? []));
   const reach = setUpReach(scenario, state, draft.placement);
   if (reach) return <SetUpGhost rot={rot} reach={reach} bad={bad} />;
   const start = unitCentre(unit);
   const end = placementCentre(draft.placement);
   // Set-up has no move distance: no measuring line from where the piece was suggested.
-  const dist = decision.reason === 'setUp' ? 0 : maxDistance(unit, draft.placement);
+  const dist =
+    decision.reason === 'setUp' || decision.reason === 'replacement'
+      ? 0
+      : maxDistance(unit, draft.placement);
   const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
   const tooFar = dist > allowance + 1e-6;
   const active = draft.adjust ? draft.activeModel : null;

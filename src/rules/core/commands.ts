@@ -114,6 +114,36 @@ export const COMMANDS: Record<CommandId, CommandDefinition> = {
     implemented: true,
     effect: 'A unit that charged inflicts D3 mortal damage on a weaker enemy and moves.',
   },
+  furyOfTheForest: {
+    id: 'furyOfTheForest',
+    name: 'Fury of The Forest',
+    cost: 1,
+    phases: ['combat'],
+    turn: 'enemy',
+    implemented: true,
+    effect:
+      'A Sylvaneth unit wholly within the creeping overgrowth and in combat with only 1 enemy unit has Strike-first for the rest of the turn.',
+  },
+  landAwakens: {
+    id: 'landAwakens',
+    name: 'The Land Awakens',
+    cost: 1,
+    phases: ['end'],
+    turn: 'your',
+    implemented: true,
+    effect:
+      'A destroyed non-Hero Revenant Infantry or Dryads unit: set up a replacement unit with half its models (rounding up) wholly within the creeping overgrowth and more than 9" from all enemy units.',
+  },
+  goddessOfLife: {
+    id: 'goddessOfLife',
+    name: 'The Goddess Of Life',
+    cost: 2,
+    phases: ['movement'],
+    turn: 'your',
+    implemented: true,
+    effect:
+      'Once per battle, even if destroyed: set up a replacement unit with 8 damage points allocated to it (no ward rolls) wholly within the creeping overgrowth and more than 9" from all enemy units.',
+  },
 };
 
 /**
@@ -127,6 +157,8 @@ export function commandBlocker(
   command: CommandId,
   unit: UnitState,
   extraCost = 0,
+  /** The command is for a unit that may be off the battlefield (The Land Awakens, The Goddess Of Life). */
+  destroyedUnit = false,
 ): string | null {
   const def = COMMANDS[command];
   if (!def.implemented) return `${def.name} is not available yet.`;
@@ -135,7 +167,11 @@ export function commandBlocker(
   if (def.turn === 'enemy' && state.active === player) {
     return `${def.name} is used in the enemy turn.`;
   }
-  if (unit.owner !== player || unit.status !== 'battlefield' || unit.isManifestation) {
+  if (
+    unit.owner !== player ||
+    (destroyedUnit ? unit.status === 'reserve' : unit.status !== 'battlefield') ||
+    unit.isManifestation
+  ) {
     return `${unit.name} cannot use commands.`;
   }
   if (state.players[player].cp < def.cost + extraCost) {

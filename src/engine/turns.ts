@@ -1,10 +1,11 @@
 import { battleplanRules } from '../rules/battleplans/index.js';
-import { clearPhaseCommands } from '../rules/core/commands.js';
+import { COMMANDS, clearPhaseCommands } from '../rules/core/commands.js';
 import { resolveControl } from '../rules/core/objectives.js';
 import { priorityWinner, roundCommandPoints, seizes } from '../rules/core/round.js';
 import { clearExpiredEffects } from './abilities/effects.js';
 import { d6, illegal, type Ctx } from './ctx.js';
-import { attackerOf, opponent } from './query.js';
+import { attackerOf, opponent, unitsOf } from './query.js';
+import { canFuryOfTheForest } from './eligibility.js';
 import {
   evaluateEndOfTurnTactics,
   initBattleTactics,
@@ -29,7 +30,7 @@ import {
   vengeanceCandidates,
 } from '../rules/factions/kroak.js';
 import { healUnit, destroyUnit } from './damage.js';
-import { PHASES, type Action, type PlayerId } from './types.js';
+import { PHASES, type Action, type PlayerId, type ReactionOption } from './types.js';
 
 // ─── Turn sequence ──────────────────────────────────────────────────────────────
 
@@ -361,9 +362,25 @@ export function advancePhase(ctx: Ctx): void {
     s.fightPicker = next === 'combat' ? s.active : null;
     s.fightTier = null;
     ctx.events.push({ t: 'phaseStart', phase: next, player: s.active });
+    if (next === 'combat') offerFuryOfTheForest(ctx);
     return;
   }
   beginTurnEnd(ctx);
+}
+
+/**
+ * Fury of The Forest ("Enemy Combat Phase"): at the start of the enemy's combat phase, before
+ * any unit fights, the other player may give a unit in combat with only 1 enemy unit
+ * Strike-first (see docs/RULES-DECISIONS.md).
+ */
+function offerFuryOfTheForest(ctx: Ctx): void {
+  const { s, scenario } = ctx;
+  const player = opponent(s.active);
+  const options: ReactionOption[] = unitsOf(s, player)
+    .filter((u) => canFuryOfTheForest(scenario, s, u))
+    .map((u) => ({ command: 'furyOfTheForest', unit: u.id, cost: COMMANDS.furyOfTheForest.cost }));
+  if (options.length === 0) return;
+  s.stack.push({ t: 'reaction', player, options, trigger: 'start:combat' });
 }
 
 /**
