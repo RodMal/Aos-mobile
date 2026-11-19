@@ -16,6 +16,8 @@ export function cloneState(state: GameState): GameState {
     vpByRound: [...p.vpByRound],
     ...(p.commandsUsed ? { commandsUsed: [...p.commandsUsed] } : {}),
     ...(p.spellsAttempted ? { spellsAttempted: [...p.spellsAttempted] } : {}),
+    ...(p.usedOncePerTurn ? { usedOncePerTurn: [...p.usedOncePerTurn] } : {}),
+    ...(p.usedOncePerBattle ? { usedOncePerBattle: [...p.usedOncePerBattle] } : {}),
     ...(p.furyUsedThisTurn ? { furyUsedThisTurn: [...p.furyUsedThisTurn] } : {}),
     ...(p.tacticProgress ? { tacticProgress: { ...p.tacticProgress } } : {}),
   });

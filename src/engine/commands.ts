@@ -38,6 +38,7 @@ import {
   powerThroughTargets,
 } from './eligibility.js';
 import { unitOptions } from './decisions.js';
+import { chargeRestriction } from './relocate.js';
 import { startAttacks } from './placing.js';
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -194,11 +195,13 @@ export function rollAndPushCharge(ctx: Ctx, unit: UnitState): void {
   const dice: [number, number] = [d6(ctx), d6(ctx)];
   const mod = unitGrants(ctx.scenario, s, unit).chargeRollModifier;
   const roll = Math.max(0, dice[0] + dice[1] + mod);
+  // Guardian Of The Glades: the charge may only reach the enemy units it names.
+  const only = chargeRestriction(ctx.scenario, s, unit);
   const success =
     roll > 0 &&
-    unitsOf(s, opponent(unit.owner)).some((e) =>
-      unitsWithin(ctx.scenario, unit, e, roll + CHARGE_END_RANGE),
-    );
+    unitsOf(s, opponent(unit.owner))
+      .filter((e) => !only || only.includes(e.id))
+      .some((e) => unitsWithin(ctx.scenario, unit, e, roll + CHARGE_END_RANGE));
   ctx.events.push({ t: 'chargeRoll', unit: unit.id, dice, success });
   if (success) {
     s.stack.push({ t: 'place', unit: unit.id, reason: 'charge', allowance: roll, dice });

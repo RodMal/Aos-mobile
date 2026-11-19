@@ -61,6 +61,8 @@ export interface PlaceRules {
    * stay in combat with them (or leave), but not enter combat with any other unit.
    */
   engagedWith?: readonly UnitId[];
+  /** Guardian Of The Glades: the charge must end within 1/2" of one of these enemy units. */
+  chargeOnly?: readonly UnitId[];
 }
 
 /**
@@ -103,7 +105,8 @@ export function checkMovePlacement(
   }
 
   // A summoned manifestation and a replacement unit are set up, not moved: no allowance.
-  const setUp = rules.reason === 'summon' || rules.reason === 'replacement';
+  const setUp =
+    rules.reason === 'summon' || rules.reason === 'replacement' || rules.reason === 'relocate';
   if (rules.reason === 'replacement') {
     const outside = modelsOutsideOvergrowth(
       scenario,
@@ -219,7 +222,14 @@ export function checkMovePlacement(
 
   if (rules.reason === 'charge') {
     // At least one model must end within 1/2" of an enemy unit.
-    const enemies = nearbyEnemyFootprints(scenario, state, unit, rules.allowance + 1);
+    const enemies = nearbyEnemyFootprints(
+      scenario,
+      state,
+      unit,
+      rules.allowance + 1,
+      [],
+      rules.chargeOnly,
+    );
     const reaches = placement.models.some((m) =>
       enemies.some((e) => !footprintGapAtLeast(ends.get(m.i)!, e, CHARGE_END_RANGE + DIST_EPS)),
     );
@@ -365,6 +375,7 @@ function nearbyEnemyFootprints(
   unit: UnitState,
   reach: number,
   except: readonly UnitId[] = [],
+  only?: readonly UnitId[],
 ): Footprint[] {
   const own = unitBounds(scenario, unit);
   const out: Footprint[] = [];
@@ -372,6 +383,7 @@ function nearbyEnemyFootprints(
     // Faction terrain creates no combat range and cannot be charged (owner's ruling).
     if (profileOf(scenario, e).isFactionTerrain) continue;
     if (except.includes(e.id)) continue;
+    if (only && !only.includes(e.id)) continue;
     const b = unitBounds(scenario, e);
     if (Math.hypot(b.x - own.x, b.y - own.y) - b.r - own.r > reach + COMBAT_RANGE) continue;
     out.push(...unitFootprints(scenario, e));

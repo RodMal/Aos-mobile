@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4g Sylvaneth set-up and charge abilities: Huntmaster's Strike, Rhythm of the Chase, Merciless Ambush, Shadowcreep, Realmroot Guide, Guardian Of The Glades
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ai, ui/prompts, ui/board
-- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/sylvaneth.json` (Belthanos `61d2-55e1-7873-e100`, `b29c-dd1a-502d-27c4`; Drycha `77b2-7e2-ba0c-83a1`; Spite-Revenants `76b2-ce61-8aec-f6c1`; Warsong Revenant trait Realmroot Guide `c133-8f0c-936d-30d3`; Spirit of Durthu `ea9f-5c5b-8b97-78aa`); `src/engine/placing.ts`, `src/engine/decisions.ts` (activated options and `place` decisions), `src/engine/engine.ts` (charge phase), `src/engine/overgrowth.ts`, `src/engine/wyldwood.ts` (a worked example of a set-up decision), RULES-DECISIONS I65
-- **Done when**: one test per ability, each with the printed limits: Huntmaster's Strike (after a charge, re-set up more than 6" from enemies within the overgrowth), Rhythm of the Chase (D3 mortal damage on 2+, then re-set up within 1" of the target), Merciless Ambush (command; re-set up within 1/2" of an enemy and wholly within X" of a terrain feature with an overgrown token, X being the charge roll; the unit has charged), Shadowcreep (within the overgrowth, re-set up wholly within 3" of terrain and more than 9" from enemies, +1 to charge rolls), Realmroot Guide (the targets are re-set up wholly within the overgrowth and more than 9" from enemies), Guardian Of The Glades (+2 to the charge roll, must end within 1/2" of an enemy in combat with a friendly Sylvaneth Hero). The NPC may leave them unused.
-
 ### M4h Seraphon activated abilities
 
 - **Tier**: sonnet+review

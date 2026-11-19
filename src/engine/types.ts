@@ -119,6 +119,10 @@ export interface PlayerState {
   commandsUsed?: CommandId[];
   /** The Goddess Of Life has been used (once per battle). */
   goddessOfLifeUsed?: boolean;
+  /** Ability IDs this army has used in the current turn ("Once Per Turn (Army)"). */
+  usedOncePerTurn?: string[];
+  /** Once-per-battle abilities used, as `<unit id>:<ability id>`. */
+  usedOncePerBattle?: string[];
   /** Non-UNLIMITED spell and prayer ability IDs attempted by this army in the current turn. */
   spellsAttempted?: string[];
   /** GHB 2026-27 Scourge of Aqshy Fury level (0..7; attacker starts at 1, defender at 2). */
@@ -187,6 +191,8 @@ export type Frame =
        * `pass` can undo it, and the damage points allocated to the unit once it is set up.
        */
       replacement?: { undo: { unit: UnitState; player: PlayerState }; damage?: number };
+      /** For `reason: 'relocate'`: which ability set the unit up again, and its limits. */
+      relocate?: Relocation;
     }
   | { t: 'targets'; unit: UnitId; mode: AttackMode }
   | { t: 'reaction'; player: PlayerId; options: ReactionOption[]; trigger: string }
@@ -308,6 +314,19 @@ export type Frame =
       units: UnitId[];
     };
 
+/**
+ * A unit removed from the battlefield and set up again (task M4g). `pass` leaves the unit where
+ * it stands; with `undo` it also takes the use back (the army as it was before).
+ */
+export interface Relocation {
+  kind: 'huntmaster' | 'rhythm' | 'ambush' | 'shadowcreep' | 'realmroot';
+  undo?: PlayerState;
+  /** Merciless Ambush: the charge roll, X. */
+  reach?: number;
+  /** Rhythm of the Chase: the enemy unit to set up within 1" of. */
+  target?: UnitId;
+}
+
 export type PlaceReason =
   | MoveKind
   | 'charge'
@@ -318,7 +337,9 @@ export type PlaceReason =
   /** A further Awakened Wyldwood set up in the hero phase; `pass` cancels it. */
   | 'setUp'
   /** A replacement unit set up by The Land Awakens or The Goddess Of Life; `pass` undoes it. */
-  | 'replacement';
+  | 'replacement'
+  /** A unit removed and set up again by a Sylvaneth ability (see `Relocation`). */
+  | 'relocate';
 export type AttackMode = 'shoot' | 'fight';
 export type FightTier = 'strikeFirst' | 'normal' | 'strikeLast';
 
@@ -564,7 +585,8 @@ export type CommandId =
   | 'powerThrough'
   | 'furyOfTheForest'
   | 'landAwakens'
-  | 'goddessOfLife';
+  | 'goddessOfLife'
+  | 'mercilessAmbush';
 
 export interface ReactionOption {
   command?: CommandId;
@@ -572,7 +594,7 @@ export interface ReactionOption {
    * `fightThroughThePain`: answer with `{ t: 'ability', unit, abilityId: 'fight-through-the-pain',
    * rageDice }`, or pass to take all the damage.
    */
-  ability?: 'unbind' | 'fightThroughThePain' | 'glamourweave';
+  ability?: 'unbind' | 'fightThroughThePain' | 'glamourweave' | 'huntmastersStrike';
   unit: UnitId;
   cost: number;
   /** Fight Through the Pain: the damage points about to be allocated to `unit`. */

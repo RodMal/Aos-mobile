@@ -12,6 +12,13 @@ import {
 import { VENGEANCE_MAX, vengeanceCandidates, vengeanceFoes } from '../rules/factions/kroak.js';
 import { asterismOptions } from '../rules/factions/seraphon.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
+import {
+  chargeSetUpOptions,
+  chargeRestriction,
+  combatSetUpOptions,
+  movementSetUpOptions,
+  relocateViolations,
+} from './relocate.js';
 import { friendlyWyldwoods, isAwakenedWyldwood } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID, canSetUpWyldwood, checkWyldwoodSetUp } from './wyldwood.js';
 import {
@@ -235,9 +242,12 @@ export function unitOptionsInner(
     return magicOptionsForUnit(scenario, state, unit);
   }
   if (d.kind === 'fightPick') {
-    return eligibleFighters(scenario, state, d.player).some((u) => u.id === unitId)
+    const fight: UnitOption[] = eligibleFighters(scenario, state, d.player).some(
+      (u) => u.id === unitId,
+    )
       ? [{ t: 'fight' }]
       : [];
+    return [...fight, ...combatSetUpOptions(scenario, state, unit)];
   }
   if (d.kind !== 'main') return [];
   switch (d.phase) {
@@ -262,6 +272,7 @@ export function unitOptionsInner(
       if (goddess.length > 0) {
         opts.push({ t: 'command', command: 'goddessOfLife', cost: 2, targets: goddess });
       }
+      opts.push(...movementSetUpOptions(scenario, state, unit));
       return opts;
     }
     case 'shooting': {
@@ -281,6 +292,7 @@ export function unitOptionsInner(
       ) {
         opts.push({ t: 'command', command: 'forwardToVictory', cost: 1 });
       }
+      opts.push(...chargeSetUpOptions(scenario, state, unit));
       return opts;
     }
     case 'end': {
@@ -344,7 +356,9 @@ export function checkPlacement(
     return checkWyldwoodSetUp(scenario, state, unitById(state, d.unit), placement);
   }
   const top = state.stack[state.stack.length - 1];
-  return checkMovePlacement(scenario, state, unitById(state, d.unit), placement, {
+  const moving = unitById(state, d.unit);
+  const chargeLimit = d.reason === 'charge' ? chargeRestriction(scenario, state, moving) : null;
+  const base = checkMovePlacement(scenario, state, moving, placement, {
     reason: d.reason,
     allowance: d.allowance,
     ...(top?.t === 'place' && top.caster ? { caster: top.caster } : {}),
@@ -352,5 +366,10 @@ export function checkPlacement(
       ? { minEnemyGap: top.minEnemyGap }
       : {}),
     ...(top?.t === 'place' && top.engagedWith ? { engagedWith: top.engagedWith } : {}),
+    ...(chargeLimit ? { chargeOnly: chargeLimit } : {}),
   });
+  if (top?.t === 'place' && top.relocate && !base.some((v) => v.code === 'WRONG_MODELS')) {
+    return [...base, ...relocateViolations(scenario, state, moving, placement, top.relocate)];
+  }
+  return base;
 }

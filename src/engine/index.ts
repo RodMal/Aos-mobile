@@ -27,3 +27,4 @@ export {
 } from './expected.js';
 export { COMMANDS, type CommandDefinition } from '../rules/core/commands.js';
 export { controlScores } from '../rules/core/objectives.js';
+export { HUNTMASTERS_STRIKE_ID } from './abilities/sylvaneth.js';

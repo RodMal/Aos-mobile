@@ -18,6 +18,14 @@ export const GLAMOURWEAVE_ID = 'cafd-9cf1-871c-f47e';
 /** The `ability` action that answers "re-roll this failed roll" (a `pass` keeps it). */
 export const GLAMOURWEAVE_REROLL_ID = 'glamourweave';
 
+/** Set-up and charge abilities (task M4g); the behaviour is in `relocate.ts`. */
+export const HUNTMASTERS_STRIKE_ID = '61d2-55e1-7873-e100';
+export const RHYTHM_OF_THE_CHASE_ID = 'b29c-dd1a-502d-27c4';
+export const MERCILESS_AMBUSH_ID = '77b2-7e2-ba0c-83a1';
+export const SHADOWCREEP_ID = '76b2-ce61-8aec-f6c1';
+export const REALMROOT_GUIDE_ID = 'c133-8f0c-936d-30d3';
+export const GUARDIAN_OF_THE_GLADES_ID = 'ea9f-5c5b-8b97-78aa';
+
 const BATTLE_DAMAGED_FROM = 10;
 
 function battleDamaged(id: string, weaponName: string, attacks: number): AbilityDefinition {
@@ -97,6 +105,26 @@ export const SYLVANETH_PASSIVES: AbilityDefinition[] = [
   battleDamaged('135b-afc5-4fd9-3460', "Wardroth Beetle's Antlers", 4),
   battleDamaged('c6b8-a8fd-b2-59fa', "Carnelian Greatspite's Mandibles", 3),
   battleDamaged('2eb1-9bd5-1544-36d9', 'Guardian Sword', 3),
+  { id: HUNTMASTERS_STRIKE_ID, name: "Huntmaster's Strike", kind: 'activated', bsdata: true },
+  { id: RHYTHM_OF_THE_CHASE_ID, name: 'Rhythm of the Chase', kind: 'activated', bsdata: true },
+  { id: MERCILESS_AMBUSH_ID, name: 'Merciless Ambush', kind: 'command', bsdata: true },
+  {
+    // "Then add 1 to charge rolls for this unit for the rest of the turn."
+    id: SHADOWCREEP_ID,
+    name: 'Shadowcreep',
+    kind: 'activated',
+    bsdata: true,
+    effectGrants: () => ({ chargeRollModifier: 1 }),
+  },
+  { id: REALMROOT_GUIDE_ID, name: 'Realmroot Guide', kind: 'activated', bsdata: true },
+  {
+    // "Add 2 to the charge roll": the effect lasts for the unit's charge this turn.
+    id: GUARDIAN_OF_THE_GLADES_ID,
+    name: 'Guardian Of The Glades',
+    kind: 'activated',
+    bsdata: true,
+    effectGrants: () => ({ chargeRollModifier: 2 }),
+  },
   // The re-rolls are applied by `glamourRerolls` / `spendGlamourweave` (combat.ts).
   { id: GLAMOURWEAVE_ID, name: 'Glamourweave', kind: 'passive', bsdata: true },
 ];

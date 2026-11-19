@@ -44,6 +44,7 @@ export const COMMAND_NAMES: Record<CommandId, string> = {
   furyOfTheForest: 'Fury of The Forest',
   landAwakens: 'The Land Awakens',
   goddessOfLife: 'The Goddess Of Life',
+  mercilessAmbush: 'Merciless Ambush',
 };
 
 export function inches(n: number): string {
@@ -61,6 +62,7 @@ const MOVE_VERB: Record<PlaceReason, string> = {
   powerThrough: 'powers through',
   setUp: 'is set up',
   replacement: 'is set up as a replacement',
+  relocate: 'is set up again',
 };
 
 function plural(n: number, word: string): string {
@@ -239,6 +241,9 @@ export function reactionText(trigger: string, ctx: LogContext): string {
   if (trigger.startsWith('pain:')) {
     const [, unitId, amount] = trigger.split(':');
     return `${unitId ? ctx.unitName(unitId) : 'Your unit'} is about to take ${amount} damage. Fight Through the Pain?`;
+  }
+  if (trigger === 'end:turn') {
+    return 'The turn is ending. You may set up a unit that charged again.';
   }
   if (trigger === 'start:combat') {
     return "Your opponent's Combat phase is starting. You may react with one of these units.";

@@ -6,7 +6,8 @@ import {
   allocatePending,
   resolveAttacks,
 } from './combat.js';
-import { GLAMOURWEAVE_REROLL_ID } from './abilities/sylvaneth.js';
+import { GLAMOURWEAVE_REROLL_ID, HUNTMASTERS_STRIKE_ID } from './abilities/sylvaneth.js';
+import { huntmastersStrike, mercilessAmbush } from './relocating.js';
 import { illegal, type Ctx } from './ctx.js';
 import { opponent, unitsOf } from './query.js';
 import { spendRageToNegateDamage } from '../rules/core/fury.js';
@@ -124,6 +125,14 @@ export function answerReaction(ctx: Ctx, action: Action): void {
     }
     return;
   }
+  if (action.t === 'ability' && action.abilityId === HUNTMASTERS_STRIKE_ID) {
+    const ok = reaction.options.some(
+      (o) => o.ability === 'huntmastersStrike' && o.unit === action.unit,
+    );
+    if (!ok) illegal('That reaction is not available.');
+    huntmastersStrike(ctx, action.unit);
+    return;
+  }
   if (action.t === 'command') {
     const ok = reaction.options.some((o) => o.command === action.command && o.unit === action.unit);
     if (!ok) illegal('That reaction is not available.');
@@ -160,6 +169,9 @@ export function executeReactionCommand(
       break;
     case 'furyOfTheForest':
       furyOfTheForest(ctx, unitId);
+      break;
+    case 'mercilessAmbush':
+      mercilessAmbush(ctx, unitId);
       break;
     default:
       illegal(`Command ${command} cannot be used here.`);

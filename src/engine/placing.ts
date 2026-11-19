@@ -1,4 +1,5 @@
-import { fireTriggers } from './abilities/effects.js';
+import { addEffect, fireTriggers } from './abilities/effects.js';
+import { SHADOWCREEP_ID } from './abilities/sylvaneth.js';
 import { resolveAttacks } from './combat.js';
 import { illegal, type Ctx } from './ctx.js';
 import { allocateDamage, doomedByQueuedDamage, inflictMortalDamage } from './damage.js';
@@ -30,7 +31,8 @@ export function place(ctx: Ctx, placement: Placement): void {
     frame.reason === 'summon' ||
     frame.reason === 'deploy' ||
     frame.reason === 'setUp' ||
-    frame.reason === 'replacement'
+    frame.reason === 'replacement' ||
+    frame.reason === 'relocate'
       ? 0
       : placementDistance(unit, placement);
   for (const m of placement.models) {
@@ -48,6 +50,20 @@ export function place(ctx: Ctx, placement: Placement): void {
     if (!(frame.reason === 'normal' && unit.moved === 'run')) unit.moved = frame.reason;
   }
   if (frame.reason === 'charge') unit.charged = true;
+  if (frame.reason === 'relocate') {
+    // Set up again: not a move. Merciless Ambush counts as a charge; Shadowcreep adds 1 to charges.
+    if (frame.relocate?.kind === 'ambush') unit.charged = true;
+    if (frame.relocate?.kind === 'shadowcreep') {
+      addEffect(s, {
+        id: SHADOWCREEP_ID,
+        name: 'Shadowcreep',
+        sourceUnit: unit.id,
+        targetUnit: unit.id,
+        owner: unit.owner,
+        expires: 'turn',
+      });
+    }
+  }
   if (frame.reason === 'replacement') {
     // The replacement is a new unit on the battlefield: it has done nothing this turn.
     unit.status = 'battlefield';
@@ -102,6 +118,7 @@ export function place(ctx: Ctx, placement: Placement): void {
     frame.reason !== 'deploy' &&
     frame.reason !== 'setUp' &&
     frame.reason !== 'replacement' &&
+    frame.reason !== 'relocate' &&
     frame.reason !== 'pileIn' &&
     unit.status === 'battlefield' &&
     !doomedByQueuedDamage(ctx, unit)

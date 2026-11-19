@@ -35,7 +35,8 @@ export function AbilityPanel() {
   const state = useGameState();
   const decision = useHumanDecision();
   // The game moved on (undo, a prompt, the phase ended): the pick is stale, so close it.
-  const stale = !!pick && (!decision || decision.kind !== 'main');
+  const stale =
+    !!pick && (!decision || (decision.kind !== 'main' && decision.kind !== 'fightPick'));
   useEffect(() => {
     if (stale) setPick(null);
   }, [stale, setPick]);
