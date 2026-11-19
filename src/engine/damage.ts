@@ -19,6 +19,7 @@ import { effectiveWard, wardRollModifier } from './abilities/effects.js';
 import { rollWard } from './attack.js';
 import { rollD3, type Ctx } from './ctx.js';
 import { closestFeatureWithoutToken, giveOvergrownToken } from './overgrowth.js';
+import { applyStarspawned } from './starspawned.js';
 import { boardPolygon } from './movement.js';
 import {
   aliveIndices,
@@ -55,6 +56,8 @@ export function allocateDamage(
   source: string,
 ): DamageResult {
   if (unit.status !== 'battlefield' || amount <= 0) return { taken: 0, slain: 0, destroyed: false };
+  amount = applyStarspawned(ctx, unit, amount);
+  if (amount <= 0) return { taken: 0, slain: 0, destroyed: false };
   recordDamageAllocatedForTactics(ctx.s, unit.id, ctx.s.phase);
   const health = profileOf(ctx.scenario, unit).health;
   let slain = 0;

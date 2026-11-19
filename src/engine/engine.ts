@@ -1,5 +1,6 @@
 import './abilities/lores.js';
 import './abilities/sylvaneth.js';
+import './abilities/seraphon.js';
 import { GLAMOURWEAVE_REROLL_ID } from './abilities/sylvaneth.js';
 import { declareAbility } from './abilities/magic.js';
 import { illegal, type Ctx } from './ctx.js';
