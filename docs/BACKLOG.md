@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R7 Glamourweave: the NPC re-rolls the attack with the most potential damage
-
-- **Tier**: sonnet
-- **Touches**: ai, engine
-- **Ruling**: "have it reroll the one dealing the most potential damage or taking the most potential damage on a hit/wound/save roll" (I96, 2026-11-18)
-- **Read**: I96 in `docs/RULES-DECISIONS.md`, `glamourRerolls` and the reroll reaction in `src/engine/abilities/sylvaneth.ts`, `src/engine/combat.ts`, `src/ai/baseline.ts`
-- **Done when**: the NPC (and `defaultAction`, if it decides for the NPC) keeps a failed hit, wound or save re-roll until the failed roll whose attack has the most potential damage in that phase, and spends it there. Each potential-damage comparison uses the expected-damage helpers the NPC already has. It stays deterministic. There are tests for hit, wound and save. The rules version is bumped if replay changes.
-
 ### M4e Sylvaneth commands: Fury of The Forest, The Land Awakens, The Goddess Of Life
 
 - **Tier**: sonnet+review
