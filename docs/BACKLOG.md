@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4f Seraphon unit passives
-
-- **Tier**: sonnet+review
-- **Touches**: engine, rules
-- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/seraphon.json` (Kroxigor Brutal Blows `786b-b219-e23-42f8`; Sunblood Pack Starspawned `f571-744e-c103-8568`, Scaled Protectors `3ffa-e9b3-901b-8d06`, trait Beastmaster `5e50-d938-39d2-19a6`; Saurus Guard Selfless Protectors `e49d-3d7e-2eee-a5e0`; Saurus Astrolith Bearer Revivifying Energies `15e-ebba-9386-bd1a`; Saurus Warriors Ordered Cohorts `4181-bbd5-a4d8-1f59`); `src/engine/abilities/effects.ts` (`passiveGrants`), `src/rules/core/modifiers.ts` (`ignoreSaveModifiers` exists), `src/engine/damage.ts` (damage allocation), `src/engine/eligibility.ts` (move allowance), `src/rules/core/objectives.ts`
-- **Done when**: one test per ability: Brutal Blows (+1 Damage against a unit of 10 or more models), Starspawned (the first damage point each phase is ignored, for Saurus and Kroxigor within 12"), Scaled Protectors (save modifiers ignored), Beastmaster (+2" Move for Cavalry and Monsters within 12" at the start of the move), Selfless Protectors (Ward 5+ for the unit and Slann within combat range), Revivifying Energies (Ward 6+ for Infantry within 12", 5+ if already 6+), Ordered Cohorts (+1 to save rolls while every model contests an objective you control). Update `docs/ABILITIES.md`.
-
 ### M4g Sylvaneth set-up and charge abilities: Huntmaster's Strike, Rhythm of the Chase, Merciless Ambush, Shadowcreep, Realmroot Guide, Guardian Of The Glades
 
 - **Tier**: sonnet+review

@@ -111,6 +111,13 @@ export interface AbilityDefinition {
     scenario: Scenario,
     state: GameState,
   ) => Modifier[];
+  /** Attack modifiers for attacks made by a unit whose warscroll (or enhancement) has this ability. */
+  offenceModifiers?: (
+    self: UnitState,
+    sit: AttackSituation,
+    scenario: Scenario,
+    state: GameState,
+  ) => Modifier[];
   /** The weapon as `unit` (whose warscroll has this ability) uses it. */
   weaponFor?: (unit: UnitState, weapon: Weapon, scenario: Scenario, state: GameState) => Weapon;
   /** Trigger fired at `triggerWindow` while an ActiveEffect with `effect.id === def.id` is in play. */

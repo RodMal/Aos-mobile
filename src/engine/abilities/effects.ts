@@ -153,6 +153,14 @@ export function reachedThroughOvergrowth(
   );
 }
 
+/** Every ability of `unit`: its warscroll's and those of the enhancements it carries. */
+export function abilitiesOf(scenario: Scenario, unit: UnitState): readonly { id: string }[] {
+  const profile = profileOf(scenario, unit);
+  const army = scenario.armies[unit.owner].units[unit.armyIndex];
+  if (!army || army.enhancements.length === 0) return profile.abilities;
+  return [...profile.abilities, ...army.enhancements.map((e) => e.ability)];
+}
+
 export function unitGrants(scenario: Scenario, state: GameState, unit: UnitState): UnitGrants {
   const grants: UnitGrants = {
     keywords: [],
@@ -163,7 +171,7 @@ export function unitGrants(scenario: Scenario, state: GameState, unit: UnitState
     grants.ward = profile.ward;
   }
 
-  for (const ab of profile.abilities) {
+  for (const ab of abilitiesOf(scenario, unit)) {
     const def = REGISTRY.get(ab.id);
     if (def?.passiveGrants) {
       mergeGrants(grants, def.passiveGrants(unit, scenario, state));
@@ -175,7 +183,7 @@ export function unitGrants(scenario: Scenario, state: GameState, unit: UnitState
     for (const id of state.unitOrder) {
       const source = state.units[id]!;
       if (source.status !== 'battlefield') continue;
-      const sourceAbilities = profileOf(scenario, source).abilities;
+      const sourceAbilities = abilitiesOf(scenario, source);
       for (const def of auras) {
         if (sourceAbilities.some((a) => a.id === def.id)) {
           mergeGrants(grants, def.auraGrants!(source, unit, scenario, state));
@@ -343,9 +351,14 @@ export function abilityAttackModifiers(
     }
   }
 
-  for (const ab of profileOf(scenario, sit.target).abilities) {
+  for (const ab of abilitiesOf(scenario, sit.target)) {
     const def = REGISTRY.get(ab.id);
     if (def?.defenceModifiers) out.push(...def.defenceModifiers(sit.target, sit, scenario, state));
+  }
+  for (const ab of abilitiesOf(scenario, sit.attacker)) {
+    const def = REGISTRY.get(ab.id);
+    if (def?.offenceModifiers)
+      out.push(...def.offenceModifiers(sit.attacker, sit, scenario, state));
   }
 
   for (const eff of state.effects ?? []) {

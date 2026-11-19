@@ -93,29 +93,29 @@ The four Asterism abilities (Itzl, Quetzl, Sotek, Tepok) can be used only once p
 
 ### Warscrolls
 
-| Ability                       | Unit                         | BSData id           | Status      | Evidence and gaps                                                                 | Task |
-| ----------------------------- | ---------------------------- | ------------------- | ----------- | --------------------------------------------------------------------------------- | ---- |
-| Arcane Vassal                 | Lord Kroak                   | 6bfc-5f30-ec02-307  | Implemented | `kroak.test.ts`; I83                                                              |      |
-| Supreme Master of Order       | Lord Kroak                   | 244b-f6f2-322d-5345 | Implemented | `kroak.test.ts`; I82                                                              |      |
-| Dead for Innumerable Ages     | Lord Kroak                   | c5a7-920c-9ff8-652  | Implemented | `kroak.test.ts`; I84                                                              |      |
-| Celestial Deliverance (spell) | Lord Kroak                   | f7bf-5a9-2828-a74   | Implemented | `magic.test.ts`; I29                                                              |      |
-| Brutal Blows                  | Kroxigor                     | 786b-b219-e23-42f8  | Missing     | +1 Damage against units of 10 or more models                                      | M4f  |
-| Starspawned                   | Sunblood Pack                | f571-744e-c103-8568 | Missing     | Ignore the first damage point each phase for Saurus and Kroxigor within 12"       | M4f  |
-| Venomite Swarm                | Sunblood Pack                | cf2e-d237-9320-1105 | Missing     | Venomites token, D3 mortal damage                                                 | M4h  |
-| Scaled Protectors             | Sunblood Pack                | 3ffa-e9b3-901b-8d06 | Missing     | Ignore save modifiers; the engine has this for Song Of The Lost, not as a passive | M4f  |
-| Beastmaster (trait)           | Sunblood Pack                | 5e50-d938-39d2-19a6 | Missing     | +2" Move to Cavalry and Monsters within 12" at the start of the move              | M4f  |
-| Selfless Protectors           | Saurus Guard                 | e49d-3d7e-2eee-a5e0 | Missing     | Ward (5+) for the unit and Slann in combat range                                  | M4f  |
-| Celestial Conduit             | Saurus Astrolith Bearer      | 153d-3737-615b-b904 | Missing     | After a successful spell, +3 control score within 12"                             | M4h  |
-| Revivifying Energies          | Saurus Astrolith Bearer      | 15e-ebba-9386-bd1a  | Missing     | Ward (6+), or (5+) if already 6+, for Seraphon Infantry within 12"                | M4f  |
-| Ordered Cohorts               | Saurus Warriors              | 4181-bbd5-a4d8-1f59 | Missing     | +1 save while every model contests an objective you control                       | M4f  |
-| Scry the Stars                | Skink Starseer               | b8a5-8e24-ad08-d213 | Missing     | Dice by round number, Ward (5+) on 3+                                             | M4h  |
-| Celestial Doom (spell)        | Skink Starseer               | 2209-9b15-d3f-15ed  | Implemented | `magic.test.ts`; I29                                                              |      |
-| Coatl Familiar (artefact)     | Skink Starseer               | 2302-6d4-c346-7bc6  | Missing     | Add D6 to a casting roll                                                          | M4h  |
-| Ark of Sotek                  | Bastiladon with Ark of Sotek | 714c-4cb6-fce8-6ef9 | Missing     | D3 per target, mortal damage on 2+                                                | M4h  |
-| Armour Cruncher (trait)       | Bastiladon with Ark of Sotek | f6fe-3e8d-dd90-00b8 | Missing     | Spend a rage dice, -1 to saves or raise the opponent's fury level                 | M4h  |
-| Hidden Hunters                | Hunters of Huanchi           | c78e-71e9-a948-fb09 | Missing     | Set up in reserve in ambush                                                       | M4j  |
-| Star-venom                    | Hunters of Huanchi           | c71d-2217-fcf1-6110 | Missing     | 2+: -1 to wound for the target's combat attacks                                   | M4h  |
-| Chameleon Ambush              | Hunters of Huanchi           | 4a89-1c50-df0e-4b2b | Missing     | Set up anywhere more than 9" from enemies                                         | M4j  |
+| Ability                       | Unit                         | BSData id           | Status      | Evidence and gaps                                                 | Task |
+| ----------------------------- | ---------------------------- | ------------------- | ----------- | ----------------------------------------------------------------- | ---- |
+| Arcane Vassal                 | Lord Kroak                   | 6bfc-5f30-ec02-307  | Implemented | `kroak.test.ts`; I83                                              |      |
+| Supreme Master of Order       | Lord Kroak                   | 244b-f6f2-322d-5345 | Implemented | `kroak.test.ts`; I82                                              |      |
+| Dead for Innumerable Ages     | Lord Kroak                   | c5a7-920c-9ff8-652  | Implemented | `kroak.test.ts`; I84                                              |      |
+| Celestial Deliverance (spell) | Lord Kroak                   | f7bf-5a9-2828-a74   | Implemented | `magic.test.ts`; I29                                              |      |
+| Brutal Blows                  | Kroxigor                     | 786b-b219-e23-42f8  | Implemented | `seraphon.test.ts`; I100                                          |      |
+| Starspawned                   | Sunblood Pack                | f571-744e-c103-8568 | Implemented | `seraphon.test.ts`; I101                                          |      |
+| Venomite Swarm                | Sunblood Pack                | cf2e-d237-9320-1105 | Missing     | Venomites token, D3 mortal damage                                 | M4h  |
+| Scaled Protectors             | Sunblood Pack                | 3ffa-e9b3-901b-8d06 | Implemented | `seraphon.test.ts`; I100                                          |      |
+| Beastmaster (trait)           | Sunblood Pack                | 5e50-d938-39d2-19a6 | Implemented | `seraphon.test.ts`; I102                                          |      |
+| Selfless Protectors           | Saurus Guard                 | e49d-3d7e-2eee-a5e0 | Implemented | `seraphon.test.ts`; I102                                          |      |
+| Celestial Conduit             | Saurus Astrolith Bearer      | 153d-3737-615b-b904 | Missing     | After a successful spell, +3 control score within 12"             | M4h  |
+| Revivifying Energies          | Saurus Astrolith Bearer      | 15e-ebba-9386-bd1a  | Implemented | `seraphon.test.ts`; I102                                          |      |
+| Ordered Cohorts               | Saurus Warriors              | 4181-bbd5-a4d8-1f59 | Implemented | `seraphon.test.ts`; I102                                          |      |
+| Scry the Stars                | Skink Starseer               | b8a5-8e24-ad08-d213 | Missing     | Dice by round number, Ward (5+) on 3+                             | M4h  |
+| Celestial Doom (spell)        | Skink Starseer               | 2209-9b15-d3f-15ed  | Implemented | `magic.test.ts`; I29                                              |      |
+| Coatl Familiar (artefact)     | Skink Starseer               | 2302-6d4-c346-7bc6  | Missing     | Add D6 to a casting roll                                          | M4h  |
+| Ark of Sotek                  | Bastiladon with Ark of Sotek | 714c-4cb6-fce8-6ef9 | Missing     | D3 per target, mortal damage on 2+                                | M4h  |
+| Armour Cruncher (trait)       | Bastiladon with Ark of Sotek | f6fe-3e8d-dd90-00b8 | Missing     | Spend a rage dice, -1 to saves or raise the opponent's fury level | M4h  |
+| Hidden Hunters                | Hunters of Huanchi           | c78e-71e9-a948-fb09 | Missing     | Set up in reserve in ambush                                       | M4j  |
+| Star-venom                    | Hunters of Huanchi           | c71d-2217-fcf1-6110 | Missing     | 2+: -1 to wound for the target's combat attacks                   | M4h  |
+| Chameleon Ambush              | Hunters of Huanchi           | 4a89-1c50-df0e-4b2b | Missing     | Set up anywhere more than 9" from enemies                         | M4j  |
 
 ### Spell and manifestation lores
 
