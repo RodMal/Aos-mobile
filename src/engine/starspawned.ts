@@ -37,5 +37,6 @@ export function applyStarspawned(ctx: Ctx, unit: UnitState, amount: number): num
     owner: unit.owner,
     expires: 'phase',
   });
+  ctx.events.push({ t: 'note', text: 'Starspawned: 1 damage point ignored' });
   return amount - 1;
 }

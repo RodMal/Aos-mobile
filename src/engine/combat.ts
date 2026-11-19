@@ -12,6 +12,7 @@ import {
   wardRollModifier,
 } from './abilities/effects.js';
 import { RerollNeeded } from './attack.js';
+import { applyStarspawned } from './starspawned.js';
 import { glamourRerolls, spendGlamourweave } from './abilities/sylvaneth.js';
 import { hasAbility, rollAttackCount, rollAttackSequence, rollWard } from './attack.js';
 import { illegal, type Ctx } from './ctx.js';
@@ -433,8 +434,16 @@ export const FIGHT_THROUGH_THE_PAIN_ID = 'fight-through-the-pain';
 export function allocatePending(ctx: Ctx, frame: Extract<Frame, { t: 'allocate' }>): void {
   const { s } = ctx;
   while (frame.pending.length > 0) {
-    const { target: id, amount } = frame.pending[0]!;
+    const { target: id } = frame.pending[0]!;
+    let amount = frame.pending[0]!.amount;
     const target = s.units[id]!;
+    // Starspawned comes off before Fight Through the Pain is offered (the prompt shows what is
+    // really allocated); the effect is then spent, so `allocateDamage` does not apply it again.
+    const reduced = applyStarspawned(ctx, target, amount);
+    if (reduced !== amount) {
+      amount = reduced;
+      frame.pending = [{ ...frame.pending[0]!, amount }, ...frame.pending.slice(1)];
+    }
     const rage = s.players[target.owner].rageDice ?? 0;
     // Faction terrain never acts or is acted for (owner's ruling): no Fight Through the Pain.
     const terrain = profileOf(ctx.scenario, target).isFactionTerrain;

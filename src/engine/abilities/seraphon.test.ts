@@ -8,6 +8,7 @@ import { attackModifiers } from '../../rules/core/modifiers.js';
 import { moveOf } from '../../rules/factions/seraphon.js';
 import { weaponMods } from '../combat.js';
 import type { Ctx } from '../ctx.js';
+import { allocatePending } from '../combat.js';
 import { allocateDamage } from '../damage.js';
 import { createEngine, createScenario, type GameState, type UnitId } from '../index.js';
 import { profileOf } from '../query.js';
@@ -106,6 +107,40 @@ describe('Starspawned (f571-744e-c103-8568)', () => {
     expect(allocateDamage(ctx, unit(s, KROXIGOR), 3, 'test').taken).toBe(3);
     expect(allocateDamage(ctx, unit(s, BASTILADON), 3, 'test').taken).toBe(3);
     expect(allocateDamage(ctx, unit(s, DRYADS), 3, 'test').taken).toBe(3);
+  });
+});
+
+describe('Starspawned and Fight Through the Pain', () => {
+  it('logs a note, and the prompt shows the damage after the ignored point', () => {
+    const s = arena({ [SUNBLOOD]: [30, 22], [KROXIGOR]: [30, 26], [DRYADS]: [30, 50] });
+    s.players[0].rageDice = 2;
+    const ctx = ctxFor(s);
+    const frame = {
+      t: 'allocate' as const,
+      attacker: DRYADS,
+      mode: 'fight' as const,
+      pending: [{ target: KROXIGOR, amount: 3 }],
+    };
+    allocatePending(ctx, frame as never);
+    const top = s.stack[s.stack.length - 1] as { t: string; options: { damage: number }[] };
+    expect(top.t).toBe('reaction');
+    expect(top.options[0]!.damage).toBe(2);
+    expect(ctx.events.some((e) => e.t === 'note' && e.text.startsWith('Starspawned'))).toBe(true);
+  });
+
+  it('skips the prompt when the damage comes to 0', () => {
+    const s = arena({ [SUNBLOOD]: [30, 22], [KROXIGOR]: [30, 26], [DRYADS]: [30, 50] });
+    s.players[0].rageDice = 2;
+    const ctx = ctxFor(s);
+    const frame = {
+      t: 'allocate' as const,
+      attacker: DRYADS,
+      mode: 'fight' as const,
+      pending: [{ target: KROXIGOR, amount: 1 }],
+    };
+    allocatePending(ctx, frame as never);
+    expect(s.stack).toHaveLength(0);
+    expect(unit(s, KROXIGOR).damage).toBe(0);
   });
 });
 
