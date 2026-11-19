@@ -481,15 +481,16 @@ describe('Guardian Of The Glades (ea9f-5c5b-8b97-78aa)', () => {
     // Ending beside the Saurus Guard (not in combat with a Hero) is refused...
     const g = centreOf(r.state, guard);
     const k = centreOf(r.state, krox);
-    const besideGuard = legalNear(
-      { ...r.state, units: { ...r.state.units } } as GameState,
-      d,
-      { x: g.x - 2, y: g.y },
-      4,
-    );
-    if (besideGuard) {
-      expect(codes(r.state, besideGuard)).toContain('NOT_IN_CHARGE_RANGE');
+    // Some spot within 1/2" of the Guard exists on the grid; with the restriction it is refused.
+    const free = editable(r.state);
+    free.effects = [];
+    let besideGuard: Placement | null = null;
+    for (let dx = 1; dx <= 10 && !besideGuard; dx += 0.25) {
+      const p = at(free, d, g.x - dx, g.y);
+      if (!codes(free, p).includes('NOT_IN_CHARGE_RANGE')) besideGuard = p;
     }
+    expect(besideGuard).not.toBeNull();
+    expect(codes(r.state, besideGuard!)).toContain('NOT_IN_CHARGE_RANGE');
     // ...and the check accepts a charge that ends within 1/2" of the Kroxigor, if it can reach.
     const reach = r.events.find((e) => e.t === 'chargeRoll');
     expect(reach).toBeTruthy();
@@ -497,10 +498,51 @@ describe('Guardian Of The Glades (ea9f-5c5b-8b97-78aa)', () => {
     expect(codes(r.state, beside)).not.toContain('NOT_IN_CHARGE_RANGE');
   });
 
+  it('the charge roll only counts the enemy units in combat with a Hero', () => {
+    const s = charging();
+    // The Kroxigor (fighting Belthanos) is far off; the Guard is close and not in combat with a Hero.
+    placeUnit(scenario, s, named(s, 0, BELTHANOS).id, 45, 25, 90);
+    placeUnit(scenario, s, named(s, 1, 'Kroxigor').id, 45, 21, 270);
+    placeUnit(scenario, s, named(s, 1, 'Saurus Guard').id, 45, 11, 0);
+    placeUnit(scenario, s, durthu(s), 45, 4, 0);
+    const chargeRoll = (r: StepResult) => r.events.find((e) => e.t === 'chargeRoll');
+    let failedWithGuardInReach = 0;
+    let plainReachedGuard = 0;
+    for (let rng = 1; rng < 200; rng++) {
+      const e = chargeRoll(engine.apply({ ...s, rng }, declare(s)));
+      if (e?.t !== 'chargeRoll') continue;
+      const total = e.dice[0] + e.dice[1] + 2;
+      // A roll of 7+ would reach the Guard, but only the Kroxigor counts.
+      if (total >= 7 && !e.success) failedWithGuardInReach++;
+      const plain = chargeRoll(engine.apply({ ...s, rng }, { t: 'charge', unit: durthu(s) }));
+      if (plain?.t === 'chargeRoll' && plain.success) plainReachedGuard++;
+    }
+    expect(failedWithGuardInReach).toBeGreaterThan(0);
+    expect(plainReachedGuard).toBeGreaterThan(0);
+  });
+
   it('is once per turn for the army', () => {
     const s = charging();
     const r = applyUntil(engine, s, declare(s), (x) => engine.decision(x.state)?.kind === 'place');
     const back = engine.apply(r.state, { t: 'pass' }).state;
     expect(hasOption(back, durthu(back), GUARDIAN_OF_THE_GLADES_ID)).toBe(false);
+  });
+});
+
+describe('Merciless Ambush and Forward to Victory', () => {
+  it('a declined Merciless Ambush cannot be turned into a normal charge', () => {
+    const s = arranged(['Drycha Hamadreth'], 'charge');
+    const d = named(s, 0, 'Drycha Hamadreth').id;
+    placeUnit(scenario, s, d, 30, 30);
+    placeUnit(scenario, s, named(s, 1, 'Kroxigor').id, 40, 22);
+    const r = engine.apply(s, { t: 'command', command: 'mercilessAmbush', unit: d });
+    const declined = engine.apply(r.state, { t: 'pass' }).state;
+    expect(declined.units[d]!.charged).toBe(false);
+    const options = engine.unitOptions(declined, d);
+    expect(options.some((o) => o.t === 'command' && o.command === 'forwardToVictory')).toBe(false);
+    expect(options.some((o) => o.t === 'charge')).toBe(false);
+    expect(() =>
+      engine.apply(declined, { t: 'command', command: 'forwardToVictory', unit: d }),
+    ).toThrow();
   });
 });
