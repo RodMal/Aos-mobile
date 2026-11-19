@@ -118,6 +118,11 @@ describe('faction terrain (owner ruling, 2026-11-11)', () => {
     expect(
       engine.unitOptions(move, dryads.id).flatMap((o) => (o.t === 'move' ? [o.kind] : [])),
     ).toEqual(['normal', 'run']);
+    expect(
+      engine
+        .unitOptions(move, dryads.id)
+        .some((o) => o.t === 'command' && o.command === 'atTheDouble'),
+    ).toBe(true);
     // A normal move that stays 1.5" from the engine is legal: no combat range.
     const step = engine.apply(move, { t: 'move', unit: dryads.id, kind: 'normal' }).state;
     const placement = {

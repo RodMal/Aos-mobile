@@ -201,6 +201,24 @@ describe('The Land Awakens (dcad-fc9a-65a3-b46f)', () => {
     expect(back.stack).toHaveLength(0);
   });
 
+  it('drops effects left on the destroyed unit when the replacement is placed', () => {
+    const s = lost();
+    const d = dryadsOf(s);
+    s.effects = [
+      {
+        id: 'x',
+        name: 'Old debuff',
+        sourceUnit: d.id,
+        targetUnit: d.id,
+        owner: 1,
+        expires: 'battle',
+      },
+    ];
+    const r = engine.apply(s, awakens(s));
+    const done = engine.apply(r.state, { t: 'place', placement: legalSetUp(r.state, d.id)! }).state;
+    expect(done.effects?.some((e) => e.targetUnit === d.id) ?? false).toBe(false);
+  });
+
   it('refuses a unit that is not destroyed, a Hero and an unaffordable use', () => {
     const alive = lost();
     alive.units[dryadsOf(alive).id]!.status = 'battlefield';

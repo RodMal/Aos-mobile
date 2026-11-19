@@ -57,6 +57,8 @@ export function place(ctx: Ctx, placement: Placement): void {
     unit.shot = false;
     unit.fought = false;
     unit.chargeDeclared = false;
+    // A new unit: no effect on the unit it replaces carries over.
+    if (s.effects) s.effects = s.effects.filter((e) => e.targetUnit !== unit.id);
     const damage = frame.replacement?.damage ?? 0;
     if (damage > 0) {
       // "Ward rolls cannot be made for those damage points": allocated as they are.
