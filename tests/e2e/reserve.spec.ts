@@ -3,7 +3,13 @@
  * ambush while deploying, and Chameleon Ambush sets it up in the owner's movement phase.
  */
 import { expect, test } from '@playwright/test';
-import { minimalPlayerStep, selectFromRoster, startDeploy, usable } from './helpers.js';
+import {
+  endPhaseUntil,
+  minimalPlayerStep,
+  selectFromRoster,
+  startDeploy,
+  usable,
+} from './helpers.js';
 
 const HUNTERS = '1:8';
 
@@ -41,11 +47,30 @@ test('Hidden Hunters, then Chameleon Ambush', async ({ page }, info) => {
       await confirm.click();
       continue;
     }
-    const inRound2 = /Round [23]/.test((await round.textContent().catch(() => '')) ?? '');
-    const inMovement = /Movement/i.test((await phase.textContent().catch(() => '')) ?? '');
-    if (inRound2 && inMovement && (await usable(page.getByTestId('end-phase')))) {
-      ready = true;
-      break;
+    const roundNow = Number(
+      /Round (\d)/.exec((await round.textContent().catch(() => '')) ?? '')?.[1] ?? 0,
+    );
+    const mine = /Your turn/i.test(
+      (await page
+        .getByTestId('topbar')
+        .textContent()
+        .catch(() => '')) ?? '',
+    );
+    const phaseNow = (await phase.textContent().catch(() => '')) ?? '';
+    // No prompt may stand in the way: a confirmation or the turn summary covers the buttons.
+    const blocked =
+      (await page.getByTestId('confirm').isVisible()) ||
+      (await page.getByTestId('turn-summary-close').isVisible());
+    if (roundNow >= 2 && roundNow <= 3 && mine && !blocked) {
+      if (/Movement/i.test(phaseNow) && (await usable(page.getByTestId('end-phase')))) {
+        ready = true;
+        break;
+      }
+      // Our own turn in round 2 or 3: end phases one at a time, waiting for each to change.
+      if (!/Movement/i.test(phaseNow) && (await usable(page.getByTestId('end-phase')))) {
+        await endPhaseUntil(page, /Movement/);
+        continue;
+      }
     }
     if ((await minimalPlayerStep(page)) === null) await page.waitForTimeout(150);
   }
