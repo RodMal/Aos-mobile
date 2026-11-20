@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import type { Decision } from '../../engine/index.js';
 import {
   ARK_OF_SOTEK_ID,
+  ARMOUR_CRUNCHER_ID,
+  ARMOUR_CRUNCHER_ROLL_ID,
   CELESTIAL_CONDUIT_ID,
   COATL_FAMILIAR_ID,
   GROUNDSHAKER_ID,
@@ -184,7 +186,9 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
           if (
             o.ability === 'livingBatteringRam' ||
             o.ability === 'groundshaker' ||
-            o.ability === 'venomiteSwarm'
+            o.ability === 'venomiteSwarm' ||
+            o.ability === 'armourCruncher' ||
+            o.ability === 'armourCruncherRoll'
           ) {
             const [name, abilityId, testId] = {
               livingBatteringRam: [
@@ -194,6 +198,16 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
               ],
               groundshaker: ['Groundshaker', GROUNDSHAKER_ID, 'groundshaker'],
               venomiteSwarm: ['Venomite Swarm', VENOMITE_SWARM_ID, 'venomite-swarm'],
+              armourCruncher: [
+                'Armour Cruncher (spend a rage dice)',
+                ARMOUR_CRUNCHER_ID,
+                'armour-cruncher',
+              ],
+              armourCruncherRoll: [
+                'Armour Cruncher (roll a dice)',
+                ARMOUR_CRUNCHER_ROLL_ID,
+                'armour-cruncher-roll',
+              ],
             }[o.ability] as [string, string, string];
             return (o.targets ?? []).map((target) => (
               <button

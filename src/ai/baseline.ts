@@ -44,7 +44,7 @@ import {
 import { diceMean } from '../data/profile.js';
 import { npcDeployPlacement } from '../engine/deployment.js';
 import { contestedObjective } from '../rules/core/objectives.js';
-import { scryCandidates } from '../engine/seraphonActive.js';
+import { ARMOUR_CRUNCHER_ROLL_ID, scryCandidates } from '../engine/seraphonActive.js';
 import {
   npcConduitHelps,
   npcCoatlHelps,
@@ -167,8 +167,6 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       const units = unitsOf(state, d.player).filter((u) =>
         engine.unitOptions(state, u.id).some((o) => o.t === 'fight'),
       );
-      const ability = seraphonCombatAction(engine, state, d.player);
-      if (ability) return ability;
       const best = maxBy(units, (u) => bestAllocations(engine, state, u, 'fight').value);
       if (!best) return engine.defaultAction(state);
       return { t: 'fight', unit: best.id };
@@ -282,39 +280,14 @@ export function painAction(engine: Engine, state: GameState, option: ReactionOpt
   return { t: 'ability', unit: unit.id, abilityId: 'fight-through-the-pain', rageDice };
 }
 
-/**
- * Venomite Swarm, Ark of Sotek and Armour Cruncher while a fighter is picked: each is once per
- * turn (or needs a rage dice), so using them first never loops. The target worth the most
- * points; the Ark takes as many as it may.
- */
-function seraphonCombatAction(engine: Engine, state: GameState, player: PlayerId): Action | null {
-  for (const unit of unitsOf(state, player)) {
-    for (const o of engine.unitOptions(state, unit.id)) {
-      if (o.t !== 'ability' || o.targets.length === 0) continue;
-      const known = [VENOMITE_SWARM_ID, ARK_OF_SOTEK_ID, ARMOUR_CRUNCHER_ID];
-      if (!known.some((id) => o.abilityId.startsWith(id))) continue;
-      const ranked = [...o.targets].sort(
-        (a, b) => points(engine, state, b) - points(engine, state, a),
-      );
-      return o.abilityId === ARK_OF_SOTEK_ID
-        ? {
-            t: 'ability',
-            unit: unit.id,
-            abilityId: o.abilityId,
-            targets: ranked.slice(0, o.maxTargets ?? 1),
-          }
-        : { t: 'ability', unit: unit.id, abilityId: o.abilityId, target: ranked[0]! };
-    }
-  }
-  return null;
-}
-
 const ANY_PHASE_IDS = {
   lifebloom: LIFEBLOOM_ID,
   livingBatteringRam: LIVING_BATTERING_RAM_ID,
   groundshaker: GROUNDSHAKER_ID,
   venomiteSwarm: VENOMITE_SWARM_ID,
   arkOfSotek: ARK_OF_SOTEK_ID,
+  armourCruncher: ARMOUR_CRUNCHER_ID,
+  armourCruncherRoll: ARMOUR_CRUNCHER_ROLL_ID,
 } as const;
 
 /**

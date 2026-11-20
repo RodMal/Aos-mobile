@@ -9,7 +9,7 @@
  *
  * Each is answered with one `ability` action; readings in docs/RULES-DECISIONS.md I104 and I106.
  */
-import { ARK_OF_SOTEK_ID, VENOMITE_SWARM_ID } from './abilities/seraphon.js';
+import { ARK_OF_SOTEK_ID, ARMOUR_CRUNCHER_ID, VENOMITE_SWARM_ID } from './abilities/seraphon.js';
 import {
   GROUNDSHAKER_ID,
   LIFEBLOOM_ID,
@@ -20,7 +20,10 @@ import { illegal, type Ctx } from './ctx.js';
 import { rhythmTargets } from './relocate.js';
 import {
   ARK_MAX_TARGETS,
+  ARMOUR_CRUNCHER_ROLL_ID,
   arkOfSotek,
+  armourCruncher,
+  cruncherAvailable,
   arkTargets,
   venomiteSwarm,
   venomiteTargets,
@@ -53,6 +56,8 @@ const KIND_OF: Readonly<Record<string, Kind>> = {
   [GROUNDSHAKER_ID]: 'groundshaker',
   [VENOMITE_SWARM_ID]: 'venomiteSwarm',
   [ARK_OF_SOTEK_ID]: 'arkOfSotek',
+  [ARMOUR_CRUNCHER_ID]: 'armourCruncher',
+  [ARMOUR_CRUNCHER_ROLL_ID]: 'armourCruncherRoll',
 };
 
 /** The reaction kind of an `ability` action's id (Rhythm of the Chase included), if it has one. */
@@ -88,6 +93,12 @@ function current(
         ? { ...base, targets, maxTargets: Math.min(ARK_MAX_TARGETS, targets.length) }
         : null;
     }
+    case 'armourCruncher':
+    case 'armourCruncherRoll': {
+      if (kind === 'armourCruncher' && (state.players[unit.owner].rageDice ?? 0) < 1) return null;
+      const targets = cruncherAvailable(scenario, state, unit);
+      return targets.length > 0 ? { ...base, targets } : null;
+    }
     case 'rhythmOfTheChase': {
       const targets = rhythmTargets(scenario, state, unit);
       return targets.length > 0 ? { ...base, targets } : null;
@@ -102,7 +113,9 @@ export const isStartOfCombatKind = (kind: Kind | undefined): boolean =>
   kind === 'rhythmOfTheChase' ||
   kind === 'groundshaker' ||
   kind === 'venomiteSwarm' ||
-  kind === 'arkOfSotek';
+  kind === 'arkOfSotek' ||
+  kind === 'armourCruncher' ||
+  kind === 'armourCruncherRoll';
 
 /**
  * The start-of-combat window of `player` (Core 13.1): Rhythm of the Chase, Groundshaker, Venomite
@@ -113,7 +126,14 @@ export function startOfCombatAbilities(
   state: GameState,
   player: PlayerId,
 ): ReactionOption[] {
-  const kinds: Kind[] = ['rhythmOfTheChase', 'groundshaker', 'venomiteSwarm', 'arkOfSotek'];
+  const kinds: Kind[] = [
+    'rhythmOfTheChase',
+    'groundshaker',
+    'venomiteSwarm',
+    'arkOfSotek',
+    'armourCruncher',
+    'armourCruncherRoll',
+  ];
   return unitsOf(state, player).flatMap((u) =>
     kinds.flatMap((k) => {
       const o = current(scenario, state, k, u);
@@ -190,6 +210,10 @@ export function useReactionAbility(
       break;
     case 'venomiteSwarm':
       venomiteSwarm(ctx, unit, one());
+      break;
+    case 'armourCruncher':
+    case 'armourCruncherRoll':
+      armourCruncher(ctx, unit, one(), kind === 'armourCruncher');
       break;
     default:
       arkOfSotek(

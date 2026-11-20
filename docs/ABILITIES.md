@@ -112,7 +112,7 @@ The four Asterism abilities (Itzl, Quetzl, Sotek, Tepok) can be used only once p
 | Celestial Doom (spell)        | Skink Starseer               | 2209-9b15-d3f-15ed  | Implemented | `magic.test.ts`; I29                                         |      |
 | Coatl Familiar (artefact)     | Skink Starseer               | 2302-6d4-c346-7bc6  | Implemented | `seraphonActive.test.ts`; I104                               |      |
 | Ark of Sotek                  | Bastiladon with Ark of Sotek | 714c-4cb6-fce8-6ef9 | Implemented | `seraphonActive.test.ts` (start-of-combat window, R14); I104 |      |
-| Armour Cruncher (trait)       | Bastiladon with Ark of Sotek | f6fe-3e8d-dd90-00b8 | Implemented | `seraphonActive.test.ts`; I105                               |      |
+| Armour Cruncher (trait)       | Bastiladon with Ark of Sotek | f6fe-3e8d-dd90-00b8 | Implemented | `seraphonActive.test.ts` (start-of-combat window, R14); I105 |      |
 | Hidden Hunters                | Hunters of Huanchi           | c78e-71e9-a948-fb09 | Implemented | `reserve.test.ts`, `ai/reserve.test.ts`; I109                |      |
 | Star-venom                    | Hunters of Huanchi           | c71d-2217-fcf1-6110 | Implemented | `seraphonActive.test.ts`; I104                               |      |
 | Chameleon Ambush              | Hunters of Huanchi           | 4a89-1c50-df0e-4b2b | Implemented | `reserve.test.ts`, `ai/reserve.test.ts`; I109                |      |

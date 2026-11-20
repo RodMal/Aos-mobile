@@ -693,7 +693,9 @@ export interface ReactionOption {
     | 'livingBatteringRam'
     | 'groundshaker'
     | 'venomiteSwarm'
-    | 'arkOfSotek';
+    | 'arkOfSotek'
+    | 'armourCruncher'
+    | 'armourCruncherRoll';
   unit: UnitId;
   cost: number;
   /**

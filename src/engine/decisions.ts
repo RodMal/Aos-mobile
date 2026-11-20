@@ -12,7 +12,7 @@ import {
 import { VENGEANCE_MAX, vengeanceCandidates, vengeanceFoes } from '../rules/factions/kroak.js';
 import { asterismOptions } from '../rules/factions/seraphon.js';
 import { VENOMITE_SIDES } from './venomites.js';
-import { combatOptions, scryOptions, starVenomOptions } from './seraphonActive.js';
+import { scryOptions, starVenomOptions } from './seraphonActive.js';
 import { batteringRamOptions, lifebloomOptions } from './sylvanethActive.js';
 import { refreshOption, startOfCombatAbilities } from './anyPhase.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
@@ -285,9 +285,9 @@ export function unitOptionsInner(
     )
       ? [{ t: 'fight' }]
       : [];
-    // Only FIGHT abilities once fighting starts (Core 13.1): Groundshaker, Venomite Swarm and Ark
-    // of Sotek are offered in the start-of-combat window instead (R14).
-    return [...fight, ...combatOptions(scenario, state, unit)];
+    // Only FIGHT abilities once fighting starts (Core 13.1): Groundshaker, Venomite Swarm, Ark of
+    // Sotek and Armour Cruncher are offered in the start-of-combat window instead (R14).
+    return fight;
   }
   if (d.kind !== 'main') return [];
   switch (d.phase) {

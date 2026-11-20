@@ -49,12 +49,7 @@ type AbilityOption = Extract<UnitOption, { t: 'ability' }>;
 export const ARMOUR_CRUNCHER_ROLL_ID = 'f6fe-3e8d-dd90-00b8:roll';
 
 /** The abilities that are one `ability` action by the unit itself (the reactions are answers). */
-export const SERAPHON_ACTIVATED_IDS: readonly string[] = [
-  SCRY_THE_STARS_ID,
-  ARMOUR_CRUNCHER_ID,
-  ARMOUR_CRUNCHER_ROLL_ID,
-  STAR_VENOM_ID,
-];
+export const SERAPHON_ACTIVATED_IDS: readonly string[] = [SCRY_THE_STARS_ID, STAR_VENOM_ID];
 
 export const SCRY_RANGE = 18;
 export const ARK_RANGE = 9;
@@ -200,22 +195,14 @@ export function arkTargets(scenario: Scenario, state: GameState, unit: UnitState
 }
 
 /**
- * Armour Cruncher: "Any Combat Phase", while a fighter is picked. Venomite Swarm and Ark of Sotek
- * are offered at the start of combat instead (Core 13.1, R14; see `anyPhase.ts`).
+ * Armour Cruncher: "Any Combat Phase", a start-of-combat ability (Core 13.1, owner 2026-11-20): the
+ * targets it may take (enemies in combat with the unit, not already crunched by it). Spending a
+ * rage dice needs one; rolling a dice does not (`anyPhase.ts` offers both).
  */
-export function combatOptions(scenario: Scenario, state: GameState, unit: UnitState): UnitOption[] {
-  if (state.phase !== 'combat' || state.stack.length > 0 || !usable(scenario, unit)) return [];
-  const out: UnitOption[] = [];
-  if (has(scenario, unit, ARMOUR_CRUNCHER_ID) && !usedByUnit(unit, ARMOUR_CRUNCHER_ID)) {
-    const targets = cruncherTargets(scenario, state, unit);
-    if (targets.length > 0) {
-      if ((state.players[unit.owner].rageDice ?? 0) > 0) {
-        out.push(option(ARMOUR_CRUNCHER_ID, 'Armour Cruncher (spend a rage dice)', targets));
-      }
-      out.push(option(ARMOUR_CRUNCHER_ROLL_ID, 'Armour Cruncher (roll a dice)', targets));
-    }
-  }
-  return out;
+export function cruncherAvailable(scenario: Scenario, state: GameState, unit: UnitState): string[] {
+  if (state.phase !== 'combat' || !usable(scenario, unit)) return [];
+  if (!has(scenario, unit, ARMOUR_CRUNCHER_ID) || usedByUnit(unit, ARMOUR_CRUNCHER_ID)) return [];
+  return cruncherTargets(scenario, state, unit);
 }
 
 // ─── Using them ─────────────────────────────────────────────────────────────────
@@ -251,9 +238,7 @@ export function useSeraphonAbility(ctx: Ctx, action: AbilityAction): void {
   const options =
     action.abilityId === SCRY_THE_STARS_ID
       ? scryOptions(scenario, s, unit)
-      : action.abilityId === STAR_VENOM_ID
-        ? starVenomOptions(scenario, s, unit)
-        : combatOptions(scenario, s, unit);
+      : starVenomOptions(scenario, s, unit);
   const opt = options.find(
     (o): o is AbilityOption => o.t === 'ability' && o.abilityId === action.abilityId,
   );
@@ -261,14 +246,7 @@ export function useSeraphonAbility(ctx: Ctx, action: AbilityAction): void {
   if (action.abilityId === SCRY_THE_STARS_ID) return scryTheStars(ctx, unit);
   const ids = pickedTargets(action, opt, opt.name);
   const targets = ids.map((id) => s.units[id]!);
-  switch (action.abilityId) {
-    case ARMOUR_CRUNCHER_ID:
-      return armourCruncher(ctx, unit, targets[0]!, true);
-    case ARMOUR_CRUNCHER_ROLL_ID:
-      return armourCruncher(ctx, unit, targets[0]!, false);
-    default:
-      return starVenom(ctx, unit, targets[0]!);
-  }
+  return starVenom(ctx, unit, targets[0]!);
 }
 
 /**
@@ -363,7 +341,7 @@ export function arkOfSotek(ctx: Ctx, unit: UnitState, targets: UnitState[]): voi
  * on the target's Save or more, apply the effect" (I105). Spending always applies the -1 to
  * save rolls for the rest of the turn; not spending rolls for it.
  */
-function armourCruncher(ctx: Ctx, unit: UnitState, target: UnitState, spend: boolean): void {
+export function armourCruncher(ctx: Ctx, unit: UnitState, target: UnitState, spend: boolean): void {
   const { s, scenario } = ctx;
   const me = s.players[unit.owner];
   const them = s.players[opponent(unit.owner)];

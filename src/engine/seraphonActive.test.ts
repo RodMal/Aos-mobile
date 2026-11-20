@@ -264,18 +264,48 @@ describe('Armour Cruncher (f6fe-3e8d-dd90-00b8)', () => {
     s.players[0].rageDice = 3;
     s.players[0].furyLevel = 3;
     s.players[1].furyLevel = 1;
-    return s;
+    return enterCombat(engine, s);
+  };
+  const offered = (s: GameState): string[] => {
+    const d = engine.decision(s);
+    return d?.kind === 'reaction' && d.trigger === 'start:combat'
+      ? d.options.flatMap((o) =>
+          o.unit === BASTILADON && o.ability?.startsWith('armourCruncher') ? [o.ability] : [],
+        )
+      : [];
   };
   const cruncher = () => use(BASTILADON, ARMOUR_CRUNCHER_ID, { target: DRYADS });
   const rolled = () => use(BASTILADON, ARMOUR_CRUNCHER_ROLL_ID, { target: DRYADS });
 
-  it('offers spending a rage dice (with one) or rolling a dice (always) against a unit in combat', () => {
+  it('is offered in the start-of-combat window: spending a rage dice (with one) or rolling a dice (always)', () => {
     const s = field();
-    expect(option(s, BASTILADON, ARMOUR_CRUNCHER_ID)).toMatchObject({ targets: [DRYADS] });
-    expect(option(s, BASTILADON, ARMOUR_CRUNCHER_ROLL_ID)).toMatchObject({ targets: [DRYADS] });
-    s.players[0].rageDice = 0;
-    expect(option(s, BASTILADON, ARMOUR_CRUNCHER_ID)).toBeUndefined();
-    expect(option(s, BASTILADON, ARMOUR_CRUNCHER_ROLL_ID)).toBeDefined();
+    expect(engine.decision(s)).toMatchObject({
+      kind: 'reaction',
+      trigger: 'start:combat',
+      player: 0,
+    });
+    expect(offered(s)).toEqual(['armourCruncher', 'armourCruncherRoll']);
+    const none = duel(BASTILADON, DRYADS);
+    none.players[0].rageDice = 0;
+    expect(offered(enterCombat(engine, none))).toEqual(['armourCruncherRoll']);
+  });
+
+  it('is not offered while a fighter is picked, nor once any unit has fought (Core 13.1)', () => {
+    const picking = skipWindows(engine, field());
+    expect(engine.decision(picking)).toMatchObject({ kind: 'fightPick' });
+    expect(option(picking, BASTILADON, ARMOUR_CRUNCHER_ID)).toBeUndefined();
+    expect(option(picking, BASTILADON, ARMOUR_CRUNCHER_ROLL_ID)).toBeUndefined();
+    expect(() => engine.apply(picking, cruncher())).toThrow();
+    expect(() => engine.apply(picking, rolled())).toThrow();
+    const fought = engine.apply(picking, { t: 'fight', unit: BASTILADON }).state;
+    expect(() => engine.apply(fought, rolled())).toThrow();
+  });
+
+  it('is once per unit per turn: after one use neither option is offered again', () => {
+    const r = engine.apply(field(), rolled());
+    expect(offered(r.state)).toEqual([]);
+    expect(() => engine.apply(r.state, cruncher())).toThrow();
+    expect(() => engine.apply(r.state, rolled())).toThrow();
   });
 
   it('spending a rage dice always applies the effect, and raises a lower fury level by 1', () => {
@@ -323,10 +353,11 @@ describe('Armour Cruncher (f6fe-3e8d-dd90-00b8)', () => {
     expect(miss.state.players[0].rageDice).toBe(3);
     expect(effectsOf(miss.state, ARMOUR_CRUNCHER_ID)).toHaveLength(0);
     // With no rage dice at all, rolling is still possible.
-    const none = field();
+    const none = duel(BASTILADON, DRYADS);
     none.players[0].rageDice = 0;
-    expect(() => engine.apply(none, rolled())).not.toThrow();
-    expect(() => engine.apply(none, cruncher())).toThrow();
+    const noRage = enterCombat(engine, none);
+    expect(() => engine.apply(noRage, rolled())).not.toThrow();
+    expect(() => engine.apply(noRage, cruncher())).toThrow();
   });
 
   it('subtracts 1 from the target’s save rolls and lasts the turn', () => {
@@ -343,7 +374,7 @@ describe('Armour Cruncher (f6fe-3e8d-dd90-00b8)', () => {
     expect(saves(r.state)).toEqual([{ stat: 'save', value: -1, source: 'Armour Cruncher' }]);
     expect(saves(s)).toEqual([]);
     // Once on a unit per turn: the unit does not use it again.
-    expect(option(r.state, BASTILADON, ARMOUR_CRUNCHER_ID)).toBeUndefined();
+    expect(() => engine.apply(r.state, cruncher())).toThrow();
     const over = editable(r.state);
     clearExpiredEffects(over, 'turn');
     expect(saves(over)).toEqual([]);
