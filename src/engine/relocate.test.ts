@@ -402,8 +402,7 @@ describe('Shadowcreep (76b2-ce61-8aec-f6c1)', () => {
   it('a unit set up again cannot move in the movement phase of that turn (Core 24.0), but can pile in', () => {
     const s = movement();
     const id = named(s, 0, SPITES).id;
-    const moveKinds = (st: GameState) =>
-      engine.unitOptions(st, id).filter((o) => o.t === 'move');
+    const moveKinds = (st: GameState) => engine.unitOptions(st, id).filter((o) => o.t === 'move');
     expect(moveKinds(s).length).toBeGreaterThan(0);
     const r = engine.apply(s, use(s));
     const near = legalNear(

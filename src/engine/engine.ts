@@ -20,11 +20,7 @@ import { type AlarielleSeason } from '../rules/factions/sylvaneth.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import { friendlyWyldwoods } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID } from './wyldwood.js';
-import {
-  declareMercilessAmbush,
-  undoRelocation,
-  useSetUpAbility,
-} from './relocating.js';
+import { declareMercilessAmbush, undoRelocation, useSetUpAbility } from './relocating.js';
 import { SERAPHON_ACTIVATED_IDS, useSeraphonAbility } from './seraphonActive.js';
 import { SYLVANETH_ACTIVATED_IDS, useSylvanethAbility } from './sylvanethActive.js';
 import { SET_UP_ABILITY_IDS } from './relocate.js';

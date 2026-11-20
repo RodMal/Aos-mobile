@@ -387,7 +387,8 @@ function offerStartOfCombat(ctx: Ctx): void {
         ? [{ ability: 'rhythmOfTheChase' as const, unit: u.id, cost: 0, targets }]
         : [];
     });
-    if (options.length > 0) s.stack.push({ t: 'reaction', player, options, trigger: 'start:combat' });
+    if (options.length > 0)
+      s.stack.push({ t: 'reaction', player, options, trigger: 'start:combat' });
   }
 }
 
