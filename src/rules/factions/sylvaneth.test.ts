@@ -210,6 +210,18 @@ describe('Endless Growth: the player chooses the effect (I112)', () => {
     expect(() => answerEndlessGrowth(ctx, 'd6', f2)).toThrow();
   });
 
+  it('a returned-model choice never exceeds the unit cap (maxModels)', () => {
+    const { s, dryads } = hurtDryads();
+    dryads.maxModels = 9; // 8 alive: room for 1 of the 2 slain
+    const ctx = ctxWith(s, [3]);
+    const f = frame();
+    advanceEndlessGrowth(ctx, f);
+    expect(f.ask).toMatchObject({ stage: 'effect', models: 1 });
+    answerEndlessGrowth(ctx, 'return', f);
+    advanceEndlessGrowth(ctx, f);
+    expect(dryads.models.filter((m) => m.alive)).toHaveLength(9);
+  });
+
   it('the automatic answer (NPC, engine default) returns models; resolveEndlessGrowth uses it', () => {
     const { s, dryads } = hurtDryads();
     resolveEndlessGrowth(ctxWith(s, [2]), 0);
@@ -218,7 +230,8 @@ describe('Endless Growth: the player chooses the effect (I112)', () => {
   });
 
   it('through the engine: a decision for the player, answered with choose', () => {
-    let { s, dryads } = hurtDryads();
+    const { s: s0, dryads } = hurtDryads();
+    let s = s0;
     s.active = 0;
     s.firstPlayer = 0;
     s.phase = 'end';

@@ -195,9 +195,6 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       return { t: 'choose', value: d.seasons.includes(pick) ? pick : d.seasons[0]! };
     }
     case 'endlessGrowth':
-      // Whatever restores the most: Aspect of Heartwood when it helps, a returned model over a heal.
-      return { t: 'choose', value: autoGrowthAnswer(d.stage, d.options) };
-    case 'endlessGrowth':
       // The NPC keeps the automatic choice: Aspect of Heartwood when it helps, a returned model
       // over a heal (I108, I112).
       return { t: 'choose', value: autoGrowthAnswer(d.stage, d.options) };
