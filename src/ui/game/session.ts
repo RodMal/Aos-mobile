@@ -26,6 +26,8 @@ export interface HistoryEntry {
 export interface Session {
   seed: number;
   humanPlayer: PlayerId;
+  /** The game started with interactive deployment (`newGame(seed, { deploy: true })`). */
+  deploy?: true;
   /** Events from setting the game up (round 1 start). */
   startEvents: GameEvent[];
   state: GameState;
@@ -39,6 +41,8 @@ export interface GameRecord {
   rules: number;
   seed: number;
   humanPlayer: PlayerId;
+  /** Started with interactive deployment; absent for a quick-start game. */
+  deploy?: true;
   actions: Action[];
 }
 
@@ -52,6 +56,7 @@ const RecordSchema = z.object({
   rules: z.number().int().min(1).default(LEGACY_RULES_VERSION),
   seed: z.number().int(),
   humanPlayer: z.union([z.literal(0), z.literal(1)]),
+  deploy: z.literal(true).optional(),
   actions: z.array(z.looseObject({ t: z.string() })),
 });
 
@@ -65,6 +70,7 @@ export function newSession(
   return {
     seed,
     humanPlayer,
+    ...(options?.deploy ? { deploy: true as const } : {}),
     startEvents: [
       { t: 'roundStart', round: 1 },
       { t: 'turnStart', player: state.active, round: 1 },
@@ -137,6 +143,7 @@ export function toRecord(session: Session): GameRecord {
     rules: RULES_VERSION,
     seed: session.seed,
     humanPlayer: session.humanPlayer,
+    ...(session.deploy ? { deploy: true as const } : {}),
     actions: session.history.map((h) => h.action),
   };
 }
@@ -177,7 +184,12 @@ function missingAnswer(engine: Engine, session: Session, action: Action): Action
 
 /** Rebuilds a game by replaying its actions. Throws if an action is no longer legal. */
 export function replay(engine: Engine, record: GameRecord): Session {
-  let session = newSession(engine, record.seed, record.humanPlayer);
+  let session = newSession(
+    engine,
+    record.seed,
+    record.humanPlayer,
+    record.deploy ? { deploy: true } : undefined,
+  );
   for (const action of record.actions) {
     // A game saved before Seraphon Asterisms existed has no answer to The Great Plan or Further
     // the Great Plan: it replays as a pass (nothing prophesied), as it was played.

@@ -22,20 +22,32 @@ export interface Position {
   note: string;
 }
 
+export interface PositionOptions {
+  /** The human's side when the game is opened (default 0). */
+  side?: 0 | 1;
+  /** Start with interactive deployment instead of the quick start. */
+  deploy?: boolean;
+}
+
 /**
  * Plays NPC actions from each seed in turn (`seed` up to `seed + 19`) until `stop` returns a
- * string (before the next action), then reloads the app on that saved game as player 0. `stop` runs in the page: it may only use its
- * arguments.
+ * string (before the next action), then reloads the app on that saved game as player
+ * `options.side` (default 0). `stop` runs in the page: it may only use its arguments.
  */
 export async function openPosition(
   page: Page,
   seed: number,
   stop: (engine: Engine, state: GameState, d: Decision) => string | null,
+  options: PositionOptions = {},
 ): Promise<Position> {
+  const side = options.side ?? 0;
+  const deploy = options.deploy === true;
+  // The searching page always opens as player 0, who decides first, so the computer never
+  // plays (and saves over the record written below) before the page is reloaded.
   await page.goto(`./?e2e=1&seed=${seed}&side=0&fast=1&new=1`);
   await page.waitForFunction(() => !!(window as unknown as Hooks).__aosTest);
   const position = await page.evaluate(
-    ({ seed, stopSource, rules }) => {
+    ({ seed, stopSource, rules, side, deploy }) => {
       const { engine, chooseAction } = (window as unknown as Hooks).__aosTest!;
       const stopFn = new Function(`return (${stopSource})`)() as (
         e: Engine,
@@ -43,7 +55,7 @@ export async function openPosition(
         d: Decision,
       ) => string | null;
       for (let k = seed; k < seed + 20; k++) {
-        let state = engine.newGame(k);
+        let state = engine.newGame(k, deploy ? { deploy: true } : undefined);
         const actions: Action[] = [];
         for (let i = 0; i < 4000; i++) {
           const d = engine.decision(state);
@@ -52,7 +64,14 @@ export async function openPosition(
           if (note !== null) {
             localStorage.setItem(
               'aos-mobile:game',
-              JSON.stringify({ v: 1, rules, seed: k, humanPlayer: 0, actions }),
+              JSON.stringify({
+                v: 1,
+                rules,
+                seed: k,
+                humanPlayer: side,
+                ...(deploy ? { deploy: true } : {}),
+                actions,
+              }),
             );
             return { seed: k, actions, state, note };
           }
@@ -63,8 +82,8 @@ export async function openPosition(
       }
       throw new Error(`seeds ${seed} to ${seed + 19}: the position was never reached`);
     },
-    { seed, stopSource: stop.toString(), rules: RULES_VERSION },
+    { seed, stopSource: stop.toString(), rules: RULES_VERSION, side, deploy },
   );
-  await page.goto(`./?seed=${position.seed}&side=0&fast=1`);
+  await page.goto(`./?seed=${position.seed}&side=${side}&fast=1`);
   return position;
 }
