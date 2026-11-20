@@ -43,6 +43,7 @@ import {
   canGuardian,
 } from '../engine/relocate.js';
 import { inCombat, isFactionTerrainUnit, unitFootprints } from '../engine/query.js';
+import type { Footprint } from '../geom/footprint.js';
 import { replacementPlacement } from './replacement.js';
 
 /** The pieces of the baseline's own heuristics this module reuses (injected: no import cycle). */
@@ -58,8 +59,51 @@ export interface PlanHelpers {
 const SPARE_CP = 2;
 /** The NPC charges when the closest enemy is at most this far (as in `baseline.ts`). */
 const CHARGE_GAP = 7.5;
-/** Merciless Ambush is worth a try only against an enemy this close to a token feature (X averages 7). */
-const AMBUSH_REACH = 6;
+/** Merciless Ambush is used only if the chance of the charge roll X needed is at least this (R18, I103). */
+const AMBUSH_CHANCE = 0.58;
+
+/** P(2D6 >= x), exact by counting the 36 rolls. */
+export function twoDiceChance(x: number): number {
+  let n = 0;
+  for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) if (a + b >= x) n++;
+  return n / 36;
+}
+
+/** How far a footprint reaches from the unit's centre (a cheap bound). */
+function reachOf(fp: Footprint, c: { x: number; y: number }): number {
+  const size =
+    fp.kind === 'circle'
+      ? fp.r
+      : fp.kind === 'ellipse'
+        ? Math.max(fp.rx, fp.ry)
+        : fp.kind === 'rect'
+          ? Math.hypot(fp.hw, fp.hh)
+          : 0;
+  return Math.hypot(fp.cx - c.x, fp.cy - c.y) + size;
+}
+
+/**
+ * Merciless Ambush (R18): the charge roll X needed to set `unit` up within 1/2" of `enemy` and
+ * wholly within X" of a feature with an overgrown token. The set-up unit's far edge is about the
+ * feature-to-enemy gap less 1/2" away, and never less than the unit's own width. Infinity when no
+ * feature has a token.
+ */
+export function ambushRollNeeded(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  enemy: UnitState,
+): number {
+  const tokens = overgrownTokenIds(scenario, state, unit.owner);
+  const enemyFps = unitFootprints(scenario, enemy);
+  const centre = unitCentre(unit);
+  const width = 2 * Math.max(0, ...unitFootprints(scenario, unit).map((f) => reachOf(f, centre)));
+  let gap = Infinity;
+  for (const f of terrainFeatures(scenario, state)) {
+    if (tokens.includes(f.id)) gap = Math.min(gap, featureDistance(scenario, f, enemyFps));
+  }
+  return Math.ceil(Math.max(gap - 0.5, width));
+}
 
 const ALL_IDS = [
   HUNTMASTERS_STRIKE_ID,
@@ -236,13 +280,12 @@ export function sylvanethChargeAction(
       (e) => e.status === 'battlefield' && !isFactionTerrainUnit(scenario, e),
     );
     if (foes.some((e) => unitDistance(scenario, unit, e) <= CHARGE_GAP)) continue;
-    const tokens = overgrownTokenIds(scenario, state, player);
-    const reachable = terrainFeatures(scenario, state).some(
-      (f) =>
-        tokens.includes(f.id) &&
-        foes.some((e) => featureDistance(scenario, f, unitFootprints(scenario, e)) <= AMBUSH_REACH),
+    // Dice check (R18): the best target needs a charge roll X; go only if P(2D6 >= X) is about 58%+.
+    const best = foes.reduce(
+      (x, e) => Math.min(x, ambushRollNeeded(scenario, state, unit, e)),
+      Infinity,
     );
-    if (!reachable) continue;
+    if (twoDiceChance(best) < AMBUSH_CHANCE) continue;
     return { t: 'command', command: 'mercilessAmbush', unit: unit.id };
   }
   return null;

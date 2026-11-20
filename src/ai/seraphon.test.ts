@@ -10,6 +10,7 @@ import { SCRY_THE_STARS_ID } from '../engine/abilities/seraphon.js';
 import { scryCandidates } from '../engine/seraphonActive.js';
 import { chooseAction } from './baseline.js';
 import {
+  npcCoatlHelps,
   npcConduitHelps,
   npcScryPicks,
   npcScryWorthUsing,
@@ -94,5 +95,16 @@ describe('Celestial Conduit (NPC)', () => {
     const [x, y] = remoteSpot(16);
     const away = arena({ [ASTROLITH]: [x, y], [WARRIORS]: [x, y + 5] }, 'hero');
     expect(npcConduitHelps(scenario, away, away.units[ASTROLITH]!)).toBe(false);
+  });
+});
+
+describe('NPC: Coatl Familiar (R18)', () => {
+  it('is used only when the extra D6 turns a likely failure into a likely success', () => {
+    expect(npcCoatlHelps(6)).toBe(false); // 72% already
+    expect(npcCoatlHelps(7)).toBe(false); // 58% already
+    expect(npcCoatlHelps(8)).toBe(true); // 42% -> 84%
+    expect(npcCoatlHelps(10)).toBe(true); // 17% -> 62%
+    expect(npcCoatlHelps(11)).toBe(true); // 8% -> 50%
+    expect(npcCoatlHelps(12)).toBe(false); // 3D6 >= 12 is 38%
   });
 });
