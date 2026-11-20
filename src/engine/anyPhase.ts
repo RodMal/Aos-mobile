@@ -224,7 +224,11 @@ export function useReactionAbility(
       venomiteSwarm(ctx, unit, one());
       break;
     case 'vengefulForestSpirits':
-      vengefulForestSpirits(ctx, unit, targets.map((id) => s.units[id]!));
+      vengefulForestSpirits(
+        ctx,
+        unit,
+        targets.map((id) => s.units[id]!),
+      );
       break;
     case 'armourCruncher':
     case 'armourCruncherRoll':

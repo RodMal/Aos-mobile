@@ -121,13 +121,16 @@ export class InvariantChecker {
       expect(p.vp).toBeGreaterThanOrEqual(0);
     }
     if (full) expect(JSON.parse(JSON.stringify(state))).toEqual(state);
-    // Every reaction can be answered: faction terrain is never offered one, and the default
-    // action (what the UI falls back to) is legal.
+    // Every reaction can be answered: faction terrain is offered only Vengeful Forest Spirits (I74,
+    // M4m), and the default action (what the UI falls back to) is legal.
     const d = this.engine.decision(state);
     if (d?.kind === 'reaction') {
       for (const o of d.options) {
         const u = state.units[o.unit]!;
-        expect(profileOf(scenario, u).isFactionTerrain, `reaction for ${u.name}`).toBe(false);
+        expect(
+          profileOf(scenario, u).isFactionTerrain && o.ability !== 'vengefulForestSpirits',
+          `reaction for ${u.name}`,
+        ).toBe(false);
       }
       expect(() => this.engine.apply(state, this.engine.defaultAction(state))).not.toThrow();
     }

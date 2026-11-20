@@ -26,7 +26,7 @@
  *    - The Dwindling: Friendly Sylvaneth can charge after retreat, no retreat mortal damage
  *    - Everdusk: Creeping Dread can pick up to 3 targets
  */
-import type { Ctx } from '../../engine/ctx.js';
+import { illegal, type Ctx } from '../../engine/ctx.js';
 import { abilitiesOf, hasEffectiveKeyword } from '../../engine/abilities/effects.js';
 import { ASPECT_OF_HEARTWOOD_ID } from '../../engine/abilities/sylvaneth.js';
 import { battleKey, usedThisBattle } from '../../engine/relocate.js';
@@ -48,7 +48,14 @@ import {
   unitWhollyWithin,
   unitsOf,
 } from '../../engine/query.js';
-import type { GameState, PlayerId, Scenario, UnitState } from '../../engine/types.js';
+import type {
+  EndGrowthFrame,
+  GameState,
+  GrowthMode,
+  PlayerId,
+  Scenario,
+  UnitState,
+} from '../../engine/types.js';
 
 export const CREEPING_DREAD_EFFECT_ID = 'sylvaneth:creeping-dread';
 /** BSData ids. */
@@ -174,87 +181,187 @@ export function armyHasFormationAbility(scenario: Scenario, player: PlayerId, ab
  * Nature's Titans (Lords of the Clan): "do not roll a D3 for MONSTER targets. Instead Heal (3)
  * each of those targets."
  *
- * Runs at the end of every turn for each army that has the trait. The engine picks the effect
- * (S7): returning models when at least one slain model fits in the roll (a returned model is
+ * Runs at the end of every turn for each army that has the trait, from an `endGrowth` frame that
+ * `advanceEndlessGrowth` works through target by target. The player chooses (Core 28.0, "can";
+ * I112) the effect for each target once the D3 is rolled, and whether Aspect of Heartwood applies
+ * to a target in its reach; a question is asked only where there is a real choice. The NPC and
+ * engine-driven games take the automatic answer (`autoGrowthAnswer`): Aspect of Heartwood when it
+ * helps, and returning models when at least one slain model fits in the roll (a returned model is
  * always worth more than the damage on one model), otherwise healing. Faction terrain is a
  * terrain feature, not a unit to heal, so it is not a target. Units with nothing to restore are
- * skipped without rolling.
+ * skipped without rolling. `resolveEndlessGrowth` runs the whole thing with the automatic answers.
  */
 export function resolveEndlessGrowth(ctx: Ctx, player: PlayerId): void {
-  const { scenario, s } = ctx;
-  if (!armyHasBattleTrait(scenario, player, ENDLESS_GROWTH_ID)) return;
-  const titans = armyHasFormationAbility(scenario, player, NATURES_TITANS_ID);
+  const frame: EndGrowthFrame = { t: 'endGrowth', player };
+  while (advanceEndlessGrowth(ctx, frame)) {
+    const ask = frame.ask!;
+    answerEndlessGrowth(
+      ctx,
+      autoGrowthAnswer(ask.stage, ask.stage === 'aspect' ? ask.options : ['heal', 'return']),
+      frame,
+    );
+  }
+}
 
-  const targets = unitsOf(s, player).filter((u) => {
-    const p = profileOf(scenario, u);
-    if (p.isFactionTerrain) return false;
-    if (!hasEffectiveKeyword(scenario, s, u, 'SYLVANETH')) return false;
-    return isWithinCreepingOvergrowth(scenario, s, u, player, true);
-  });
+/** The automatic answer to an Endless Growth question (the NPC's, and the engine default). */
+export function autoGrowthAnswer(stage: 'aspect' | 'effect', options: string[]): string {
+  if (stage === 'effect') return 'return';
+  return options.includes('kurnothi') ? 'kurnothi' : 'd6';
+}
 
-  // Aspect of Heartwood: a bearer wholly within the creeping overgrowth that has not used it.
-  const bearer = targets.find(
-    (u) =>
-      abilitiesOf(scenario, u).some((a) => a.id === ASPECT_OF_HEARTWOOD_ID) &&
-      !usedThisBattle(s, u, ASPECT_OF_HEARTWOOD_ID),
-  );
-  let spent = false;
-  for (const u of targets) {
-    const slain = u.models.flatMap((m, i) => (m.alive ? [] : [i])).slice(0, modelRoom(u));
-    if (u.damage === 0 && slain.length === 0) continue;
-    const health = profileOf(scenario, u).health;
-    // For each target wholly within 12" of the bearer, once per battle: the reaction is taken at
-    // the first such target and the engine picks the effect (I106).
-    const aspect =
-      bearer !== undefined && (u.id === bearer.id || unitWhollyWithin(scenario, bearer, u, 12));
-    if (aspect && !spent) {
-      spent = true;
-      const p = s.players[player];
-      p.usedOncePerBattle = [
-        ...(p.usedOncePerBattle ?? []),
-        battleKey(bearer, ASPECT_OF_HEARTWOOD_ID),
-      ];
-      ctx.events.push({ t: 'note', text: `${bearer.name}: Aspect of Heartwood.` });
+/** Slain model indices of `u` that may come back (a replacement unit is capped, `modelRoom`). */
+function slainOf(u: UnitState): number[] {
+  return u.models.flatMap((m, i) => (m.alive ? [] : [i])).slice(0, modelRoom(u));
+}
+
+/** Answers the question waiting on the `endGrowth` frame (the top of the stack by default). */
+export function answerEndlessGrowth(
+  ctx: Ctx,
+  value: string,
+  frame: EndGrowthFrame | undefined = ctx.s.stack[ctx.s.stack.length - 1] as EndGrowthFrame,
+): void {
+  const ask = frame?.t === 'endGrowth' ? frame.ask : undefined;
+  if (!frame || !ask) illegal('There is no Endless Growth choice to answer.');
+  if (ask.stage === 'aspect') {
+    if (!(ask.options as string[]).includes(value)) {
+      illegal(`Choose one of: ${ask.options.join(', ')}.`);
     }
-    if (titans && hasEffectiveKeyword(scenario, s, u, 'MONSTER')) {
+    frame.mode = value as GrowthMode;
+  } else {
+    if (value !== 'heal' && value !== 'return') illegal('Choose heal or return.');
+    frame.effect = value;
+  }
+  delete frame.ask;
+}
+
+/**
+ * Works through the targets of `frame` until a choice is due (`frame.ask` is set and true is
+ * returned) or all are done (false). Called again after each answer.
+ */
+export function advanceEndlessGrowth(ctx: Ctx, frame: EndGrowthFrame): boolean {
+  const { scenario, s } = ctx;
+  const player = frame.player;
+  if (frame.queue === undefined) {
+    if (!armyHasBattleTrait(scenario, player, ENDLESS_GROWTH_ID)) {
+      frame.queue = [];
+      return false;
+    }
+    const targets = unitsOf(s, player).filter((u) => {
+      const p = profileOf(scenario, u);
+      if (p.isFactionTerrain) return false;
+      if (!hasEffectiveKeyword(scenario, s, u, 'SYLVANETH')) return false;
+      return isWithinCreepingOvergrowth(scenario, s, u, player, true);
+    });
+    // Aspect of Heartwood: a bearer wholly within the creeping overgrowth that has not used it.
+    const bearer = targets.find(
+      (u) =>
+        abilitiesOf(scenario, u).some((a) => a.id === ASPECT_OF_HEARTWOOD_ID) &&
+        !usedThisBattle(s, u, ASPECT_OF_HEARTWOOD_ID),
+    );
+    frame.queue = targets.map((u) => u.id);
+    if (bearer) frame.bearer = bearer.id;
+  }
+  const titans = armyHasFormationAbility(scenario, player, NATURES_TITANS_ID);
+  const next = () => {
+    frame.queue = frame.queue!.slice(1);
+    delete frame.mode;
+    delete frame.roll;
+    delete frame.effect;
+    delete frame.ask;
+  };
+  while (frame.queue.length > 0) {
+    const u = s.units[frame.queue[0]!]!;
+    const slain = slainOf(u);
+    if (u.damage === 0 && slain.length === 0) {
+      next();
+      continue;
+    }
+    const health = profileOf(scenario, u).health;
+    const monster = titans && hasEffectiveKeyword(scenario, s, u, 'MONSTER');
+    const kurnothi =
+      slain.length > 0 &&
+      hasEffectiveKeyword(scenario, s, u, 'KURNOTHI') &&
+      returnPosition(scenario, s, u, slain[0]!) !== null;
+    // For each target wholly within 12" of the bearer, once per battle (I106): the player picks.
+    if (frame.mode === undefined) {
+      const bearer = frame.bearer === undefined ? undefined : s.units[frame.bearer];
+      if (bearer && (u.id === bearer.id || unitWhollyWithin(scenario, bearer, u, 12))) {
+        const options: GrowthMode[] =
+          kurnothi && !monster ? ['d6', 'kurnothi', 'normal'] : ['d6', 'normal'];
+        frame.ask = { stage: 'aspect', unit: u.id, options };
+        return true;
+      }
+      frame.mode = 'normal';
+    }
+    const aspect = frame.mode !== 'normal';
+    if (aspect && frame.bearer !== undefined) {
+      // The reaction is spent once, at the first target it is used on.
+      const bearer = s.units[frame.bearer]!;
+      const key = battleKey(bearer, ASPECT_OF_HEARTWOOD_ID);
+      const p = s.players[player];
+      if (!(p.usedOncePerBattle ?? []).includes(key)) {
+        p.usedOncePerBattle = [...(p.usedOncePerBattle ?? []), key];
+        ctx.events.push({ t: 'note', text: `${bearer.name}: Aspect of Heartwood.` });
+      }
+    }
+    if (monster) {
       const healed = Math.min(u.damage, aspect ? 6 : 3);
       u.damage -= healed;
       ctx.events.push({
         t: 'note',
         text: `Endless Growth (Nature's Titans): ${u.name} heals ${healed}.`,
       });
+      next();
       continue;
     }
-    if (aspect && slain.length > 0 && hasEffectiveKeyword(scenario, s, u, 'KURNOTHI')) {
+    if (frame.mode === 'kurnothi' && kurnothi) {
       // "Instead of rolling a D3 ... return 1 slain model to the target unit."
-      const at = returnPosition(scenario, s, u, slain[0]!);
-      if (at) {
-        Object.assign(u.models[slain[0]!]!, at, { alive: true });
+      const at = returnPosition(scenario, s, u, slain[0]!)!;
+      Object.assign(u.models[slain[0]!]!, at, { alive: true });
+      ctx.events.push({
+        t: 'note',
+        text: `Endless Growth (Aspect of Heartwood): 1 slain model returns to ${u.name}.`,
+      });
+      next();
+      continue;
+    }
+    if (frame.roll === undefined) {
+      frame.roll = ctx.rng.int(1, aspect ? 6 : 3);
+      ctx.events.push({
+        t: 'roll',
+        player,
+        label: `Endless Growth (${u.name})`,
+        dice: [frame.roll],
+      });
+    }
+    const roll = frame.roll;
+    const fit = Math.min(slain.length, Math.floor(roll / health));
+    const heal = Math.min(u.damage, roll);
+    // A real choice only when both effects do something.
+    if (frame.effect === undefined && fit > 0 && heal > 0) {
+      frame.ask = { stage: 'effect', unit: u.id, roll, heal, models: fit };
+      return true;
+    }
+    if ((frame.effect ?? (fit > 0 ? 'return' : 'heal')) === 'return') {
+      let returned = 0;
+      for (const i of slain.slice(0, fit)) {
+        const at = returnPosition(scenario, s, u, i);
+        if (!at) break;
+        Object.assign(u.models[i]!, at, { alive: true });
+        returned++;
+      }
+      if (returned > 0) {
         ctx.events.push({
           t: 'note',
-          text: `Endless Growth (Aspect of Heartwood): 1 slain model returns to ${u.name}.`,
+          text: `Endless Growth: ${returned} slain model(s) return to ${u.name}.`,
         });
+        next();
         continue;
       }
     }
-    const roll = ctx.rng.int(1, aspect ? 6 : 3);
-    ctx.events.push({ t: 'roll', player, label: `Endless Growth (${u.name})`, dice: [roll] });
-    let returned = 0;
-    for (const i of slain.slice(0, Math.floor(roll / health))) {
-      const at = returnPosition(scenario, s, u, i);
-      if (!at) break;
-      Object.assign(u.models[i]!, at, { alive: true });
-      returned++;
-    }
-    if (returned > 0) {
-      ctx.events.push({
-        t: 'note',
-        text: `Endless Growth: ${returned} slain model(s) return to ${u.name}.`,
-      });
-      continue;
-    }
-    const healed = Math.min(u.damage, roll);
-    u.damage -= healed;
-    ctx.events.push({ t: 'note', text: `Endless Growth: ${u.name} heals ${healed}.` });
+    u.damage -= heal;
+    ctx.events.push({ t: 'note', text: `Endless Growth: ${u.name} heals ${heal}.` });
+    next();
   }
+  return false;
 }

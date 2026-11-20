@@ -16,11 +16,16 @@ import {
 import { suggestFugitive } from '../rules/core/battleTactics.js';
 import { initFury, resolveEruptionOfFury } from '../rules/core/fury.js';
 import { resolvePlaceOfPower, type PlaceOfPowerBoon } from './terrain.js';
-import { type AlarielleSeason } from '../rules/factions/sylvaneth.js';
+import {
+  autoGrowthAnswer,
+  answerEndlessGrowth,
+  type AlarielleSeason,
+} from '../rules/factions/sylvaneth.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import { friendlyWyldwoods } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID } from './wyldwood.js';
 import { declareMercilessAmbush, undoRelocation, useSetUpAbility } from './relocating.js';
+import { POWER_UNLEASHED_ID, VENGEFUL_FOREST_SPIRITS_ID } from './factionTerrainActive.js';
 import { SERAPHON_ACTIVATED_IDS, chooseScry, useSeraphonAbility } from './seraphonActive.js';
 import { chooseVenomiteToken } from './venomites.js';
 import { SYLVANETH_ACTIVATED_IDS, useSylvanethAbility } from './sylvanethActive.js';
@@ -113,7 +118,10 @@ export function createEngine(scenario: Scenario): Engine {
         state,
         action.unit,
         d.player,
-        action.t === 'ability' && action.abilityId === WYLDWOOD_SETUP_ID,
+        action.t === 'ability' &&
+          (action.abilityId === WYLDWOOD_SETUP_ID ||
+            action.abilityId === POWER_UNLEASHED_ID ||
+            action.abilityId === VENGEFUL_FOREST_SPIRITS_ID),
       );
     }
     const s = cloneState(state);
@@ -362,6 +370,10 @@ export function createEngine(scenario: Scenario): Engine {
       case 'vengeance':
         chooseVengeance(ctx, action);
         break;
+      case 'endlessGrowth':
+        if (action.t === 'choose') answerEndlessGrowth(ctx, action.value);
+        else illegal('Choose how Endless Growth resolves for this unit.');
+        break;
       case 'scry':
         if (action.t === 'choose') chooseScry(ctx, action.value);
         else illegal('Pick the units that get Ward (5+).');
@@ -459,6 +471,8 @@ export function createEngine(scenario: Scenario): Engine {
         // Optional for engine-driven games, like a Place of Power: the default prophesies
         // nothing (the NPC picks, see `chooseAction`).
         return { t: 'pass' };
+      case 'endlessGrowth':
+        return { t: 'choose', value: autoGrowthAnswer(d.stage, d.options) };
       case 'scry':
         return { t: 'choose', value: d.units.slice(0, d.max).join(',') };
       case 'venomites':

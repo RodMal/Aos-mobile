@@ -151,8 +151,8 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
                   dispatch({ t: 'ability', unit: o.unit, abilityId: VENGEFUL_FOREST_SPIRITS_ID })
                 }
               >
-                Vengeful Forest Spirits (D3 mortal damage on 2+ to {(o.targets ?? []).length}{' '}
-                enemy {(o.targets ?? []).length === 1 ? 'unit' : 'units'} within 3&quot;) · Free
+                Vengeful Forest Spirits (D3 mortal damage on 2+ to {(o.targets ?? []).length} enemy{' '}
+                {(o.targets ?? []).length === 1 ? 'unit' : 'units'} within 3&quot;) · Free
               </button>
             );
           }

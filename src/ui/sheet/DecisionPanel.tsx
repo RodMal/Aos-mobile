@@ -63,6 +63,16 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
       return mine
         ? { title: 'Scry the Stars', hint: 'Pick the units that get Ward (5+).' }
         : { title: `${who} scries the stars`, hint: 'The opponent is choosing…' };
+    case 'endlessGrowth':
+      return mine
+        ? {
+            title: 'Endless Growth',
+            hint:
+              d.stage === 'aspect'
+                ? 'Choose whether Aspect of Heartwood applies to this unit.'
+                : 'Heal the unit, or return slain models.',
+          }
+        : { title: `${who} Endless Growth`, hint: 'The opponent is choosing…' };
     case 'venomites':
       return mine
         ? { title: 'Venomites token', hint: 'Place the token next to the unit.' }

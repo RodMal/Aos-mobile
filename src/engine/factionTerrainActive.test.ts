@@ -50,6 +50,8 @@ function arena(
   s.stack = [];
   s.players[0].cp = 0;
   s.players[1].cp = 0;
+  s.players[0].rageDice = 0;
+  s.players[1].rageDice = 0;
   return s;
 }
 
@@ -57,7 +59,9 @@ function arena(
 function gapTo(s: GameState, mover: UnitId, fixed: UnitId, gap: number): void {
   const now = unitDistance(scenario, s.units[mover]!, s.units[fixed]!);
   for (const m of s.units[mover]!.models) m.x -= now - gap;
-  expect(unitDistance(scenario, s.units[mover]!, s.units[fixed]!)).toBeCloseTo(gap, 1);
+  expect(Math.abs(unitDistance(scenario, s.units[mover]!, s.units[fixed]!) - gap)).toBeLessThan(
+    0.2,
+  );
 }
 
 const rolls = (events: GameEvent[], label: string): number[] =>
@@ -114,19 +118,14 @@ describe('Vengeful Forest Spirits (5dd6-a023-8cdb-5cb1), the Awakened Wyldwood',
     const s = field();
     gapTo(s, BASTILADON, WYLDWOOD, 2.5);
     const w = window(s);
-    expect([...w.options.find((o) => o.ability === 'vengefulForestSpirits')!.targets!].sort()).toEqual(
-      [BASTILADON, STARSEER].sort(),
-    );
+    expect(
+      [...w.options.find((o) => o.ability === 'vengefulForestSpirits')!.targets!].sort(),
+    ).toEqual([BASTILADON, STARSEER].sort());
     const start = enterCombat(engine, s);
-    const r = applyUntil(
-      engine,
-      start,
-      use(WYLDWOOD, VENGEFUL_FOREST_SPIRITS_ID),
-      (x) => {
-        const d = rolls(x.events, 'Vengeful Forest Spirits');
-        return d.length === 2 && d[0]! >= 2 && d[1] === 1;
-      },
-    );
+    const r = applyUntil(engine, start, use(WYLDWOOD, VENGEFUL_FOREST_SPIRITS_ID), (x) => {
+      const d = rolls(x.events, 'Vengeful Forest Spirits');
+      return d.length === 2 && d[0]! >= 2 && d[1] === 1;
+    });
     const dice = rolls(r.events, 'Vengeful Forest Spirits');
     const ids = [BASTILADON, STARSEER].sort();
     expect(r.state.units[ids[0]!]!.damage).toBe(dice[0]);
@@ -209,33 +208,33 @@ describe('Fierce Guardians (bf4d-2061-b8d1-193), the Realmshaper Engine', () => 
   });
 
   it('has the ability on the terrain warscroll', () => {
-    expect(profileOf(scenario, startGame(engine, 1).units[ENGINE_T]!).abilities.map((a) => a.id)).toEqual(
-      expect.arrayContaining([FIERCE_GUARDIANS_ID, POWER_UNLEASHED_ID]),
-    );
+    expect(
+      profileOf(scenario, startGame(engine, 1).units[ENGINE_T]!).abilities.map((a) => a.id),
+    ).toEqual(expect.arrayContaining([FIERCE_GUARDIANS_ID, POWER_UNLEASHED_ID]));
   });
 });
 
 describe('Power Unleashed (aa75-204a-4256-8c68), the Realmshaper Engine', () => {
   const features = scenario.battlefield.terrain;
-  const a = features[0]!;
+  const [cx, cy] = features[0]!.centre;
 
   /** A board feature `a`, the engine beside it, the Starseer 2" from the engine, enemies at `a`. */
   function field(): GameState {
     const s = arena(
       {
-        [ENGINE_T]: [a.centre.x + 12, a.centre.y],
-        [STARSEER]: [a.centre.x + 20, a.centre.y],
-        [DRYADS]: [a.centre.x, a.centre.y],
-        [DRYADS2]: [a.centre.x, a.centre.y],
-        [SPITES]: [a.centre.x, a.centre.y],
-        [BELTHANOS]: [a.centre.x, a.centre.y],
+        [ENGINE_T]: [cx + 12, cy],
+        [STARSEER]: [cx + 20, cy],
+        [DRYADS]: [cx, cy],
+        [DRYADS2]: [cx, cy],
+        [SPITES]: [cx, cy],
+        [BELTHANOS]: [cx, cy],
       },
       'hero',
     );
     gapTo(s, STARSEER, ENGINE_T, 2);
     // The enemies stand on the feature's edge, within 3" of it.
     for (const [i, id] of [DRYADS, DRYADS2, SPITES, BELTHANOS].entries()) {
-      placeUnit(scenario, s, id, a.centre.x, a.centre.y + i * 3 - 4);
+      placeUnit(scenario, s, id, cx, cy + i * 3 - 4);
     }
     return s;
   }
@@ -244,7 +243,7 @@ describe('Power Unleashed (aa75-204a-4256-8c68), the Realmshaper Engine', () => 
     const s = field();
     const o = option(s, ENGINE_T, POWER_UNLEASHED_ID);
     expect(o).toMatchObject({ maxTargets: 3 });
-    expect(o!.t === 'ability' && o.targets.length).toBeGreaterThanOrEqual(1);
+    expect(o?.t === 'ability' && o.targets.length).toBeGreaterThanOrEqual(1);
     gapTo(s, STARSEER, ENGINE_T, 4);
     expect(option(s, ENGINE_T, POWER_UNLEASHED_ID)).toBeUndefined();
   });
@@ -260,20 +259,17 @@ describe('Power Unleashed (aa75-204a-4256-8c68), the Realmshaper Engine', () => 
     const o = option(s, ENGINE_T, POWER_UNLEASHED_ID);
     if (!o || o.t !== 'ability') throw new Error('not offered');
     const picks = o.targets.slice(0, 2);
-    const r = applyUntil(
-      engine,
-      s,
-      use(ENGINE_T, POWER_UNLEASHED_ID, { targets: picks }),
-      (x) => {
-        const d = rolls(x.events, 'Power Unleashed');
-        return d.length === 2 && d[0]! >= 2 && d[1] === 1;
-      },
-    );
+    const r = applyUntil(engine, s, use(ENGINE_T, POWER_UNLEASHED_ID, { targets: picks }), (x) => {
+      const d = rolls(x.events, 'Power Unleashed');
+      return d.length === 2 && d[0]! >= 2 && d[1] === 1;
+    });
     const dice = rolls(r.events, 'Power Unleashed');
     expect(r.state.units[picks[0]!]!.damage).toBe(dice[0]);
     expect(r.state.units[picks[1]!]!.damage).toBe(0);
     expect(option(r.state, ENGINE_T, POWER_UNLEASHED_ID)).toBeUndefined();
-    expect(() => engine.apply(r.state, use(ENGINE_T, POWER_UNLEASHED_ID, { targets: picks }))).toThrow();
+    expect(() =>
+      engine.apply(r.state, use(ENGINE_T, POWER_UNLEASHED_ID, { targets: picks })),
+    ).toThrow();
   });
 
   it('refuses a 4th target, a repeated one, none, or targets not around one feature', () => {

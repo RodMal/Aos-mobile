@@ -6,7 +6,12 @@
 import { describe, expect, it } from 'vitest';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import type { ArmyList } from '../data/lists.js';
-import { resolveEndlessGrowth } from '../rules/factions/sylvaneth.js';
+import {
+  advanceEndlessGrowth,
+  answerEndlessGrowth,
+  resolveEndlessGrowth,
+} from '../rules/factions/sylvaneth.js';
+import type { EndGrowthFrame } from './types.js';
 import { strikeOrder } from './abilities/effects.js';
 import { magicOptionsForUnit } from './abilities/magic.js';
 import {
@@ -443,5 +448,51 @@ describe('Aspect of Heartwood (0770-09a1-99c6-1a99)', () => {
     const ctx = { scenario: sc, s, events: [], rng: new ScriptedDice([]) } as Ctx;
     resolveEndlessGrowth(ctx, 0);
     expect(kh.models.filter((m) => !m.alive)).toHaveLength(1);
+  });
+
+  it('the player chooses per target: normal keeps the D3 and spends nothing, d6 rolls a D6', () => {
+    const s = grown([DRYADS, DRYADS_ASPECT]);
+    s.units[DRYADS]!.damage = 5;
+    s.units[DRYADS_ASPECT]!.damage = 5;
+    const ctx = ctxWith(s, [3, 5]);
+    const f: EndGrowthFrame = { t: 'endGrowth', player: 0 };
+    expect(advanceEndlessGrowth(ctx, f)).toBe(true);
+    expect(f.ask).toMatchObject({ stage: 'aspect', unit: DRYADS, options: ['d6', 'normal'] });
+    answerEndlessGrowth(ctx, 'normal', f);
+    // A D3 was rolled for the first target and Aspect of Heartwood is not spent.
+    expect(advanceEndlessGrowth(ctx, f)).toBe(true);
+    expect(s.units[DRYADS]!.damage).toBe(2);
+    expect(s.players[0].usedOncePerBattle ?? []).toEqual([]);
+    expect(f.ask).toMatchObject({ stage: 'aspect', unit: DRYADS_ASPECT });
+    answerEndlessGrowth(ctx, 'd6', f);
+    expect(advanceEndlessGrowth(ctx, f)).toBe(false);
+    expect(s.units[DRYADS_ASPECT]!.damage).toBe(0);
+    expect(s.players[0].usedOncePerBattle).toContain(`${DRYADS_ASPECT}:${ASPECT_OF_HEARTWOOD_ID}`);
+  });
+
+  it('kurnothi is offered only for a Kurnothi target with a slain model and returns 1 model', () => {
+    const list: ArmyList = {
+      ...SYLVANETH_LORDS_OF_THE_CLAN,
+      units: [
+        { name: 'Alarielle the Everqueen', regiment: 0, general: true },
+        { name: 'Kurnoth Hunters with Kurnoth Greatswords', regiment: 1 },
+        { name: 'Dryads', regiment: 2, enhancements: ['Aspect of Heartwood'] },
+      ],
+    };
+    const sc = createScenario([list, SERAPHON_SUNCLAW_STARHOST]);
+    const s = editable(startGame(createEngine(sc), 1));
+    keepOnly(s, ['0:1', '0:2']);
+    s.overgrown = [[outcrop.id], []];
+    placeUnit(sc, s, '0:1', outcrop.centre[0], outcrop.centre[1]);
+    placeUnit(sc, s, '0:2', outcrop.centre[0], outcrop.centre[1] + 5);
+    s.units['0:1']!.models[0]!.alive = false;
+    s.units['0:1']!.models[1]!.alive = false;
+    const ctx = { scenario: sc, s, events: [], rng: new ScriptedDice([]) } as Ctx;
+    const f: EndGrowthFrame = { t: 'endGrowth', player: 0 };
+    expect(advanceEndlessGrowth(ctx, f)).toBe(true);
+    expect(f.ask).toMatchObject({ options: ['d6', 'kurnothi', 'normal'] });
+    answerEndlessGrowth(ctx, 'kurnothi', f);
+    expect(advanceEndlessGrowth(ctx, f)).toBe(false);
+    expect(s.units['0:1']!.models.filter((m) => !m.alive)).toHaveLength(1);
   });
 });

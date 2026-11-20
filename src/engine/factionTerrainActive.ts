@@ -116,7 +116,11 @@ export function powerGroups(scenario: Scenario, state: GameState, unit: UnitStat
       )
       .map((e) => e.id);
   for (const t of scenario.battlefield.terrain) {
-    if (!mine.some((fp) => footprintDistanceToPolygon(fp, t.polygon) <= POWER_UNLEASHED_FEATURE_RANGE + 1e-6)) {
+    if (
+      !mine.some(
+        (fp) => footprintDistanceToPolygon(fp, t.polygon) <= POWER_UNLEASHED_FEATURE_RANGE + 1e-6,
+      )
+    ) {
       continue;
     }
     const targets = nearBoard(t);
@@ -177,9 +181,13 @@ export function usePowerUnleashed(ctx: Ctx, action: Extract<Action, { t: 'abilit
     illegal(`Power Unleashed takes 1 to ${POWER_UNLEASHED_MAX_TARGETS} targets.`);
   }
   if (new Set(ids).size !== ids.length) illegal('Each target can be picked only once.');
-  const group = powerGroups(scenario, s, unit).find((g) => ids.every((id) => g.targets.includes(id)));
+  const group = powerGroups(scenario, s, unit).find((g) =>
+    ids.every((id) => g.targets.includes(id)),
+  );
   if (!group) {
-    illegal('Power Unleashed: the targets must all be within 3" of one terrain feature within 24".');
+    illegal(
+      'Power Unleashed: the targets must all be within 3" of one terrain feature within 24".',
+    );
   }
   unit.abilitiesUsed = [...(unit.abilitiesUsed ?? []), POWER_UNLEASHED_ID];
   for (const id of ids) {
@@ -191,6 +199,11 @@ export function usePowerUnleashed(ctx: Ctx, action: Extract<Action, { t: 'abilit
   // terrain piece does when its warscroll prints one.
   const feature = s.units[group.feature];
   if (feature && profileOf(scenario, feature).health > 0) {
-    inflictMortalDamage(ctx, feature, rollD3(ctx, unit.owner, 'Power Unleashed (terrain)'), 'Power Unleashed');
+    inflictMortalDamage(
+      ctx,
+      feature,
+      rollD3(ctx, unit.owner, 'Power Unleashed (terrain)'),
+      'Power Unleashed',
+    );
   }
 }

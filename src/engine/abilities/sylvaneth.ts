@@ -143,7 +143,12 @@ export const SYLVANETH_PASSIVES: AbilityDefinition[] = [
     bsdata: true,
     effectGrants: () => ({ keywords: ['STRIKE-LAST'] }),
   },
-  { id: VENGEFUL_FOREST_SPIRITS_ID, name: 'Vengeful Forest Spirits', kind: 'activated', bsdata: true },
+  {
+    id: VENGEFUL_FOREST_SPIRITS_ID,
+    name: 'Vengeful Forest Spirits',
+    kind: 'activated',
+    bsdata: true,
+  },
   { id: WYLDWOOD_REVENANTS_ID, name: 'Wyldwood Revenants', kind: 'activated', bsdata: true },
   { id: ASPECT_OF_HEARTWOOD_ID, name: 'Aspect of Heartwood', kind: 'activated', bsdata: true },
   // The re-rolls are applied by `glamourRerolls` / `spendGlamourweave` (combat.ts).

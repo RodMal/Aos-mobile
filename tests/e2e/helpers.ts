@@ -276,6 +276,9 @@ export async function minimalPlayerStep(page: Page): Promise<string | null> {
     ['asterism', page.locator('[data-asterism]').first()],
     ['asterism key', page.locator('[data-key]:not([disabled])').first()],
     ['asterism pass', page.getByTestId('asterism-pass')],
+    // Endless Growth: Aspect of Heartwood, then heal or return.
+    ['growth aspect', page.getByTestId('growth-d6')],
+    ['growth effect', page.getByTestId('growth-heal')],
     ['pass creeping dread', page.getByTestId('dread-pass')],
     ['skip reaction', page.getByRole('button', { name: 'Skip', exact: true })],
     ['take the damage', page.getByTestId('pain-skip')],
