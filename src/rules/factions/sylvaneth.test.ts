@@ -71,6 +71,26 @@ describe('Endless Growth', () => {
     expect(belthanos.damage).toBe(isMonster ? 1 : 2);
   });
 
+  it('B9: a replacement unit never returns models above its cap; others are unaffected', () => {
+    const s = editable(startGame(engine, 1));
+    const dryads = named(s, 'Dryads');
+    grownAround(s, dryads.id);
+    // Set up as 5 of 10: models 5..9 were dropped at the replacement.
+    dryads.maxModels = 5;
+    dryads.models.forEach((m, i) => (m.alive = i < 4));
+    resolveEndlessGrowth(ctxWith(s, [3]), 0);
+    expect(dryads.models.filter((m) => m.alive)).toHaveLength(5);
+    resolveEndlessGrowth(ctxWith(s, [3]), 0);
+    expect(dryads.models.filter((m) => m.alive)).toHaveLength(5);
+
+    const s2 = editable(startGame(engine, 1));
+    const other = named(s2, 'Dryads');
+    grownAround(s2, other.id);
+    other.models.forEach((m, i) => (m.alive = i < 4));
+    resolveEndlessGrowth(ctxWith(s2, [3]), 0);
+    expect(other.models.filter((m) => m.alive)).toHaveLength(7);
+  });
+
   it('does nothing for an army without the trait, or for units outside the overgrowth', () => {
     const s = editable(startGame(engine, 1));
     const krox = named(s, 'Kroxigor');
