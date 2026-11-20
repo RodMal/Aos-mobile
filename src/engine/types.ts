@@ -358,7 +358,7 @@ export type Frame =
    * once held mortal damage is allocated). It sits above that player's other end-of-turn
    * abilities so it resolves first (I111).
    */
-  | { t: 'endGrowth'; player: PlayerId }
+  | EndGrowthFrame
   /**
    * Vengeance of Azyr. `pick`: `player` picks up to 3 units. Then for each unit in `queue` (the
    * first is current): `pile` is its pile-in (a `place` frame is pushed on top), `strike` its
@@ -388,6 +388,35 @@ export type Frame =
       player: PlayerId;
       units: UnitId[];
     };
+
+/**
+ * End of a turn: `player`'s Endless Growth. `settle` runs it target by target (`advanceEndlessGrowth`)
+ * and stops when the player has a choice to make (`ask`); the answer is a `choose` action. It sits
+ * above that player's other end-of-turn abilities so it resolves first (I111). The arrays are
+ * replaced, never changed in place (frames are copied shallowly).
+ */
+export interface EndGrowthFrame {
+  t: 'endGrowth';
+  player: PlayerId;
+  /** Set when it starts: the targets still to resolve, in army order. */
+  queue?: UnitId[];
+  /** Aspect of Heartwood's bearer, if it has not been used this battle (set when it starts). */
+  bearer?: UnitId;
+  /** The choice for the current target already made (Aspect of Heartwood). */
+  mode?: GrowthMode;
+  /** The roll for the current target, once made (the effect choice waits on it). */
+  roll?: number;
+  /** The effect chosen for the current target. */
+  effect?: 'heal' | 'return';
+  /** The question the player is being asked. */
+  ask?: GrowthAsk;
+}
+
+/** Aspect of Heartwood for one target: a D6 for the roll (or Heal 6), a returned model, or neither. */
+export type GrowthMode = 'normal' | 'd6' | 'kurnothi';
+export type GrowthAsk =
+  | { stage: 'aspect'; unit: UnitId; options: GrowthMode[] }
+  | { stage: 'effect'; unit: UnitId; roll: number; heal: number; models: number };
 
 /**
  * A unit removed from the battlefield and set up again (task M4g). `pass` leaves the unit where
@@ -601,6 +630,23 @@ export type Decision =
    * by commas; each gets Ward (5+) until the start of the player's next turn.
    */
   | { kind: 'scry'; player: PlayerId; unit: UnitId; dice: number[]; units: UnitId[]; max: number }
+  /**
+   * Endless Growth, for the target `unit`. `aspect`: Aspect of Heartwood may be used on it; answer
+   * `choose` with one of `options` (`d6`: a D6 instead of a D3, or Heal 6 where Nature's Titans
+   * would Heal 3; `kurnothi`: return 1 slain model instead of rolling; `normal`: neither).
+   * `effect`: a `roll` was made; answer `choose` `heal` (Heal `heal`) or `return` (`models` slain
+   * models come back).
+   */
+  | {
+      kind: 'endlessGrowth';
+      player: PlayerId;
+      unit: UnitId;
+      stage: 'aspect' | 'effect';
+      options: string[];
+      roll?: number;
+      heal?: number;
+      models?: number;
+    }
   /** Place the Venomites token next to `unit`: answer `choose` with one of `sides` (as seen on screen). */
   | {
       kind: 'venomites';

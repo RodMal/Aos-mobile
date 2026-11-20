@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4n Gaps in what is already implemented: Endless Growth choice, tactic tiers
-
-- **Tier**: sonnet
-- **Touches**: engine, rules, ui/prompts
-- **Read**: `docs/ABILITIES.md`; `src/rules/factions/sylvaneth.ts` (`resolveEndlessGrowth`, S7), `src/engine/decisions.ts`, printed text of Endless Growth `3ff5-8812-c55e-7f5a` in `data/factions/sylvaneth.json`; `src/rules/core/tactics/siegeOfAshes.ts` and `legendOfTheParch.ts`, `src/rules/core/battleTactics.test.ts`
-- **Done when**: Endless Growth asks the player which effect to pick for each target (heal, or return models; the NPC keeps the automatic choice), with a test that each choice does what it says; tests for the Strike and Domination tiers of Siege of Ashes (Strike, and Domination: Repel the Attackers) and Legend of the Parch (Strike, and Domination: Hero of Legend), one per tier, each failing if the condition is changed. Update `docs/ABILITIES.md` and S7.
-
 ### M4m Faction terrain abilities
 
 - **Tier**: sonnet+review

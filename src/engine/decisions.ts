@@ -206,8 +206,28 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
           unit: unit.id,
         };
       }
-      case 'endGrowth':
-        throw new Error('internal: unresolved endGrowth frame on top of the stack');
+      case 'endGrowth': {
+        const ask = top.ask;
+        if (!ask) throw new Error('internal: unresolved endGrowth frame on top of the stack');
+        return ask.stage === 'aspect'
+          ? {
+              kind: 'endlessGrowth',
+              player: top.player,
+              unit: ask.unit,
+              stage: 'aspect',
+              options: ask.options,
+            }
+          : {
+              kind: 'endlessGrowth',
+              player: top.player,
+              unit: ask.unit,
+              stage: 'effect',
+              options: ['heal', 'return'],
+              roll: ask.roll,
+              heal: ask.heal,
+              models: ask.models,
+            };
+      }
       case 'turnEnd':
         throw new Error('internal: unresolved turnEnd frame on top of the stack');
       case 'resolve':
