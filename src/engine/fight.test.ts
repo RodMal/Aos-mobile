@@ -247,7 +247,7 @@ describe('combat phase', () => {
     t = engine.apply(t, { t: 'pass' }).state;
     for (let i = 0; i < 40 && t.phase === 'combat'; i++) {
       const d = engine.decision(t);
-      if (d.kind === 'reaction') expect(d.trigger).not.toBe(`fight:${DRYADS}`);
+      if (d?.kind === 'reaction') expect(d.trigger).not.toBe(`fight:${DRYADS}`);
       t = engine.apply(t, engine.defaultAction(t)).state;
     }
   });
