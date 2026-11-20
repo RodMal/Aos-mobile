@@ -1,8 +1,8 @@
 /** Nothing selected: the current decision in words and its one obvious button. */
 import { useMemo } from 'react';
-import { aliveCount, unitsOf, type Decision } from '../../engine/index.js';
+import { aliveCount, unitsOf, type Decision, type UnitOption } from '../../engine/index.js';
 import { ambushUnits } from '../../engine/reserve.js';
-import { dispatch, endPhase, phaseName } from '../game/actions.js';
+import { dispatch, endPhase, optionLabel, phaseName } from '../game/actions.js';
 import { engine, playerName } from '../game/engine.js';
 import { useDecision, useGameState, useHuman } from '../game/hooks.js';
 import { useUi } from '../game/uiStore.js';
@@ -138,6 +138,58 @@ export function ReadyUnits({ label, only }: { label: string; only?: 'fight' }) {
   );
 }
 
+/**
+ * Army commands that name a destroyed unit (The Goddess Of Life, The Land Awakens): offered
+ * here so they are found without opening a particular unit's card.
+ */
+export function ArmyCommands() {
+  const state = useGameState();
+  const human = useHuman();
+  const found = useMemo(() => {
+    const out: { handle: string; option: Extract<UnitOption, { t: 'command' }> }[] = [];
+    const seen = new Set<string>();
+    for (const u of unitsOf(state, human)) {
+      for (const o of engine.unitOptions(state, u.id)) {
+        if (o.t !== 'command' || (o.command !== 'goddessOfLife' && o.command !== 'landAwakens'))
+          continue;
+        if (seen.has(o.command)) continue;
+        seen.add(o.command);
+        out.push({ handle: u.id, option: o });
+      }
+    }
+    return out;
+  }, [state, human]);
+  if (found.length === 0) return null;
+  return (
+    <div className="ready" data-testid="army-commands">
+      <span className="ready-label">Commands</span>
+      {found.map(({ handle, option }) => {
+        const names = (option.targets ?? []).map((t) => state.units[t]?.name).filter(Boolean);
+        return (
+          <button
+            key={option.command}
+            className="btn"
+            data-army-command={option.command}
+            onClick={() => {
+              const ui = useUi.getState();
+              const targets = option.targets ?? [];
+              ui.setAbilityPick({
+                unit: handle,
+                option,
+                target: targets.length === 1 ? targets[0]! : null,
+              });
+              if (targets.length > 0) ui.moveCamera({ kind: 'frame', units: [handle, ...targets] });
+            }}
+          >
+            {optionLabel(handle, option)}
+            {names.length > 0 && ` (${names.join(', ')})`}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function DecisionPanel() {
   const d = useDecision();
   const human = useHuman();
@@ -156,6 +208,7 @@ export function DecisionPanel() {
         <h2 className="panel-title">{title}</h2>
         <p className="panel-hint">{hint}</p>
       </div>
+      {mine && d.kind === 'main' && <ArmyCommands />}
       {mine && d.kind === 'main' && <ReadyUnits label="Can act" />}
       {mine && d.kind === 'fightPick' && <ReadyUnits label="Can fight" only="fight" />}
       {mine && d.kind === 'main' && (

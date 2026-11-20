@@ -19,6 +19,7 @@ import { useDecision, useGameState, useHuman } from '../game/hooks.js';
 import { moveOf } from '../../rules/factions/seraphon.js';
 import { targetSummary } from '../game/attackPlan.js';
 import { useUi } from '../game/uiStore.js';
+import { fightWord } from '../game/fightStatus.js';
 import { rotate, unrotate, type Rot } from './view.js';
 import { declutter, estimateTextWidth } from './declutter.js';
 import { Shape } from './Shape.js';
@@ -389,7 +390,7 @@ export function LabelsLayer({ rot }: { rot: Rot }) {
         const badge = [
           total > 1 ? `${alive}/${total}` : '',
           unit.damage > 0 ? `${unit.damage} dmg` : '',
-          state.phase === 'combat' && unit.fought ? 'fought' : '',
+          state.phase === 'combat' && unit.fought ? fightWord(state, unit) : '',
         ]
           .filter(Boolean)
           .join(' · ');
@@ -413,7 +414,7 @@ export function LabelsLayer({ rot }: { rot: Rot }) {
         (l.id === selected ? 1000 : 0) +
         (targets?.has(l.id) ? 500 : 0) +
         (l.owner === human ? 50 : 0) +
-        (l.badge.includes('fought') ? 300 : 0) +
+        (/fought|fighting/.test(l.badge) ? 300 : 0) +
         (state.units[l.id]?.models.length ?? 0);
       return {
         key: l.id,

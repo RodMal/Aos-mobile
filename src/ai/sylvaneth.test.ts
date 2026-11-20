@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import {
+  GROUNDSHAKER_ID,
   GUARDIAN_OF_THE_GLADES_ID,
   HUNTMASTERS_STRIKE_ID,
   MERCILESS_AMBUSH_ID,
@@ -130,6 +131,30 @@ describe("NPC: Huntmaster's Strike and Rhythm of the Chase", () => {
     const start = engine.apply(s, { t: 'pass' }).state;
     const a = chooseAction(engine, start);
     expect(a).toEqual({ t: 'ability', unit: b, abilityId: RHYTHM_OF_THE_CHASE_ID, target: krox });
+  });
+
+  it('Groundshaker (R14): used in the start-of-combat window against the enemy in combat', () => {
+    const s = arranged(['Spirit of Durthu'], 'charge');
+    const d = named(s, 0, 'Spirit of Durthu').id;
+    const krox = named(s, 1, 'Kroxigor').id;
+    placeUnit(scenario, s, d, 30, 30, 90);
+    placeUnit(scenario, s, krox, 34, 30, 270);
+    const start = engine.apply(s, { t: 'pass' }).state;
+    expect(engine.decision(start)).toMatchObject({ kind: 'reaction', trigger: 'start:combat' });
+    expect(chooseAction(engine, start)).toEqual({
+      t: 'ability',
+      unit: d,
+      abilityId: GROUNDSHAKER_ID,
+      target: krox,
+    });
+  });
+
+  it('Groundshaker (R14): not offered when no enemy is in combat with the unit', () => {
+    const s = arranged(['Spirit of Durthu'], 'charge');
+    placeUnit(scenario, s, named(s, 0, 'Spirit of Durthu').id, 30, 30, 90);
+    placeUnit(scenario, s, named(s, 1, 'Kroxigor').id, 50, 30, 270);
+    const start = engine.apply(s, { t: 'pass' }).state;
+    expect(engine.decision(start)?.kind).not.toBe('reaction');
   });
 });
 

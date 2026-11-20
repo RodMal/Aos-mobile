@@ -2,12 +2,19 @@
 import { useEffect, useState } from 'react';
 import type { Decision } from '../../engine/index.js';
 import {
+  ARK_OF_SOTEK_ID,
+  ARMOUR_CRUNCHER_ID,
+  ARMOUR_CRUNCHER_ROLL_ID,
   CELESTIAL_CONDUIT_ID,
   COATL_FAMILIAR_ID,
+  GROUNDSHAKER_ID,
   HUNTMASTERS_STRIKE_ID,
+  LIFEBLOOM_ID,
+  LIVING_BATTERING_RAM_ID,
   MERCILESS_AMBUSH_ID,
   RHYTHM_OF_THE_CHASE_ID,
   STAR_VENOM_ID,
+  VENOMITE_SWARM_ID,
   WYLDWOOD_REVENANTS_ID,
 } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
@@ -24,6 +31,7 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
   const [peek, setPeek] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
   const [hot, setHot] = useState<string | null>(null);
+  const [ark, setArk] = useState<string[]>([]);
   const cp = state.players[human].cp;
   const trigger = triggerUnit(d.trigger);
   const listed = [...new Set(d.options.map((o) => o.unit))];
@@ -115,6 +123,101 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
                 }
               >
                 Rhythm of the Chase · {unitName} on {state.units[target]?.name ?? target} · Free
+              </button>
+            ));
+          }
+          if (o.ability === 'lifebloom') {
+            return (
+              <button
+                key={i}
+                className="btn wide"
+                data-testid="lifebloom"
+                {...hover}
+                onClick={() => dispatch({ t: 'ability', unit: o.unit, abilityId: LIFEBLOOM_ID })}
+              >
+                Lifebloom (heal 2D6) · {unitName} · Free
+              </button>
+            );
+          }
+          if (o.ability === 'arkOfSotek') {
+            const max = o.maxTargets ?? 1;
+            const mine = ark.filter((t) => o.targets?.includes(t));
+            return (
+              <div key={i} className="stack" data-testid="ark-of-sotek">
+                <div
+                  className="row-chips"
+                  role="group"
+                  aria-label={`Ark of Sotek targets, up to ${max}`}
+                >
+                  {(o.targets ?? []).map((t) => (
+                    <button
+                      key={t}
+                      className={`chip enemy ${mine.includes(t) ? 'chosen' : ''}`}
+                      aria-pressed={mine.includes(t)}
+                      disabled={!mine.includes(t) && mine.length >= max}
+                      onClick={() =>
+                        setArk(mine.includes(t) ? mine.filter((x) => x !== t) : [...mine, t])
+                      }
+                    >
+                      {state.units[t]?.name ?? t}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="btn wide"
+                  data-testid="ark-of-sotek-use"
+                  disabled={mine.length === 0}
+                  {...hover}
+                  onClick={() => {
+                    dispatch({
+                      t: 'ability',
+                      unit: o.unit,
+                      abilityId: ARK_OF_SOTEK_ID,
+                      targets: mine,
+                    });
+                    setArk([]);
+                  }}
+                >
+                  Ark of Sotek · {unitName} · {mine.length} of up to {max} targets · Free
+                </button>
+              </div>
+            );
+          }
+          if (
+            o.ability === 'livingBatteringRam' ||
+            o.ability === 'groundshaker' ||
+            o.ability === 'venomiteSwarm' ||
+            o.ability === 'armourCruncher' ||
+            o.ability === 'armourCruncherRoll'
+          ) {
+            const [name, abilityId, testId] = {
+              livingBatteringRam: [
+                'Living Battering Ram',
+                LIVING_BATTERING_RAM_ID,
+                'living-battering-ram',
+              ],
+              groundshaker: ['Groundshaker', GROUNDSHAKER_ID, 'groundshaker'],
+              venomiteSwarm: ['Venomite Swarm', VENOMITE_SWARM_ID, 'venomite-swarm'],
+              armourCruncher: [
+                'Armour Cruncher (spend a rage dice)',
+                ARMOUR_CRUNCHER_ID,
+                'armour-cruncher',
+              ],
+              armourCruncherRoll: [
+                'Armour Cruncher (roll a dice)',
+                ARMOUR_CRUNCHER_ROLL_ID,
+                'armour-cruncher-roll',
+              ],
+            }[o.ability] as [string, string, string];
+            return (o.targets ?? []).map((target) => (
+              <button
+                key={`${i}-${target}`}
+                className="btn wide"
+                data-testid={testId}
+                {...hover}
+                onClick={() => dispatch({ t: 'ability', unit: o.unit, abilityId, target })}
+              >
+                {name} · {unitName} on {state.units[target]?.name ?? target} · Free
               </button>
             ));
           }

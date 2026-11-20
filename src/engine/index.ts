@@ -38,6 +38,7 @@ export {
   WYLDWOOD_REVENANTS_ID,
 } from './abilities/sylvaneth.js';
 export { hasVenomites, venomiteTokenAt } from './venomites.js';
+export { ARMOUR_CRUNCHER_ROLL_ID } from './seraphonActive.js';
 export {
   ARK_OF_SOTEK_ID,
   ARMOUR_CRUNCHER_ID,

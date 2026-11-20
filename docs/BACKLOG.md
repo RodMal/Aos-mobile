@@ -21,6 +21,14 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: `docs/ABILITIES.md`; `src/rules/factions/sylvaneth.ts` (`resolveEndlessGrowth`, S7), `src/engine/decisions.ts`, printed text of Endless Growth `3ff5-8812-c55e-7f5a` in `data/factions/sylvaneth.json`; `src/rules/core/tactics/siegeOfAshes.ts` and `legendOfTheParch.ts`, `src/rules/core/battleTactics.test.ts`
 - **Done when**: Endless Growth asks the player which effect to pick for each target (heal, or return models; the NPC keeps the automatic choice), with a test that each choice does what it says; tests for the Strike and Domination tiers of Siege of Ashes (Strike, and Domination: Repel the Attackers) and Legend of the Parch (Strike, and Domination: Hero of Legend), one per tier, each failing if the condition is changed. Update `docs/ABILITIES.md` and S7.
 
+### M4m Faction terrain abilities
+
+- **Tier**: sonnet+review
+- **Touches**: engine, rules, ai, ui/prompts
+- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/sylvaneth.json` (Awakened Wyldwood: Vengeful Forest Spirits `5dd6-a023-8cdb-5cb1`) and `data/factions/seraphon.json` (Realmshaper Engine: Fierce Guardians `bf4d-2061-b8d1-193`, Power Unleashed `aa75-204a-4256-8c68`); `src/engine/factionTerrain.test.ts`, `src/engine/wyldwood.ts`, `src/engine/eligibility.ts` (`isFactionTerrainUnit`; the terrain "never acts", I39), `src/rules/core/modifiers.ts`, RULES-DECISIONS I39, I40, I59
+- **Ruling**: I39 is superseded by the owner's 2026-11-18 ruling (I74): each faction terrain piece's abilities work as its warscroll prints them.
+- **Done when**: one test per ability: Vengeful Forest Spirits (D3 per target, mortal damage on 2+), Fierce Guardians (+1 to hit for Saurus and Kroxigor combat attacks against an enemy within 9" of the terrain), Power Unleashed (D3 per target on 2+, and D3 on the terrain if it has a Health characteristic). Say in `docs/RULES-DECISIONS.md` how I39 changes (the terrain acts through its abilities only, and still never moves or fights). Update `docs/ABILITIES.md`.
+
 ### R19 Make a waiting reaction obvious
 
 - **Tier**: sonnet
@@ -36,22 +44,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Ruling**: I103 (owner, 2026-11-20): a unit that has already moved in that phase cannot use Shadowcreep or Realmroot Guide. Realmroot Guide cannot be used if the bearer or the target unit has already moved in that phase. The limit is that phase, not the whole turn.
 - **Read**: I103; `src/engine/relocate.ts` (who may use each ability), `src/engine/decisions.ts` (activated options), `src/ai/sylvaneth.ts`.
 - **Done when**: Shadowcreep is not offered for a unit that has moved in that phase (any move: normal, run, retreat, or a set-up counted as moving); Realmroot Guide is not offered when the bearer or the target unit has moved in that phase; applying either one anyway throws; the NPC respects this; tests cover moved in that phase versus not moved in that phase for each; bump the rules version if replay changes.
-
-### R13 "Any phase" abilities in both turns
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ai, ui/prompts
-- **Read**: `docs/ABILITIES.md` (Sylvaneth and Seraphon "Any ... Phase" abilities); RULES-DECISIONS I106, I104 (owner ruling 2026-11-20 on Core 13.0); `src/engine/abilities/` (timing of Any-phase abilities), `src/engine/decisions.ts`, `src/ai/`
-- **Ruling**: Owner ruling (2026-11-20), Core 13.0: "Any ... Phase" abilities are offered in both turns. In the opponent's turn they come after the active player has finished that phase. The NPC uses them only when they help (I108).
-- **Done when**: every "Any Hero Phase", "Any Charge Phase" and "Any Combat Phase" ability is offered in the opponent's turn after the active player finishes, not only in the owner's own phase; one test per affected ability (offered in both turns, after the active player's phase, and not before it); the NPC answers when it helps; the full-game e2e passes on phone and desktop. Update I106 and `docs/ABILITIES.md`.
-
-### R14 Groundshaker, Venomite Swarm and Ark of Sotek before fights
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ai, ui/prompts
-- **Read**: `docs/ABILITIES.md`; RULES-DECISIONS I104, I106, I107 and the owner ruling (2026-11-20) on Core 13.1; the start-of-combat reaction window for Rhythm of the Chase in `src/engine/` (combat phase and decisions); `src/ai/sylvaneth.ts`, `src/ai/seraphon.ts`
-- **Ruling**: Owner ruling (2026-11-20), Core 13.1: non-FIGHT combat abilities are used before fighting starts. Groundshaker, Venomite Swarm and Ark of Sotek move from the fighter pick to the start-of-combat reaction window used by Rhythm of the Chase: the active player is offered first, then the defender. Once fighters are picked they cannot be used.
-- **Done when**: one test per ability (offered in the start-of-combat window, active player first then defender, and resolved before any fighter is picked); a test that none of the three is offered during the fight pick; the NPC uses them only when they help. Update I104, I106 and `docs/ABILITIES.md`.
 
 ### R16 Climbing terrain costs movement
 
@@ -82,14 +74,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Touches**: engine, rules, ai
 - **Read**: `docs/ABILITIES.md`; printed text in the manifestation warscrolls of `data/lores.json` (Chronomantic Cogs `1aba-bc38-e988-d79f`: Mechanisms of Time `ad92-932-6f56-1d97`; Quicksilver Swords `8cde-fafe-2b2a-ced5`: Dancing Blades `7b11-c623-fc14-4639`; Purple Sun: Pull of the Nadir `c99-9240-9da1-d029`; Malevolent Maelstrom `e699-49b7-d2b8-d5fc`: Morbid Detonation `b8a4-541-b62-cf62`, Necrotic Vortex `c711-ce6-1fb6-7abc`; Soulsnare Shackles `dee3-92a0-27e7-252a`: Bound for the Great Oubliette `6817-e507-443e-1ff4`, Multiple Parts `9e13-160b-4a87-da4e`); `src/engine/abilities/magic.ts`, `src/engine/abilities/effects.ts`, `src/engine/damage.ts`, `src/engine/turns.ts`, RULES-DECISIONS S13, I24
 - **Done when**: one test per ability: Mechanisms of Time (a Wizard within 3" picks re-roll charges or -1 to hit against Wizards, within 12", until your next turn), Dancing Blades (no ward rolls against its damage), Pull of the Nadir (-1 to save rolls for every unit within 3"), Morbid Detonation (mortal damage on 2+, then destroyed), Necrotic Vortex (maelstrom points from set-up, successful casts within 12" and slain models within 12", maximum 6; they drive Morbid Detonation's target count per the printed text), Bound for the Great Oubliette (D3 mortal damage and Move reduced by the roll), Multiple Parts (three parts within 3" of each other, destroyed together). Update S13 and `docs/ABILITIES.md`.
-
-### M4m Faction terrain abilities
-
-- **Tier**: sonnet+review
-- **Touches**: engine, rules, ai, ui/prompts
-- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/sylvaneth.json` (Awakened Wyldwood: Vengeful Forest Spirits `5dd6-a023-8cdb-5cb1`) and `data/factions/seraphon.json` (Realmshaper Engine: Fierce Guardians `bf4d-2061-b8d1-193`, Power Unleashed `aa75-204a-4256-8c68`); `src/engine/factionTerrain.test.ts`, `src/engine/wyldwood.ts`, `src/engine/eligibility.ts` (`isFactionTerrainUnit`; the terrain "never acts", I39), `src/rules/core/modifiers.ts`, RULES-DECISIONS I39, I40, I59
-- **Ruling**: I39 is superseded by the owner's 2026-11-18 ruling (I74): each faction terrain piece's abilities work as its warscroll prints them.
-- **Done when**: one test per ability: Vengeful Forest Spirits (D3 per target, mortal damage on 2+), Fierce Guardians (+1 to hit for Saurus and Kroxigor combat attacks against an enemy within 9" of the terrain), Power Unleashed (D3 per target on 2+, and D3 on the terrain if it has a Health characteristic). Say in `docs/RULES-DECISIONS.md` how I39 changes (the terrain acts through its abilities only, and still never moves or fights). Update `docs/ABILITIES.md`.
 
 ## Waiting on the owner
 

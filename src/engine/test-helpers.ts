@@ -104,6 +104,28 @@ export function skipDeclareReactions(
   return { state: engine.apply(state, action).state, action: { t: 'pass' } };
 }
 
+/**
+ * The state as the engine reaches the combat phase: the charge phase of `state` ended with
+ * passes, so the start-of-combat window (Core 13.1) is open when anyone has an ability for it.
+ */
+export function enterCombat(engine: Engine, state: GameState): GameState {
+  const s = JSON.parse(JSON.stringify(state)) as GameState;
+  s.phase = 'charge';
+  s.stack = [];
+  return passTo(engine, s, 'combat');
+}
+
+/** Passes every start-of-combat window still open, to the first fighter pick. */
+export function skipWindows(engine: Engine, state: GameState): GameState {
+  let s = state;
+  for (let i = 0; i < 10; i++) {
+    const d = engine.decision(s);
+    if (d?.kind !== 'reaction' || d.trigger !== 'start:combat') return s;
+    s = engine.apply(s, { t: 'pass' }).state;
+  }
+  throw new Error('start-of-combat windows did not end');
+}
+
 /** Passes main decisions until the given phase of the current turn. */
 export function passTo(engine: Engine, state: GameState, phase: Phase): GameState {
   let s = state;
