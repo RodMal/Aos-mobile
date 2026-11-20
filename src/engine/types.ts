@@ -211,7 +211,17 @@ export type Frame =
       relocate?: Relocation;
     }
   | { t: 'targets'; unit: UnitId; mode: AttackMode }
-  | { t: 'reaction'; player: PlayerId; options: ReactionOption[]; trigger: string }
+  | {
+      t: 'reaction';
+      player: PlayerId;
+      options: ReactionOption[];
+      trigger: string;
+      /**
+       * A start-of-combat ability window: its options are rebuilt when it comes up, as an
+       * earlier ability (Rhythm of the Chase setting a unit up) may have given this player a target.
+       */
+      window?: true;
+    }
   /**
    * Attacks declared and waiting to be rolled, kept under a `reaction` frame while the
    * defender decides on All-out Defence. Never the top frame when a decision is asked for.

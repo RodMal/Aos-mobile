@@ -14,7 +14,7 @@ import { asterismOptions } from '../rules/factions/seraphon.js';
 import { VENOMITE_SIDES } from './venomites.js';
 import { combatOptions, scryOptions, starVenomOptions } from './seraphonActive.js';
 import { batteringRamOptions, lifebloomOptions } from './sylvanethActive.js';
-import { refreshOption } from './anyPhase.js';
+import { refreshOption, startOfCombatAbilities } from './anyPhase.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import {
   chargeSetUpOptions,
@@ -37,6 +37,7 @@ import {
   type UnitOption,
   type UnitState,
   type Violation,
+  type Frame,
   type WeaponTargets,
 } from './types.js';
 import {
@@ -114,7 +115,7 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
           player: top.player,
           options:
             top.trigger === 'start:combat'
-              ? startOfCombatOptions(scenario, state, top.options)
+              ? startOfCombatOptions(scenario, state, top)
               : top.options,
           trigger: top.trigger,
         };
@@ -426,9 +427,10 @@ export function checkPlacement(
 export function startOfCombatOptions(
   scenario: Scenario,
   state: GameState,
-  options: ReactionOption[],
+  frame: Extract<Frame, { t: 'reaction' }>,
 ): ReactionOption[] {
-  return options.flatMap((o) => {
+  if (frame.window) return startOfCombatAbilities(scenario, state, frame.player);
+  return frame.options.flatMap((o) => {
     const unit = state.units[o.unit];
     if (!unit) return [];
     if (o.ability) {

@@ -381,9 +381,10 @@ function offerStartOfCombat(ctx: Ctx): void {
   const { s, scenario } = ctx;
   offerFuryOfTheForest(ctx);
   for (const player of [opponent(s.active), s.active]) {
+    // Always pushed: what the player can use is worked out when the window comes up, after the
+    // other player's abilities (settle drops an empty one).
     const options = startOfCombatAbilities(scenario, s, player);
-    if (options.length > 0)
-      s.stack.push({ t: 'reaction', player, options, trigger: 'start:combat' });
+    s.stack.push({ t: 'reaction', player, options, trigger: 'start:combat', window: true });
   }
 }
 

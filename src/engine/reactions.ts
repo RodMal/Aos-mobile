@@ -217,7 +217,7 @@ function keepWindowOpen(
         (action.t === 'command' ? o.command === action.command : o.ability === kind)
       ),
   );
-  if (options.length > 0) ctx.s.stack.push({ ...reaction, options });
+  if (options.length > 0 || reaction.window) ctx.s.stack.push({ ...reaction, options });
 }
 
 export function executeReactionCommand(

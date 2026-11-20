@@ -163,6 +163,32 @@ describe('Venomite Swarm (cf2e-d237-9320-1105)', () => {
   });
 });
 
+describe("the defender's start-of-combat window is worked out when it comes up (Core 13.1)", () => {
+  it("offers Ark of Sotek to a defender who gained a target from the active player's ability", () => {
+    // Player 1 (Sylvaneth) is active: Belthanos has Rhythm of the Chase against the Warriors.
+    // The Bastiladon (defender) starts more than 9" from every enemy, so it has no target yet.
+    const base = arena(
+      {
+        [BELTHANOS]: [30, 30, 90],
+        [WARRIORS]: [34, 30, 270],
+        [BASTILADON]: [30, 52, 90],
+      },
+      'combat',
+    );
+    base.active = 1;
+    const s = enterCombat(engine, base);
+    expect(engine.decision(s)).toMatchObject({ kind: 'reaction', player: 1 });
+    // Belthanos is set up elsewhere by his ability (modelled by moving him) next to the Bastiladon.
+    const moved = editable(s);
+    placeUnit(scenario, moved, BELTHANOS, 30, 44, 90);
+    const defender = engine.apply(moved, { t: 'pass' }).state;
+    const d = engine.decision(defender);
+    if (d?.kind !== 'reaction') throw new Error('the defender was not asked');
+    expect(d).toMatchObject({ player: 0, trigger: 'start:combat' });
+    expect(d.options).toMatchObject([{ ability: 'arkOfSotek', unit: BASTILADON }]);
+  });
+});
+
 describe('Ark of Sotek (714c-4cb6-fce8-6ef9)', () => {
   const field = () =>
     enterCombat(

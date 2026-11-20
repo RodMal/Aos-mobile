@@ -330,8 +330,18 @@ function anyPhaseReaction(
   for (const o of options) {
     const abilityId = o.ability && ANY_PHASE_IDS[o.ability as keyof typeof ANY_PHASE_IDS];
     if (!abilityId) continue;
+    // Mortal damage (Venomite Swarm, Ark of Sotek, the Ram) goes at the enemy it is likeliest to
+    // finish, like Rhythm of the Chase; Groundshaker at the one worth the most points.
+    const left = (id: string): number => {
+      const t = state.units[id]!;
+      return profileOf(engine.scenario, t).health * aliveIndices(t).length - t.damage;
+    };
+    const mortal = o.ability !== 'groundshaker';
     const ranked = [...(o.targets ?? [])].sort(
-      (a, b) => points(engine, state, b) - points(engine, state, a),
+      (a, b) =>
+        (mortal ? left(a) - left(b) : 0) ||
+        points(engine, state, b) - points(engine, state, a) ||
+        (a < b ? -1 : 1),
     );
     if (o.ability === 'lifebloom') return { t: 'ability', unit: o.unit, abilityId };
     if (ranked.length === 0) continue;

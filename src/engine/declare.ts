@@ -122,7 +122,7 @@ export function settle(ctx: Ctx): void {
     if (
       top.t === 'reaction' &&
       top.trigger === 'start:combat' &&
-      startOfCombatOptions(ctx.scenario, s, top.options).length === 0
+      startOfCombatOptions(ctx.scenario, s, top).length === 0
     ) {
       // An earlier ability used in this window left nothing for this one to do.
       s.stack.pop();
