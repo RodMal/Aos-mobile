@@ -142,6 +142,20 @@ test('Star-venom is offered after Covering Fire in the enemy turn', async ({ pag
   await page.screenshot({ path: info.outputPath(`star-venom-${info.project.name}.png`) });
   await venom.click();
   await expect(venom).toBeHidden();
+  // The combat phase can open straight away with a start-of-combat window of the human's own
+  // (Ark of Sotek, Rhythm of the Chase); it is skipped, as it is not what this test is about.
+  const skip = page.getByRole('dialog').getByRole('button', { name: 'Skip', exact: true });
+  for (let i = 0; i < 5; i++) {
+    // The window opens a moment after Star-venom resolves.
+    if (
+      !(await skip.waitFor({ timeout: 3_000 }).then(
+        () => true,
+        () => false,
+      ))
+    )
+      break;
+    await skip.click();
+  }
   await page.getByRole('button', { name: 'Log' }).click();
   await expect(page.getByTestId('log-list')).toContainText(/Star-venom/);
 });
