@@ -62,6 +62,15 @@ describe('NPC: The Land Awakens', () => {
     expect(done.state.players[0].cp).toBe(3);
   });
 
+  it('does not try a unit that was already replaced (Core 24.2)', () => {
+    const s = arranged('end');
+    const d = named(s, 0, 'Dryads');
+    destroy(s, d.id);
+    d.replaced = true;
+    const a = chooseAction(engine, s);
+    expect(a.t === 'command' && a.command === 'landAwakens' && a.target === d.id).toBe(false);
+  });
+
   it('is skipped when CP are short', () => {
     const s = arranged('end');
     destroy(s, named(s, 0, 'Dryads').id);
