@@ -30,7 +30,7 @@ import type { Ctx } from '../../engine/ctx.js';
 import { abilitiesOf, hasEffectiveKeyword } from '../../engine/abilities/effects.js';
 import { ASPECT_OF_HEARTWOOD_ID } from '../../engine/abilities/sylvaneth.js';
 import { battleKey, usedThisBattle } from '../../engine/relocate.js';
-import { returnPosition } from '../../engine/damage.js';
+import { modelRoom, returnPosition } from '../../engine/damage.js';
 import {
   closestFeatureWithoutToken,
   creepingOvergrowthRange,
@@ -200,7 +200,7 @@ export function resolveEndlessGrowth(ctx: Ctx, player: PlayerId): void {
   );
   let spent = false;
   for (const u of targets) {
-    const slain = u.models.flatMap((m, i) => (m.alive ? [] : [i]));
+    const slain = u.models.flatMap((m, i) => (m.alive ? [] : [i])).slice(0, modelRoom(u));
     if (u.damage === 0 && slain.length === 0) continue;
     const health = profileOf(scenario, u).health;
     // For each target wholly within 12" of the bearer, once per battle: the reaction is taken at

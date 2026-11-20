@@ -11,7 +11,8 @@ import { profileOf } from './query.js';
 import { goddessOfLifeUnits } from './eligibility.js';
 import { formPlacement } from './query.js';
 import type { Placement, UnitId } from './types.js';
-import { editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
+import { editable, keepOnly, passTo, placeUnit, ScriptedDice, startGame } from './test-helpers.js';
+import { resolveEndlessGrowth } from '../rules/factions/sylvaneth.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
 const engine = createEngine(scenario);
@@ -339,6 +340,25 @@ describe('Replacement units (Core 24.2)', () => {
     expect(u.castsUsed).toBeUndefined();
     expect(u.allOutAttack).toBeUndefined();
     expect(s.effects?.some((e) => e.targetUnit === id) ?? false).toBe(false);
+  });
+
+  it('B9: a replacement of 5 Dryads records its cap and Endless Growth never exceeds it', () => {
+    const { s, id } = replaced();
+    const u = s.units[id]!;
+    expect(u.models).toHaveLength(10);
+    expect(u.maxModels).toBe(5);
+    expect(u.models.filter((m) => m.alive)).toHaveLength(5);
+    u.models[0]!.alive = false;
+    u.models[1]!.alive = false;
+    placeUnit(scenario, s, id, 30, 30);
+    const outcrop = scenario.battlefield.terrain.find((t) => t.id === 'outcrop-w')!;
+    s.overgrown = [[outcrop.id], []];
+    placeUnit(scenario, s, id, outcrop.centre[0], outcrop.centre[1]);
+    // 3 alive; a roll of 3 would return 3 models, but only 2 fit under the cap of 5.
+    resolveEndlessGrowth({ scenario, s, events: [], rng: new ScriptedDice([3]) }, 0);
+    expect(u.models.filter((m) => m.alive)).toHaveLength(5);
+    resolveEndlessGrowth({ scenario, s, events: [], rng: new ScriptedDice([3]) }, 0);
+    expect(u.models.filter((m) => m.alive)).toHaveLength(5);
   });
 
   it('the replacement does not keep the enhancement of the destroyed unit', () => {

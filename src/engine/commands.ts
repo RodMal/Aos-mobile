@@ -2,7 +2,7 @@ import { rallyPoints, rallySpend, RALLY_ROLLS } from '../rules/core/rally.js';
 import { moveOf } from '../rules/factions/seraphon.js';
 import { unitGrants } from './abilities/effects.js';
 import { d6, d6s, illegal, rollD3, type Ctx } from './ctx.js';
-import { inflictMortalDamage, returnPosition } from './damage.js';
+import { inflictMortalDamage, modelRoom, returnPosition } from './damage.js';
 import {
   CHARGE_END_RANGE,
   enemiesInCombat,
@@ -84,7 +84,7 @@ export function rally(ctx: Ctx, unitId: UnitId): void {
   const dice = d6s(ctx, RALLY_ROLLS);
   ctx.events.push({ t: 'roll', player: unit.owner, label: 'Rally', dice });
   const health = profileOf(ctx.scenario, unit).health;
-  const dead = unit.models.flatMap((m, i) => (m.alive ? [] : [i]));
+  const dead = unit.models.flatMap((m, i) => (m.alive ? [] : [i])).slice(0, modelRoom(unit));
   let points = rallyPoints(dice);
   const spend = rallySpend(points, health, dead.length, unit.damage);
   let returned = 0;
@@ -282,6 +282,7 @@ function startReplacement(
     m.alive = i < keep;
   });
   unit.damage = 0;
+  unit.maxModels = keep;
   // Core 24.2: replaced once only; a replacement unit cannot be replaced again.
   unit.replaced = true;
   s.stack.push({

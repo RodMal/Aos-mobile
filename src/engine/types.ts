@@ -106,6 +106,11 @@ export interface UnitState {
   replaced?: boolean;
   /** A replacement unit does not keep the enhancements of the unit it replaces (Core 24.2). */
   enhancementsLost?: boolean;
+  /**
+   * A replacement unit never has more models than it was set up with (owner, 2026-11-20): the
+   * models dropped at the replacement cannot be returned. Unset on any other unit.
+   */
+  maxModels?: number;
   /** Set when a unit/manifestation was set up on the battlefield this turn (bars movement-phase moves). */
   setUpThisTurn?: boolean;
   /**
