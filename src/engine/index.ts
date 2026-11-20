@@ -38,6 +38,11 @@ export {
   WYLDWOOD_REVENANTS_ID,
 } from './abilities/sylvaneth.js';
 export { hasVenomites, venomiteTokenAt } from './venomites.js';
+export {
+  FIERCE_GUARDIANS_ID,
+  POWER_UNLEASHED_ID,
+  VENGEFUL_FOREST_SPIRITS_ID,
+} from './factionTerrainActive.js';
 export { ARMOUR_CRUNCHER_ROLL_ID } from './seraphonActive.js';
 export {
   ARK_OF_SOTEK_ID,

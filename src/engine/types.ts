@@ -699,6 +699,7 @@ export interface ReactionOption {
     | 'groundshaker'
     | 'venomiteSwarm'
     | 'arkOfSotek'
+    | 'vengefulForestSpirits'
     | 'armourCruncher'
     | 'armourCruncherRoll';
   unit: UnitId;
@@ -711,7 +712,8 @@ export interface ReactionOption {
    */
   targets?: UnitId[];
   /**
-   * `lifebloom`, `livingBatteringRam`, `groundshaker`, `venomiteSwarm`, `arkOfSotek` (R13, R14):
+   * `lifebloom`, `livingBatteringRam`, `groundshaker`, `venomiteSwarm`, `arkOfSotek` (R13, R14), `vengefulForestSpirits` (M4m; all
+   * the targets are hit, answer without any):
    * answer with `{ t: 'ability', unit, abilityId, target }` (Ark of Sotek: `targets`, 1 to
    * `maxTargets` of `targets`; Lifebloom: neither) or pass.
    */

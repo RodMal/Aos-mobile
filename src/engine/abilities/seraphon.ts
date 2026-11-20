@@ -19,6 +19,11 @@ import {
 } from '../query.js';
 import type { GameState, Scenario, UnitState } from '../types.js';
 import { abilitiesOf, addEffect, registerAbility } from './effects.js';
+import {
+  FIERCE_GUARDIANS_ID,
+  POWER_UNLEASHED_ID,
+  fierceGuardiansModifiers,
+} from '../factionTerrainActive.js';
 import { STARSPAWNED_ID } from '../starspawned.js';
 import type { AbilityDefinition } from './types.js';
 
@@ -207,5 +212,21 @@ export function recordDartpipeDamage(
   });
 }
 
+/** Realmshaper Engine (faction terrain, M4m): Fierce Guardians and Power Unleashed. */
+export const SERAPHON_TERRAIN: AbilityDefinition[] = [
+  {
+    id: FIERCE_GUARDIANS_ID,
+    name: 'Fierce Guardians',
+    kind: 'passive',
+    bsdata: true,
+    terrainModifiers: (terrain, sit, scenario) =>
+      sit.mode === 'fight'
+        ? fierceGuardiansModifiers(terrain, sit.attacker, sit.target, scenario)
+        : [],
+  },
+  { id: POWER_UNLEASHED_ID, name: 'Power Unleashed', kind: 'activated', bsdata: true },
+];
+
 for (const def of SERAPHON_PASSIVES) registerAbility(def);
 for (const def of SERAPHON_ACTIVATED) registerAbility(def);
+for (const def of SERAPHON_TERRAIN) registerAbility(def);

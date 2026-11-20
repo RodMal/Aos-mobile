@@ -18,6 +18,7 @@ import {
   STAR_VENOM_ID,
   VENOMITE_SWARM_ID,
 } from './abilities/seraphon.js';
+import { POWER_UNLEASHED_ID, usePowerUnleashed } from './factionTerrainActive.js';
 import { d6s, illegal, rollD3, rollD6, type Ctx } from './ctx.js';
 import { inflictMortalDamage } from './damage.js';
 import { battleKey, usedThisBattle, usedThisTurn } from './relocate.js';
@@ -49,7 +50,11 @@ type AbilityOption = Extract<UnitOption, { t: 'ability' }>;
 export const ARMOUR_CRUNCHER_ROLL_ID = 'f6fe-3e8d-dd90-00b8:roll';
 
 /** The abilities that are one `ability` action by the unit itself (the reactions are answers). */
-export const SERAPHON_ACTIVATED_IDS: readonly string[] = [SCRY_THE_STARS_ID, STAR_VENOM_ID];
+export const SERAPHON_ACTIVATED_IDS: readonly string[] = [
+  SCRY_THE_STARS_ID,
+  STAR_VENOM_ID,
+  POWER_UNLEASHED_ID,
+];
 
 export const SCRY_RANGE = 18;
 export const ARK_RANGE = 9;
@@ -235,6 +240,7 @@ export function useSeraphonAbility(ctx: Ctx, action: AbilityAction): void {
   const { scenario, s } = ctx;
   const unit = s.units[action.unit];
   if (!unit) illegal('Unknown unit.');
+  if (action.abilityId === POWER_UNLEASHED_ID) return usePowerUnleashed(ctx, action);
   const options =
     action.abilityId === SCRY_THE_STARS_ID
       ? scryOptions(scenario, s, unit)

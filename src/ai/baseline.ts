@@ -69,6 +69,11 @@ import {
   LIVING_BATTERING_RAM_ID,
   WYLDWOOD_REVENANTS_ID,
 } from '../engine/abilities/sylvaneth.js';
+import {
+  POWER_UNLEASHED_ID,
+  VENGEFUL_FOREST_SPIRITS_ID,
+  powerGroups,
+} from '../engine/factionTerrainActive.js';
 import { batteringRamOptions, has, lifebloomOptions } from '../engine/sylvanethActive.js';
 import { npcAsterism } from '../rules/factions/seraphon.js';
 import { npcCreepingDreadTargets, npcSeason } from '../rules/factions/seasons.js';
@@ -288,6 +293,7 @@ const ANY_PHASE_IDS = {
   arkOfSotek: ARK_OF_SOTEK_ID,
   armourCruncher: ARMOUR_CRUNCHER_ID,
   armourCruncherRoll: ARMOUR_CRUNCHER_ROLL_ID,
+  vengefulForestSpirits: VENGEFUL_FOREST_SPIRITS_ID,
 } as const;
 
 /**
@@ -316,7 +322,10 @@ function anyPhaseReaction(
         points(engine, state, b) - points(engine, state, a) ||
         (a < b ? -1 : 1),
     );
-    if (o.ability === 'lifebloom') return { t: 'ability', unit: o.unit, abilityId };
+    // Free, and Vengeful Forest Spirits hits every enemy within 3 inches (no choice).
+    if (o.ability === 'lifebloom' || o.ability === 'vengefulForestSpirits') {
+      return { t: 'ability', unit: o.unit, abilityId };
+    }
     if (ranked.length === 0) continue;
     return o.ability === 'arkOfSotek'
       ? { t: 'ability', unit: o.unit, abilityId, targets: ranked.slice(0, o.maxTargets ?? 1) }
@@ -553,6 +562,23 @@ function chooseHeroAbilityAction(
       )
     ) {
       return { t: 'ability', unit: unit.id, abilityId: scry.abilityId };
+    }
+
+    // Power Unleashed (Realmshaper Engine): free, so used whenever a group exists; the group of
+    // up to 3 enemies around one terrain feature that is worth the most points.
+    const power = abilOpts.find((o) => o.abilityId === POWER_UNLEASHED_ID);
+    if (power) {
+      const best = powerGroups(engine.scenario, state, unit)
+        .map((g) => {
+          const ids = [...g.targets]
+            .sort((a, b) => points(engine, state, b) - points(engine, state, a) || (a < b ? -1 : 1))
+            .slice(0, power.maxTargets ?? 3);
+          return { ids, value: ids.reduce((n, id) => n + points(engine, state, id), 0) };
+        })
+        .sort((a, b) => b.value - a.value)[0];
+      if (best) {
+        return { t: 'ability', unit: unit.id, abilityId: power.abilityId, targets: best.ids };
+      }
     }
 
     // 1. Banish enemy manifestations first

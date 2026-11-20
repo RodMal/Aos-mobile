@@ -17,6 +17,11 @@ import {
   RHYTHM_OF_THE_CHASE_ID,
 } from './abilities/sylvaneth.js';
 import { illegal, type Ctx } from './ctx.js';
+import {
+  VENGEFUL_FOREST_SPIRITS_ID,
+  vengefulForestSpirits,
+  vengefulTargets,
+} from './factionTerrainActive.js';
 import { rhythmTargets } from './relocate.js';
 import {
   ARK_MAX_TARGETS,
@@ -58,6 +63,7 @@ const KIND_OF: Readonly<Record<string, Kind>> = {
   [ARK_OF_SOTEK_ID]: 'arkOfSotek',
   [ARMOUR_CRUNCHER_ID]: 'armourCruncher',
   [ARMOUR_CRUNCHER_ROLL_ID]: 'armourCruncherRoll',
+  [VENGEFUL_FOREST_SPIRITS_ID]: 'vengefulForestSpirits',
 };
 
 /** The reaction kind of an `ability` action's id (Rhythm of the Chase included), if it has one. */
@@ -99,6 +105,10 @@ function current(
       const targets = cruncherAvailable(scenario, state, unit);
       return targets.length > 0 ? { ...base, targets } : null;
     }
+    case 'vengefulForestSpirits': {
+      const targets = vengefulTargets(scenario, state, unit);
+      return targets.length > 0 ? { ...base, targets } : null;
+    }
     case 'rhythmOfTheChase': {
       const targets = rhythmTargets(scenario, state, unit);
       return targets.length > 0 ? { ...base, targets } : null;
@@ -115,7 +125,8 @@ export const isStartOfCombatKind = (kind: Kind | undefined): boolean =>
   kind === 'venomiteSwarm' ||
   kind === 'arkOfSotek' ||
   kind === 'armourCruncher' ||
-  kind === 'armourCruncherRoll';
+  kind === 'armourCruncherRoll' ||
+  kind === 'vengefulForestSpirits';
 
 /**
  * The start-of-combat window of `player` (Core 13.1): Rhythm of the Chase, Groundshaker, Venomite
@@ -133,6 +144,7 @@ export function startOfCombatAbilities(
     'arkOfSotek',
     'armourCruncher',
     'armourCruncherRoll',
+    'vengefulForestSpirits',
   ];
   return unitsOf(state, player).flatMap((u) =>
     kinds.flatMap((k) => {
@@ -210,6 +222,9 @@ export function useReactionAbility(
       break;
     case 'venomiteSwarm':
       venomiteSwarm(ctx, unit, one());
+      break;
+    case 'vengefulForestSpirits':
+      vengefulForestSpirits(ctx, unit, targets.map((id) => s.units[id]!));
       break;
     case 'armourCruncher':
     case 'armourCruncherRoll':
