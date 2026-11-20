@@ -2,7 +2,7 @@
  * Faction terrain abilities (task M4m, owner ruling I74): Vengeful Forest Spirits (Awakened
  * Wyldwood), Fierce Guardians and Power Unleashed (Realmshaper Engine). The terrain still never
  * moves or fights; it acts through these abilities only. Printed text is in data/factions/
- * sylvaneth.json and seraphon.json; readings in docs/RULES-DECISIONS.md I112.
+ * sylvaneth.json and seraphon.json; readings in docs/RULES-DECISIONS.md I113.
  */
 import type { TerrainFeature } from '../data/battlefield.js';
 import { footprintDistanceToPolygon } from '../geom/index.js';

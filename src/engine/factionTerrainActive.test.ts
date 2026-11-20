@@ -7,10 +7,17 @@ import { describe, expect, it } from 'vitest';
 import { chooseAction } from '../ai/baseline.js';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import { attackModifiers } from '../rules/core/modifiers.js';
-import { createEngine, createScenario, unitDistance, type GameState } from './index.js';
+import {
+  createEngine,
+  createScenario,
+  IllegalActionError,
+  unitDistance,
+  type GameState,
+} from './index.js';
 import {
   FIERCE_GUARDIANS_ID,
   POWER_UNLEASHED_ID,
+  powerGroups,
   VENGEFUL_FOREST_SPIRITS_ID,
 } from './factionTerrainActive.js';
 import { profileOf } from './query.js';
@@ -285,6 +292,86 @@ describe('Power Unleashed (aa75-204a-4256-8c68), the Realmshaper Engine', () => 
     expect(() =>
       engine.apply(s, use(ENGINE_T, POWER_UNLEASHED_ID, { targets: [WARRIORS] })),
     ).toThrow();
+  });
+
+  it('refuses two enemies near different features, though each is a legal target alone', () => {
+    // Two board features, one enemy at each, the engine between them within 24" of both.
+    let s: GameState | null = null;
+    for (let i = 0; i < features.length && !s; i++) {
+      for (let j = i + 1; j < features.length && !s; j++) {
+        const [ax, ay] = features[i]!.centre;
+        const [bx, by] = features[j]!.centre;
+        if (Math.hypot(ax - bx, ay - by) > 30) continue;
+        const t = arena(
+          {
+            [ENGINE_T]: [(ax + bx) / 2, (ay + by) / 2],
+            [STARSEER]: [(ax + bx) / 2 + 12, (ay + by) / 2],
+            [DRYADS]: [ax, ay],
+            [DRYADS2]: [bx, by],
+          },
+          'hero',
+        );
+        gapTo(t, STARSEER, ENGINE_T, 2);
+        const groups = powerGroups(scenario, t, t.units[ENGINE_T]!);
+        const both = groups.some((g) => g.targets.includes(DRYADS) && g.targets.includes(DRYADS2));
+        const each = [DRYADS, DRYADS2].every((id) => groups.some((g) => g.targets.includes(id)));
+        if (each && !both && option(t, ENGINE_T, POWER_UNLEASHED_ID)) s = t;
+      }
+    }
+    if (!s) throw new Error('no pair of features for the test');
+    const one = engine.apply(s, use(ENGINE_T, POWER_UNLEASHED_ID, { targets: [DRYADS] }));
+    expect(rolls(one.events, 'Power Unleashed')).toHaveLength(1);
+    expect(() =>
+      engine.apply(s!, use(ENGINE_T, POWER_UNLEASHED_ID, { targets: [DRYADS, DRYADS2] })),
+    ).toThrow(IllegalActionError);
+  });
+
+  describe('the enemy Awakened Wyldwood as the picked feature (it has Health)', () => {
+    /** Finds a spot where the Wyldwood is the only feature with an enemy within 3". */
+    function wood(): GameState {
+      for (let x = 10; x < 60; x += 4) {
+        for (let y = 8; y < 40; y += 4) {
+          const s = arena(
+            {
+              [ENGINE_T]: [x + 10, y],
+              [STARSEER]: [x + 20, y],
+              [WYLDWOOD]: [x, y],
+              [DRYADS]: [x, y + 12],
+            },
+            'hero',
+          );
+          gapTo(s, STARSEER, ENGINE_T, 2);
+          const dryads = s.units[DRYADS]!;
+          const d0 = unitDistance(scenario, dryads, s.units[WYLDWOOD]!);
+          for (const m of dryads.models) m.y -= d0 - 2;
+          const groups = powerGroups(scenario, s, s.units[ENGINE_T]!);
+          if (groups.length === 1 && groups[0]!.feature === WYLDWOOD) return s;
+        }
+      }
+      throw new Error('no spot for the test');
+    }
+
+    it('takes a D3 of mortal damage on top of the targets', () => {
+      const s = wood();
+      expect(profileOf(scenario, s.units[WYLDWOOD]!).health).toBeGreaterThan(0);
+      const r = applyUntil(
+        engine,
+        s,
+        use(ENGINE_T, POWER_UNLEASHED_ID, { targets: [DRYADS] }),
+        (x) => rolls(x.events, 'Power Unleashed (terrain)').length === 1,
+      );
+      const [terrainDie] = rolls(r.events, 'Power Unleashed (terrain)');
+      expect(r.state.units[WYLDWOOD]!.damage).toBe(terrainDie);
+      expect(r.state.units[ENGINE_T]!.damage).toBe(0);
+    });
+
+    it('destroys the Wyldwood when the damage is enough', () => {
+      const s = wood();
+      const health = profileOf(scenario, s.units[WYLDWOOD]!).health;
+      s.units[WYLDWOOD]!.damage = health - 1;
+      const r = engine.apply(s, use(ENGINE_T, POWER_UNLEASHED_ID, { targets: [DRYADS] }));
+      expect(r.state.units[WYLDWOOD]!.status).toBe('destroyed');
+    });
   });
 
   it('does not touch the terrain: board terrain has no Health', () => {
