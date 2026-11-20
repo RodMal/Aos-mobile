@@ -332,6 +332,12 @@ export type Frame =
    */
   | { t: 'turnEnd' }
   /**
+   * End of a turn: `player`'s Endless Growth heal (no decision; `settle` resolves it and pops it
+   * once held mortal damage is allocated). It sits above that player's other end-of-turn
+   * abilities so it resolves first (I111).
+   */
+  | { t: 'endGrowth'; player: PlayerId }
+  /**
    * Vengeance of Azyr. `pick`: `player` picks up to 3 units. Then for each unit in `queue` (the
    * first is current): `pile` is its pile-in (a `place` frame is pushed on top), `strike` its
    * D3 mortal damage on an enemy unit in combat with it, picked when there are several.
