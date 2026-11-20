@@ -65,6 +65,13 @@ export class InvariantChecker {
       expect(unit.damage).toBeGreaterThanOrEqual(0);
       if (unit.status === 'reserve') continue;
       if (unit.status !== 'battlefield') {
+        // A replacement unit (The Land Awakens, The Goddess Of Life) awaits its set-up with
+        // living models while still marked destroyed; passing the set-up undoes it.
+        if (
+          state.stack.some((f) => f.t === 'place' && f.reason === 'replacement' && f.unit === id)
+        ) {
+          continue;
+        }
         expect(
           unit.models.some((m) => m.alive),
           `${unit.name} destroyed with living models`,

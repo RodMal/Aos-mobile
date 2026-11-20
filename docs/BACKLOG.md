@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R8 The NPC uses The Land Awakens and The Goddess Of Life
-
-- **Tier**: sonnet
-- **Touches**: ai
-- **Ruling**: I99.5 (owner, 2026-11-19): "let it use it".
-- **Read**: I99 in `docs/RULES-DECISIONS.md`; `src/ai/baseline.ts` (command choice, and `placeAction` for the `replacement` place reason, which currently passes); `src/engine/commands.ts` (`startReplacement`), `src/engine/placing.ts`.
-- **Done when**: when the NPC can afford it and it helps its plan to win (judged by its expected-damage and objective heuristics, not on every chance), it uses The Land Awakens in its end phase on the destroyed qualifying unit worth the most (e.g. by points or model count), and The Goddess Of Life in its movement phase once Alarielle is destroyed. It places the replacement at a legal spot wholly within the overgrowth and more than 9" from enemies, preferring one nearest an objective. It stays deterministic. Tests cover each command being used, being skipped when CP is short, and a legal placement. Bump the rules version if replay changes.
-
 ### R10 Sylvaneth set-up and charge rulings: no move after re-set-up, Rhythm at start of combat, Merciless Ambush confirm
 
 - **Tier**: sonnet+review
