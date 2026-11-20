@@ -16,7 +16,8 @@ import {
   SHADOWCREEP_ID,
 } from './abilities/sylvaneth.js';
 import { createEngine, createScenario, type GameState } from './index.js';
-import { formPlacement } from './query.js';
+import { footprintGap } from '../geom/geometry.js';
+import { formPlacement, modelFootprint, unitFootprints } from './query.js';
 import type { Action, Placement, StepResult, UnitId } from './types.js';
 import { applyUntil, editable, keepOnly, placeUnit, startGame } from './test-helpers.js';
 
@@ -405,6 +406,46 @@ describe('Shadowcreep (76b2-ce61-8aec-f6c1)', () => {
     const done = engine.apply(r.state, { t: 'place', placement: near! });
     expect(unitGrants(scenario, done.state, done.state.units[id]!).chargeRollModifier).toBe(1);
     expect(hasOption(done.state, id, SHADOWCREEP_ID)).toBe(false);
+  });
+
+  it('measures the 9" gap base to base from any model: exactly 9" is refused, more than 9" is allowed (B2)', () => {
+    const s = movement();
+    const id = named(s, 0, SPITES).id;
+    const r = engine.apply(s, use(s));
+    const feature = scenario.battlefield.terrain.find((t) => t.centre[0] > 4)!;
+    const near = legalNear(r.state, id, { x: feature.centre[0], y: feature.centre[1] }, 10)!;
+    const krox = named(r.state, 1, 'Kroxigor').id;
+    const gapWith = (dx: number): GameState => {
+      const t = editable(r.state);
+      const m0 = near.models[0]!;
+      placeUnit(scenario, t, krox, m0.x + dx, m0.y);
+      return t;
+    };
+    // Find the offset at which the nearest base edges are exactly 9" apart, by bisection on the engine's own
+    // measure: just below it is refused, just above it is not refused for the gap.
+    let lo = 0.5;
+    let hi = 40;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      if (codes(gapWith(mid), near).includes('ENEMY_COMBAT_RANGE')) lo = mid;
+      else hi = mid;
+    }
+    const gapAt = (dx: number): number => {
+      const t = gapWith(dx);
+      const mine = near.models.map((m) => modelFootprint(scenario, t.units[id]!, m.i, m));
+      return Math.min(
+        ...mine.flatMap((a) =>
+          unitFootprints(scenario, t.units[krox]!).map((b) => footprintGap(a, b)),
+        ),
+      );
+    };
+    expect(gapAt(lo - 0.05)).toBeLessThan(9);
+    expect(gapAt(hi + 0.05)).toBeGreaterThan(9);
+    expect(gapAt(hi)).toBeCloseTo(9, 1);
+    expect(codes(gapWith(lo - 0.05), near)).toContain('ENEMY_COMBAT_RANGE');
+    expect(codes(gapWith(hi + 0.05), near)).not.toContain('ENEMY_COMBAT_RANGE');
+    // The enemy 9" to 9.1" from the nearest base is the threshold: 0.1" per side of it at most.
+    expect(hi - lo).toBeLessThan(0.01);
   });
 
   it('a unit set up again cannot move in the movement phase of that turn (Core 24.0), but can pile in', () => {

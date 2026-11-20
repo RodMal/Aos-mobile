@@ -7,6 +7,7 @@ import {
   defaultFrontage,
   facingTowards,
   formPlacement,
+  isFactionTerrainUnit,
   shiftPlacement,
   unitCentre,
   unitsOf,
@@ -18,7 +19,7 @@ import {
   type Scenario,
   type UnitState,
 } from '../../engine/index.js';
-import { boundingRadius, footprintGap } from '../../geom/index.js';
+import { boundingRadius, footprintClosestPoints, footprintGap } from '../../geom/index.js';
 
 export interface PlacementDraft {
   unit: string;
@@ -198,4 +199,84 @@ export function setUpReach(
     dist = Math.max(dist, Math.max(0, near) + 2 * boundingRadius(fp));
   }
   return { caster, range: top.allowance, dist };
+}
+
+/** The printed limits of a set-up, the gap it needs from enemies and where the placement stands. */
+export interface SetUpLimits {
+  /** One line per printed limit, for the place panel. */
+  limits: string[];
+  /** "More than X inches from all enemy units"; 0 when the ability has no such limit. */
+  gap: number;
+  /** The nearest enemy unit to any model of the placement, with the edge-to-edge gap. */
+  nearest: {
+    name: string;
+    dist: number;
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+  } | null;
+}
+
+const fmt = (n: number): string => (Number.isInteger(n) ? `${n}"` : `${n.toFixed(1)}"`);
+
+/**
+ * The limits of a `relocate` or `replacement` set-up (Shadowcreep, Realmroot Guide, Huntmaster's
+ * Strike, Merciless Ambush, Rhythm of the Chase, Chameleon Ambush, the replacement units), and
+ * the distance from the placement to the nearest enemy base. `checkPlacement` stays the judge.
+ */
+export function setUpLimits(
+  scenario: Scenario,
+  state: GameState,
+  placement: Placement,
+): SetUpLimits | null {
+  const top = state.stack[state.stack.length - 1];
+  if (top?.t !== 'place' || (top.reason !== 'relocate' && top.reason !== 'replacement')) {
+    return null;
+  }
+  const unit = state.units[placement.unit];
+  if (!unit) return null;
+  const rel = top.relocate;
+  const limits: string[] = [];
+  let gap = top.minEnemyGap ?? 9;
+  switch (rel?.kind) {
+    case 'shadowcreep':
+      limits.push('Wholly within 3" of a terrain feature');
+      break;
+    case 'ambush':
+      limits.push('Within ½" of an enemy unit');
+      limits.push(
+        `Wholly within ${fmt(rel.reach ?? 0)} of a terrain feature with your overgrown token`,
+      );
+      gap = 0;
+      break;
+    case 'rhythm':
+      limits.push(`Within 1" of ${(rel.target && state.units[rel.target]?.name) || 'the target'}`);
+      gap = 0;
+      break;
+    case 'chameleon':
+      limits.push('Anywhere on the battlefield');
+      break;
+    default:
+      limits.push('Wholly within your creeping overgrowth');
+  }
+  if (gap > 0) limits.push(`More than ${fmt(gap)} from all enemy units`);
+  let nearest: SetUpLimits['nearest'] = null;
+  for (const enemy of unitsOf(state, opponent(unit.owner))) {
+    if (isFactionTerrainUnit(scenario, enemy)) continue;
+    const efps = unitFootprints(scenario, enemy);
+    for (const m of placement.models) {
+      const fp = modelFootprint(scenario, unit, m.i, m);
+      for (const efp of efps) {
+        const c = footprintClosestPoints(fp, efp);
+        if (!nearest || c.gap < nearest.dist) {
+          nearest = {
+            name: enemy.name,
+            dist: c.gap,
+            from: { x: c.a[0], y: c.a[1] },
+            to: { x: c.b[0], y: c.b[1] },
+          };
+        }
+      }
+    }
+  }
+  return { limits, gap, nearest };
 }

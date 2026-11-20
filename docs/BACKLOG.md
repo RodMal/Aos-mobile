@@ -30,14 +30,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Ruling**: Owner ruling (2026-11-20), Core 13.1: non-FIGHT combat abilities are used before fighting starts. Groundshaker, Venomite Swarm and Ark of Sotek move from the fighter pick to the start-of-combat reaction window used by Rhythm of the Chase: the active player is offered first, then the defender. Once fighters are picked they cannot be used.
 - **Done when**: one test per ability (offered in the start-of-combat window, active player first then defender, and resolved before any fighter is picked); a test that none of the three is offered during the fight pick; the NPC uses them only when they help. Update I104, I106 and `docs/ABILITIES.md`.
 
-### R15 Replacement units: replace once, no carry-over
-
-- **Tier**: sonnet
-- **Touches**: engine
-- **Read**: RULES-DECISIONS I99 and the owner ruling (2026-11-20) on Core 24.2; `src/engine/commands.ts` (`landAwakensTargets`, `startReplacement`); `src/engine/placing.ts`; `src/ai/replacement.ts`
-- **Ruling**: Owner ruling (2026-11-20), Core 24.2: a unit can be replaced only once, and a replacement unit cannot be replaced (The Land Awakens, The Goddess Of Life). Effects on the destroyed unit do not carry over to the replacement.
-- **Done when**: tests that a unit already replaced cannot be a target of The Land Awakens or The Goddess Of Life, that a replacement unit cannot be replaced, and that effects on the destroyed unit (damage, tokens, abilities used) do not carry over; the NPC (`src/ai/replacement.ts`) respects both limits. Update I99.
-
 ### R16 Climbing terrain costs movement
 
 - **Tier**: sonnet+review

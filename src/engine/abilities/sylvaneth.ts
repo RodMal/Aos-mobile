@@ -157,6 +157,7 @@ type RerollKind = 'hit' | 'wound' | 'save';
 /** True when `unit` carries the Glamourweave artefact. */
 export function hasGlamourweave(scenario: Scenario, unit: UnitState): boolean {
   const army = scenario.armies[unit.owner].units[unit.armyIndex];
+  if (unit.enhancementsLost) return false;
   return army?.enhancements.some((e) => e.ability.id === GLAMOURWEAVE_ID) ?? false;
 }
 

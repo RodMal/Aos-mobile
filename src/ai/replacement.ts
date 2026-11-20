@@ -4,7 +4,8 @@
  * to win: CP in hand above its spare CP, a battle still to play, and a legal set-up spot
  * (wholly within the overgrowth, over 9" from enemies) within reach of an objective it does not
  * hold. Deterministic, and cheap: it looks at a few spots around each wanted objective, and
- * only on the rare turns a command is available.
+ * only on the rare turns a command is available. A unit already replaced is never a target
+ * (Core 24.2): the engine's eligibility lists leave it out.
  */
 import {
   controlScores,
