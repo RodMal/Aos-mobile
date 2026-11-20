@@ -17,7 +17,7 @@ import {
 } from '../rules/core/battleTactics.js';
 import { applySimmeringRage, initFury } from '../rules/core/fury.js';
 import { placeOfPowerCandidate } from './terrain.js';
-import { applyEverGrowing, resolveEndlessGrowth } from '../rules/factions/sylvaneth.js';
+import { applyEverGrowing } from '../rules/factions/sylvaneth.js';
 import {
   burgeoningPick,
   creepingDreadCandidates,
@@ -292,9 +292,6 @@ export function endGame(ctx: Ctx): void {
 /** End of a turn: resolve objective control, then the player whose turn it was scores. */
 export function endTurn(ctx: Ctx): void {
   const { s, scenario } = ctx;
-  // Endless Growth is used at the end of any turn by each army that has it.
-  resolveEndlessGrowth(ctx, s.active);
-  resolveEndlessGrowth(ctx, opponent(s.active));
   deadForInnumerableAges(ctx);
   // "For the rest of the turn" lasts through objective control (Celestial Conduit), which is
   // why the turn's effects are cleared after it.
@@ -406,23 +403,26 @@ function offerFuryOfTheForest(ctx: Ctx): void {
 }
 
 /**
- * The end of a turn. End-of-turn abilities that need an answer come first (Vengeance of Azyr,
- * the active player first); `settle` then calls `finishTurn` once none is waiting.
+ * The end of a turn (Core 13.0, 31.0; owner ruling 2026-11-20, I111): the active player's
+ * end-of-turn abilities resolve first, then the other player's, and objective control and
+ * scoring come after all of them. Within a player's set the order is fixed: Endless Growth
+ * (the heal, resolved by `settle` from an `endGrowth` frame), Huntmaster's Strike, then
+ * Vengeance of Azyr. `settle` calls `finishTurn` once nothing is waiting.
  */
 function beginTurnEnd(ctx: Ctx): void {
   const { s, scenario } = ctx;
   s.stack.push({ t: 'turnEnd' });
-  // Huntmaster's Strike ("End of Any Turn"): a unit that charged this turn, the active player first.
-  for (const player of [opponent(s.active), s.active]) {
-    const options: ReactionOption[] = unitsOf(s, player)
-      .filter((u) => canHuntmaster(scenario, s, u))
-      .map((u) => ({ ability: 'huntmastersStrike', unit: u.id, cost: 0 }));
-    if (options.length > 0) s.stack.push({ t: 'reaction', player, options, trigger: 'end:turn' });
-  }
+  // The stack resolves from the top, so the other player's frames go on first.
   for (const player of [opponent(s.active), s.active]) {
     if (vengeanceCandidates(scenario, s, player).length > 0) {
       s.stack.push({ t: 'vengeance', player, stage: 'pick', queue: [] });
     }
+    // Huntmaster's Strike ("End of Any Turn"): a unit that charged this turn.
+    const options: ReactionOption[] = unitsOf(s, player)
+      .filter((u) => canHuntmaster(scenario, s, u))
+      .map((u) => ({ ability: 'huntmastersStrike', unit: u.id, cost: 0 }));
+    if (options.length > 0) s.stack.push({ t: 'reaction', player, options, trigger: 'end:turn' });
+    s.stack.push({ t: 'endGrowth', player });
   }
 }
 
