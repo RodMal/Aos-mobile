@@ -104,6 +104,18 @@ export interface AbilityDefinition {
     scenario: Scenario,
     state: GameState,
   ) => Partial<UnitGrants>;
+  /**
+   * Like `auraGrants`, but resolved after every other grant (passive, aura and effect) is merged,
+   * and given them as `current`. For "already has X" conditions (Revivifying Energies). Late
+   * grants do not see each other.
+   */
+  lateAuraGrants?: (
+    source: UnitState,
+    unit: UnitState,
+    scenario: Scenario,
+    state: GameState,
+    current: Readonly<UnitGrants>,
+  ) => Partial<UnitGrants>;
   /** Attack modifiers for attacks that target a unit whose warscroll has this ability. */
   defenceModifiers?: (
     self: UnitState,

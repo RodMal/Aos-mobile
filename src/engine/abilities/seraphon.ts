@@ -103,7 +103,9 @@ export const SERAPHON_PASSIVES: AbilityDefinition[] = [
     name: 'Revivifying Energies',
     kind: 'passive',
     bsdata: true,
-    auraGrants: (source, unit, scenario) => {
+    // Late: "already has Ward (6+)" looks at every other source (printed, aura, effect), and
+    // this ability's own 6+ is not among them (I102).
+    lateAuraGrants: (source, unit, scenario, _state, current) => {
       if (
         !isFriend(scenario, source, unit) ||
         !hasKeyword(scenario, unit, 'SERAPHON') ||
@@ -112,7 +114,7 @@ export const SERAPHON_PASSIVES: AbilityDefinition[] = [
       ) {
         return {};
       }
-      return { ward: profileOf(scenario, unit).ward === 6 ? 5 : 6 };
+      return { ward: current.ward === 6 ? 5 : 6 };
     },
   },
   {
