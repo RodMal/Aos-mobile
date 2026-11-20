@@ -47,6 +47,8 @@ import { contestedObjective } from '../rules/core/objectives.js';
 import { scryCandidates } from '../engine/seraphonActive.js';
 import {
   npcConduitHelps,
+  npcCoatlHelps,
+  declaredCastingValue,
   npcScryPicks,
   npcScryWorthUsing,
   npcStarVenomTarget,
@@ -102,11 +104,11 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       }
       const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
       if (pain) return painAction(engine, state, pain);
-      // Coatl Familiar costs nothing and only helps the spell: always used. Celestial Conduit only
+      // Coatl Familiar (once per battle) only when the extra D6 turns a likely failed cast into a likely success (R18). Celestial Conduit only
       // when a unit it helps is within reach of an objective the army does not hold (R12).
       const boost = d.options.find(
         (o) =>
-          o.ability === 'coatlFamiliar' ||
+          (o.ability === 'coatlFamiliar' && npcCoatlHelps(declaredCastingValue(state) ?? 6)) ||
           (o.ability === 'celestialConduit' &&
             npcConduitHelps(engine.scenario, state, state.units[o.unit]!)),
       );

@@ -46,14 +46,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Ruling**: Owner ruling (2026-11-20): the Venomites token is not physical. It is a tag on the Sunblood Pack unit, not a model placed on the board. There is no side choice and no board placement.
 - **Done when**: the placed token, the side prompt from R12 and the board drawing are removed; `tableSide` is removed if nothing else uses it; the Sunblood Pack carries the tag; Venomite Swarm uses the tag (a roll of 1 removes it for good, then the ability is not offered); tests and the seraphon-r12 e2e are updated; the rules version is bumped. Update I104.
 
-### R18 NPC thresholds: Merciless Ambush and Coatl Familiar
-
-- **Tier**: sonnet
-- **Touches**: ai
-- **Read**: RULES-DECISIONS I103 (Merciless Ambush), I104 (Coatl Familiar) and the owner ruling (2026-11-20); `src/ai/sylvaneth.ts`, `src/ai/seraphon.ts`
-- **Ruling**: Owner ruling (2026-11-20): the owner asked why the Merciless Ambush threshold is 6". It is not accepted and is replaced by a dice-based check. Coatl Familiar is used only when it helps the NPC.
-- **Done when**: Merciless Ambush: for the best target, work out the charge roll X needed for a legal set-up within 1/2" of the enemy and wholly within X" of an overgrown terrain feature; use the ability only if P(2D6 >= X) is at least about 58% (X <= 7) and the NPC has spare CP. Coatl Familiar: use it only when it helps, e.g. when the extra D6 turns a likely failed cast into a likely success, or the spell matters. Both are deterministic and cheap, with tests for each threshold. Update I103 and I104.
-
 ### M4k Manifestation movement abilities: Scything Blade, The Pendulum Swings, End Given Form, Pulled to the Grave
 
 - **Tier**: sonnet+review
