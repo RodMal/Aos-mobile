@@ -45,6 +45,13 @@ import { diceMean } from '../data/profile.js';
 import { npcDeployPlacement } from '../engine/deployment.js';
 import { contestedObjective } from '../rules/core/objectives.js';
 import { replacementAction, replacementPlacement } from './replacement.js';
+import {
+  relocatePlacement,
+  sylvanethChargeAction,
+  sylvanethMovementAction,
+  sylvanethReaction,
+  type PlanHelpers,
+} from './sylvaneth.js';
 import { chargePlacement, moveTowards, pileInPlacement } from './placement.js';
 import {
   GROUNDSHAKER_ID,
@@ -108,6 +115,8 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       if (unbindOpt) {
         return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };
       }
+      const sylvaneth = sylvanethReaction(engine, state, d.options, planHelpers(engine));
+      if (sylvaneth) return sylvaneth;
       const cp = state.players[d.player].cp;
       // Redeploy is offered once, at the end of the enemy movement phase: only worth it for a
       // unit with an enemy within 9" (it then counts as having run).
@@ -407,6 +416,15 @@ function destination(
   return distance >= 0.5 ? { x: goal.x, y: goal.y, distance } : null;
 }
 
+/** The baseline's own measures, for the Sylvaneth abilities (`sylvaneth.ts`). */
+function planHelpers(engine: Engine): PlanHelpers {
+  return {
+    contesting: (unit) => contesting(engine, unit),
+    destination: (state, unit) => destination(engine, state, unit),
+    isRanged: (unit) => isRanged(engine, unit),
+  };
+}
+
 function placeAction(
   engine: Engine,
   state: GameState,
@@ -426,7 +444,11 @@ function placeAction(
     const placement = replacementPlacement(engine, state, unit);
     return placement ? { t: 'place', placement } : { t: 'pass' };
   }
-  if (d.reason === 'relocate') return { t: 'pass' };
+  if (d.reason === 'relocate') {
+    // A Sylvaneth set-up: the spot its plan wants, else leave the unit (and take the use back).
+    const placement = relocatePlacement(engine, state, unit);
+    return placement ? { t: 'place', placement } : { t: 'pass' };
+  }
   if (d.reason === 'summon') {
     const cur = currentPlacement(unit);
     if (engine.checkPlacement(state, cur).length === 0) {
@@ -579,6 +601,8 @@ function mainAction(
     case 'movement': {
       const goddess = replacementAction(engine, state, player, phase);
       if (goddess) return goddess;
+      const setUp = sylvanethMovementAction(engine, state, player, planHelpers(engine));
+      if (setUp) return setUp;
       for (const unit of units) {
         const action = movementAction(engine, state, unit);
         if (action) return action;
@@ -611,18 +635,20 @@ function mainAction(
         };
       }
       return null;
-    case 'charge':
-      {
-        const ram = ownAbilityAction(engine, state, player, LIVING_BATTERING_RAM_ID);
-        if (ram) return ram;
-      }
+    case 'charge': {
+      const ram = ownAbilityAction(engine, state, player, LIVING_BATTERING_RAM_ID);
+      if (ram) return ram;
+      const helpers = planHelpers(engine);
+      const guardian = sylvanethChargeAction(engine, state, player, helpers, 'guardian');
+      if (guardian) return guardian;
       for (const unit of units) {
         if (!engine.unitOptions(state, unit.id).some((o) => o.t === 'charge')) continue;
         if (isRanged(engine, unit) && !unit.isManifestation) continue;
         const near = nearestEnemy(engine, state, unit);
         if (near && near.gap <= CHARGE_GAP) return { t: 'charge', unit: unit.id };
       }
-      return null;
+      return sylvanethChargeAction(engine, state, player, helpers, 'ambush');
+    }
     case 'end': {
       for (const unit of units) {
         const eruption = engine
