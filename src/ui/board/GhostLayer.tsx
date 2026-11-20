@@ -3,7 +3,7 @@ import { modelFootprint, unitCentre, unitFootprints } from '../../engine/index.j
 import { scenario } from '../game/engine.js';
 import { useDecision, useGameState } from '../game/hooks.js';
 import { inches } from '../game/eventText.js';
-import { maxDistance, placementCentre, setUpReach } from '../game/placementEdit.js';
+import { maxDistance, placementCentre, setUpLimits, setUpReach } from '../game/placementEdit.js';
 import { useUi } from '../game/uiStore.js';
 import { Shape } from './Shape.js';
 import type { Rot } from './view.js';
@@ -26,6 +26,7 @@ export function GhostLayer({ rot }: { rot: Rot }) {
   const bad = new Set(draft.violations.flatMap((v) => v.models ?? []));
   const reach = setUpReach(scenario, state, draft.placement);
   if (reach) return <SetUpGhost rot={rot} reach={reach} bad={bad} />;
+  const limits = setUpLimits(scenario, state, draft.placement);
   const start = unitCentre(unit);
   const end = placementCentre(draft.placement);
   // Set-up has no move distance: no measuring line from where the piece was suggested.
@@ -78,6 +79,30 @@ export function GhostLayer({ rot }: { rot: Rot }) {
           />
         );
       })}
+      {limits?.nearest && (
+        <g data-testid="enemy-ruler">
+          <line
+            x1={limits.nearest.from.x}
+            y1={limits.nearest.from.y}
+            x2={limits.nearest.to.x}
+            y2={limits.nearest.to.y}
+            className={`measure ${limits.gap > 0 && limits.nearest.dist <= limits.gap + 1e-6 ? 'bad' : ''}`}
+          />
+          <g
+            transform={`rotate(${-rot} ${(limits.nearest.from.x + limits.nearest.to.x) / 2} ${(limits.nearest.from.y + limits.nearest.to.y) / 2})`}
+          >
+            <text
+              x={(limits.nearest.from.x + limits.nearest.to.x) / 2}
+              y={(limits.nearest.from.y + limits.nearest.to.y) / 2}
+              className="label measure-label"
+              textAnchor="middle"
+              dy="-0.4em"
+            >
+              {inches(Math.round(limits.nearest.dist * 10) / 10)}
+            </text>
+          </g>
+        </g>
+      )}
       {dist > 0.05 && (
         <g transform={`rotate(${-rot} ${mid.x} ${mid.y})`}>
           <text
