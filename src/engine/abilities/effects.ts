@@ -164,7 +164,7 @@ export function reachedThroughOvergrowth(
 export function abilitiesOf(scenario: Scenario, unit: UnitState): readonly { id: string }[] {
   const profile = profileOf(scenario, unit);
   const army = scenario.armies[unit.owner].units[unit.armyIndex];
-  if (!army || army.enhancements.length === 0) return profile.abilities;
+  if (!army || unit.enhancementsLost || army.enhancements.length === 0) return profile.abilities;
   return [...profile.abilities, ...army.enhancements.map((e) => e.ability)];
 }
 

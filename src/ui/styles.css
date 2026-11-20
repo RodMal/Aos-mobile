@@ -1182,6 +1182,18 @@ button {
   font-weight: 700;
 }
 
+.setup-limits ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.setup-limits .panel-hint {
+  margin: 4px 0 0;
+}
+.setup-limits .panel-hint.bad {
+  color: var(--bad);
+}
+
 .tools {
   display: grid;
   grid-auto-flow: column;

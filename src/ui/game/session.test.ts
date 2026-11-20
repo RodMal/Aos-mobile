@@ -137,6 +137,17 @@ describe('session', () => {
     expect(replay(engine, record).state).toEqual(s.state);
   });
 
+  it('saves and replays a game started with interactive deployment', () => {
+    let s = newSession(engine, 5, 1, { deploy: true });
+    for (let i = 0; i < 12; i++) {
+      s = applyToSession(engine, s, chooseAction(engine, s.state)).session;
+    }
+    const record = parseRecord(JSON.stringify(toRecord(s)))!;
+    expect(record.deploy).toBe(true);
+    expect(replay(engine, record).state).toEqual(s.state);
+    expect(toRecord(newSession(engine, 5, 1)).deploy).toBeUndefined();
+  });
+
   it('versions records: new saves carry the current rules version, old ones read as legacy', () => {
     const s = toMovement();
     expect(parseRecord(JSON.stringify(toRecord(s)))!.rules).toBe(RULES_VERSION);

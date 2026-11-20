@@ -12,6 +12,7 @@ import {
   maxDistance,
   reformDraft,
   rotateDraft,
+  setUpLimits,
   setUpReach,
 } from '../game/placementEdit.js';
 import { useUi } from '../game/uiStore.js';
@@ -72,6 +73,7 @@ export function PlacePanel() {
   const fromCaster = reach
     ? `${inches(Math.round(reach.dist * 10) / 10)} from ${reach.caster.name} (max ${inches(reach.range)})`
     : null;
+  const setUp = setUpLimits(scenario, state, draft.placement);
   const n = draft.placement.models.length;
   const diceText =
     d.dice.length > 0
@@ -129,7 +131,7 @@ export function PlacePanel() {
           {d.reason === 'setUp'
             ? 'Hero phase · anywhere legal'
             : d.reason === 'replacement' || d.reason === 'relocate'
-              ? 'Set up · anywhere legal'
+              ? 'Set up · see the limits below'
               : reach
                 ? `Wholly within ${inches(reach.range)} of ${reach.caster.name}`
                 : Number.isFinite(d.allowance)
@@ -151,6 +153,24 @@ export function PlacePanel() {
               ? `Moved ${inches(Math.round(dist * 10) / 10)}. Ready to confirm.`
               : note}
       </p>
+      {setUp && (
+        <div className="setup-limits" data-testid="setup-limits">
+          <ul>
+            {setUp.limits.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+          {setUp.nearest && (
+            <p
+              className={`panel-hint small ${setUp.gap > 0 && setUp.nearest.dist <= setUp.gap + 1e-6 ? 'bad' : ''}`}
+              data-testid="setup-nearest"
+            >
+              {`Nearest enemy: ${setUp.nearest.name}, ${inches(Math.round(setUp.nearest.dist * 10) / 10)} away`}
+              {setUp.gap > 0 ? ` (needs more than ${inches(setUp.gap)})` : ''}
+            </p>
+          )}
+        </div>
+      )}
       {first && <p className="panel-hint small">{note}</p>}
       <div className="tools" role="toolbar" aria-label="Formation">
         {(d.reason === 'charge' ||

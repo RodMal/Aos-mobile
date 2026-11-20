@@ -295,7 +295,7 @@ export function canFuryOfTheForest(scenario: Scenario, state: GameState, unit: U
  * needed to be excluded: see docs/RULES-DECISIONS.md).
  */
 export function isLandAwakensTarget(scenario: Scenario, unit: UnitState): boolean {
-  if (unit.status !== 'destroyed' || unit.isManifestation) return false;
+  if (unit.status !== 'destroyed' || unit.isManifestation || unit.replaced) return false;
   const p = profileOf(scenario, unit);
   if (p.isFactionTerrain || !hasKeyword(scenario, unit, 'SYLVANETH')) return false;
   if (hasKeyword(scenario, unit, 'DRYADS') || p.name === 'Dryads') return true;
@@ -336,6 +336,7 @@ export function goddessOfLifeUnits(
     .filter(
       (u) =>
         u.status === 'destroyed' &&
+        !u.replaced &&
         profileOf(scenario, u).abilities.some((a) => a.id === GODDESS_OF_LIFE_ID) &&
         !commandBlocker(scenario, state, player, 'goddessOfLife', u, true),
     )

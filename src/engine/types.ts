@@ -99,6 +99,13 @@ export interface UnitState {
   venomitesGone?: boolean;
   /** Sunblood Pack: where its Venomites token stands (placed next to the unit when deployed; unset in a quick start). */
   venomitesAt?: { x: number; y: number };
+  /**
+   * The unit was brought back by a replacement command (The Land Awakens, The Goddess Of
+   * Life). A unit is replaced once only, and a replacement unit cannot be replaced (Core 24.2).
+   */
+  replaced?: boolean;
+  /** A replacement unit does not keep the enhancements of the unit it replaces (Core 24.2). */
+  enhancementsLost?: boolean;
   /** Set when a unit/manifestation was set up on the battlefield this turn (bars movement-phase moves). */
   setUpThisTurn?: boolean;
   /**
