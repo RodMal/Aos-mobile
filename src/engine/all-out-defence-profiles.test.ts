@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import { weaponMods } from './combat.js';
 import { createEngine, createScenario, profileOf, type GameState } from './index.js';
-import { editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
+import { editable, keepOnly, passTo, placeUnit, skipWindows, startGame } from './test-helpers.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
 const engine = createEngine(scenario);
@@ -23,7 +23,8 @@ function arena(): GameState {
   s.players[1].cp = 0;
   s.players[0].rageDice = 0;
   s.players[1].rageDice = 0;
-  const t = editable(passTo(engine, s, 'combat'));
+  // The defender's Ark of Sotek is offered in the start-of-combat window (R14): passed here.
+  const t = editable(skipWindows(engine, passTo(engine, s, 'combat')));
   t.units[ALARIELLE]!.fought = true;
   return t;
 }
