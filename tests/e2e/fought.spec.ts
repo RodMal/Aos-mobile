@@ -14,8 +14,10 @@ test('units that have fought are dimmed and marked', async ({ page }, info) => {
   expect(seen).toBe(true);
   const id = (await fought.first().getAttribute('data-unit-id'))!;
   await expect(fought.first().locator('.model').first()).toHaveCSS('opacity', '0.4');
-  await expect(page.locator('.label-group', { hasText: 'fought' }).first()).toContainText('fought');
+  await expect(page.locator('.label-group', { hasText: /fighting|fought/ }).first()).toContainText(
+    /fighting|fought/,
+  );
   await page.screenshot({ path: info.outputPath(`fought-${info.project.name}.png`) });
   await page.getByRole('button', { name: 'Roster' }).dispatchEvent('click');
-  await expect(page.locator(`[data-roster-unit="${id}"].fought`)).toContainText('fought');
+  await expect(page.locator(`[data-roster-unit="${id}"].fought`)).toContainText(/fighting|fought/);
 });

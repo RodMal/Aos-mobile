@@ -4,6 +4,7 @@ import { engine, playerName } from '../game/engine.js';
 import { endPhase, optionLabel, phaseName, runOption } from '../game/actions.js';
 import { useGameState, useHuman, useHumanDecision } from '../game/hooks.js';
 import { useUi } from '../game/uiStore.js';
+import { fightWord } from '../game/fightStatus.js';
 import { Icon } from '../components/Icon.js';
 import { FullCard, StatLine } from '../components/UnitCard.js';
 import { ReadyUnits } from './DecisionPanel.js';
@@ -38,7 +39,7 @@ export function UnitPanel({ unitId }: { unitId: string }) {
             `${unit.moved === 'normal' ? 'moved' : unit.moved === 'run' ? 'ran' : 'retreated'}`,
           unit.charged && 'charged',
           unit.shot && 'shot',
-          unit.fought && 'fought',
+          fightWord(state, unit) || false,
         ]
           .filter(Boolean)
           .join(' · ');
