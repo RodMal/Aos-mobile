@@ -14,7 +14,13 @@ import { createEngine, createScenario, type GameState, type UnitId } from '../in
 import { profileOf } from '../query.js';
 import { RngCursor } from '../rng.js';
 import { editable, keepOnly, placeUnit, startGame } from '../test-helpers.js';
-import { clearExpiredEffects, effectiveWard, unitGrants } from './effects.js';
+import {
+  addEffect,
+  clearExpiredEffects,
+  effectiveWard,
+  registerAbility,
+  unitGrants,
+} from './effects.js';
 
 const scenario = createScenario([SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN]);
 const engine = createEngine(scenario);
@@ -226,6 +232,66 @@ describe('Revivifying Energies (15e-ebba-9386-bd1a)', () => {
     } finally {
       profile.ward = saved;
     }
+  });
+
+  describe('already Ward (6+) from another source (R9, I102)', () => {
+    const effect = (s: GameState, target: string, id: string) =>
+      addEffect(s, {
+        id,
+        name: id,
+        sourceUnit: target,
+        targetUnit: target,
+        owner: 0,
+        expires: 'turn',
+      });
+    registerAbility({
+      id: 'test-ward6-effect',
+      name: 'T6',
+      kind: 'activated',
+      effectGrants: () => ({ ward: 6 }),
+    });
+    registerAbility({
+      id: 'test-ward4-effect',
+      name: 'T4',
+      kind: 'activated',
+      effectGrants: () => ({ ward: 4 }),
+    });
+    registerAbility({
+      id: 'test-ward6-aura',
+      name: 'A6',
+      kind: 'passive',
+      auraGrants: (source, u) => (u.owner === source.owner ? { ward: 6 } : {}),
+    });
+
+    it('gives 5+ when an effect already gives Ward (6+)', () => {
+      const s = arena({ [ASTROLITH]: [30, 22], [WARRIORS]: [30, 28] });
+      effect(s, WARRIORS, 'test-ward6-effect');
+      expect(effectiveWard(scenario, s, unit(s, WARRIORS))).toBe(5);
+    });
+
+    it('gives 5+ when an aura already gives Ward (6+)', () => {
+      const s = arena({ [ASTROLITH]: [30, 22], [WARRIORS]: [30, 28], [GUARD]: [30, 50] });
+      expect(effectiveWard(scenario, s, unit(s, WARRIORS))).toBe(6);
+      const abilities = profileOf(scenario, unit(s, GUARD)).abilities as { id: string }[];
+      abilities.push({ id: 'test-ward6-aura' });
+      try {
+        expect(effectiveWard(scenario, s, unit(s, WARRIORS))).toBe(5);
+      } finally {
+        abilities.pop();
+      }
+    });
+
+    it('keeps a better ward', () => {
+      const s = arena({ [ASTROLITH]: [30, 22], [WARRIORS]: [30, 28] });
+      effect(s, WARRIORS, 'test-ward4-effect');
+      expect(effectiveWard(scenario, s, unit(s, WARRIORS))).toBe(4);
+    });
+
+    it("does not count its own 6+: a unit with no ward gets 6+, even with two bearers' sources", () => {
+      const s = arena({ [ASTROLITH]: [30, 22], [WARRIORS]: [30, 28] });
+      expect(effectiveWard(scenario, s, unit(s, WARRIORS))).toBe(6);
+      expect(unitGrants(scenario, s, unit(s, ASTROLITH)).ward).toBe(6);
+    });
   });
 
   it('is not given to units beyond 12"', () => {

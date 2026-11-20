@@ -33,15 +33,22 @@ import type {
 const REGISTRY = new Map<string, AbilityDefinition>();
 
 let auraCache: AbilityDefinition[] | null = null;
+let lateAuraCache: AbilityDefinition[] | null = null;
 
 export function registerAbility(def: AbilityDefinition): void {
   REGISTRY.set(def.id, def);
   auraCache = null;
+  lateAuraCache = null;
 }
 
 function auraDefinitions(): AbilityDefinition[] {
   auraCache ??= [...REGISTRY.values()].filter((d) => d.auraGrants);
   return auraCache;
+}
+
+function lateAuraDefinitions(): AbilityDefinition[] {
+  lateAuraCache ??= [...REGISTRY.values()].filter((d) => d.lateAuraGrants);
+  return lateAuraCache;
 }
 
 export function getAbility(id: string): AbilityDefinition | undefined {
@@ -196,6 +203,23 @@ export function unitGrants(scenario: Scenario, state: GameState, unit: UnitState
     const def = REGISTRY.get(eff.id);
     if (def?.effectGrants) {
       mergeGrants(grants, def.effectGrants(eff, unit, scenario, state));
+    }
+  }
+
+  if (unit.status === 'battlefield') {
+    const late = lateAuraDefinitions();
+    if (late.length > 0) {
+      const current: UnitGrants = { ...grants, keywords: [...grants.keywords] };
+      for (const id of state.unitOrder) {
+        const source = state.units[id]!;
+        if (source.status !== 'battlefield') continue;
+        const sourceAbilities = abilitiesOf(scenario, source);
+        for (const def of late) {
+          if (sourceAbilities.some((a) => a.id === def.id)) {
+            mergeGrants(grants, def.lateAuraGrants!(source, unit, scenario, state, current));
+          }
+        }
+      }
     }
   }
 

@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R9 Revivifying Energies counts a ward from auras
-
-- **Tier**: sonnet
-- **Touches**: engine, rules
-- **Ruling**: I100–I102 (owner, 2026-11-19): Revivifying Energies' "already Ward (6+)" also counts a Ward (6+) from auras and other effects, not only the printed ward.
-- **Read**: I100–I102 in `docs/RULES-DECISIONS.md`; `src/engine/abilities/seraphon.ts` (Revivifying Energies), `src/engine/abilities/effects.ts` (how wards from passives, auras and effects combine).
-- **Done when**: an Infantry unit within 12" of the Astrolith Bearer that already has Ward 6+ from any source (printed, aura, or effect such as another ability) gets Ward 5+. A unit with no ward gets 6+. A unit that already has a better ward keeps it. There is no circular dependency: Revivifying Energies' own 6+ doesn't count as "already". Tests cover each case. Bump the rules version.
-
 ### R10 Sylvaneth set-up and charge rulings: no move after re-set-up, Rhythm at start of combat, Merciless Ambush confirm
 
 - **Tier**: sonnet+review
