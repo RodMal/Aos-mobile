@@ -18,6 +18,7 @@ import {
 import { commandBlocker } from './eligibility.js';
 import { startRound } from './turns.js';
 import { checkPlacement, unitOptions } from './decisions.js';
+import { canHiddenHunters } from './reserve.js';
 import { offerVenomiteToken } from './venomites.js';
 import { rollAndPushCharge, useCommandOn } from './commands.js';
 
@@ -52,6 +53,11 @@ export function place(ctx: Ctx, placement: Placement): void {
   }
   if (frame.reason === 'charge') unit.charged = true;
   if (frame.reason === 'relocate') {
+    // Chameleon Ambush: the unit leaves reserve and is on the battlefield from here.
+    if (unit.status === 'reserve') {
+      unit.status = 'battlefield';
+      unit.inAmbush = false;
+    }
     // Core 24.0: a unit set up other than in the deployment phase cannot use MOVE abilities in
     // the movement phase of the same turn (owner, 2026-11-20). A pile-in is not a MOVE ability.
     unit.setUpThisTurn = true;
@@ -137,6 +143,37 @@ export function place(ctx: Ctx, placement: Placement): void {
           : undefined,
     });
   }
+}
+
+/**
+ * Hidden Hunters, used in place of deploying the unit: it is set up in reserve in ambush and has
+ * now been deployed (the deployment goes on as if it had been placed).
+ */
+export function hiddenHunters(ctx: Ctx, unitId: UnitId): void {
+  const { s } = ctx;
+  const frame = s.stack[s.stack.length - 1];
+  const unit = s.units[unitId];
+  if (
+    !unit ||
+    frame?.t !== 'place' ||
+    frame.unit !== unitId ||
+    !canHiddenHunters(ctx.scenario, s, unit)
+  ) {
+    illegal('That unit cannot use Hidden Hunters now.');
+  }
+  s.stack.pop();
+  unit.inAmbush = true;
+  if (s.deploymentFinishedFirst == null) {
+    const more = s.stack.some(
+      (f) => f.t === 'place' && f.reason === 'deploy' && s.units[f.unit]?.owner === unit.owner,
+    );
+    if (!more) s.deploymentFinishedFirst = unit.owner;
+  }
+  ctx.events.push({
+    t: 'note',
+    text: `${unit.name} is set up in reserve in ambush (Hidden Hunters).`,
+  });
+  if (s.stack.length === 0) startRound(ctx);
 }
 
 export function skipPlace(ctx: Ctx): void {

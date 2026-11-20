@@ -13,7 +13,10 @@ export function Roster() {
     const ui = useUi.getState();
     ui.openDrawer(null);
     ui.select(id);
-    ui.moveCamera({ kind: 'unit', unit: id, zoom: true, onlyIfHidden: false });
+    // A unit waiting in ambush is not on the board.
+    if (state.units[id]!.status === 'battlefield') {
+      ui.moveCamera({ kind: 'unit', unit: id, zoom: true, onlyIfHidden: false });
+    }
   };
   return (
     <Drawer title="Roster" testId="roster">
@@ -45,16 +48,18 @@ export function Roster() {
                 return (
                   <li key={u.id}>
                     <button
-                      className={`roster-item ${u.status !== 'battlefield' ? 'gone' : ''} ${state.phase === 'combat' && u.fought ? 'fought' : ''}`}
+                      className={`roster-item ${u.status !== 'battlefield' && !u.inAmbush ? 'gone' : ''} ${state.phase === 'combat' && u.fought ? 'fought' : ''}`}
                       onClick={() => choose(u.id)}
-                      disabled={u.status !== 'battlefield'}
+                      disabled={u.status !== 'battlefield' && !u.inAmbush}
                       data-roster-unit={u.id}
                     >
                       <span className="roster-name">{u.name}</span>
                       <span className="roster-meta">
                         {u.status === 'destroyed'
                           ? 'destroyed'
-                          : `${alive}/${u.models.length}${u.damage ? ` · ${u.damage} dmg` : ''}${flags ? ` · ${flags}` : ''}`}
+                          : u.inAmbush
+                            ? 'in ambush'
+                            : `${alive}/${u.models.length}${u.damage ? ` · ${u.damage} dmg` : ''}${flags ? ` · ${flags}` : ''}`}
                       </span>
                     </button>
                   </li>

@@ -24,6 +24,13 @@ export function editDraft(
  * null if there is none (or the pending placement is something else).
  */
 import { npcDeployPlacement } from '../../engine/deployment.js';
+import { chameleonPlacement } from '../../ai/reserve.js';
+
+/** Chameleon Ambush is setting the unit up (it starts from a legal spot, like a deployment). */
+export function isChameleon(state: GameState): boolean {
+  const top = state.stack[state.stack.length - 1];
+  return top?.t === 'place' && top.relocate?.kind === 'chameleon';
+}
 
 export function engagePlacement(state: GameState, unitId: string): Placement | null {
   const d = engine.decision(state);
@@ -32,6 +39,7 @@ export function engagePlacement(state: GameState, unitId: string): Placement | n
   if (d.reason === 'pileIn') return pileInPlacement(engine, state, unitId);
   if (d.reason === 'deploy')
     return npcDeployPlacement(engine.scenario, state, state.units[unitId]!);
+  if (isChameleon(state)) return chameleonPlacement(engine, state, state.units[unitId]!, true);
   return null;
 }
 
@@ -44,7 +52,7 @@ export function beginDraft(state: GameState, unitId: string, suggest = false): v
   if (!unit) return;
   const d = startDraft(state, unit);
   const dec = engine.decision(state);
-  const isDeploy = dec?.kind === 'place' && dec.reason === 'deploy';
+  const isDeploy = (dec?.kind === 'place' && dec.reason === 'deploy') || isChameleon(state);
   const placement = (suggest || isDeploy ? engagePlacement(state, unitId) : null) ?? d.placement;
   useUi.getState().setDraft({
     ...d,

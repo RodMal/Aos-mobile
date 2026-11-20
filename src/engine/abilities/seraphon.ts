@@ -36,6 +36,8 @@ export const COATL_FAMILIAR_ID = '2302-6d4-c346-7bc6';
 export const ARK_OF_SOTEK_ID = '714c-4cb6-fce8-6ef9';
 export const ARMOUR_CRUNCHER_ID = 'f6fe-3e8d-dd90-00b8';
 export const STAR_VENOM_ID = 'c71d-2217-fcf1-6110';
+export const HIDDEN_HUNTERS_ID = 'c78e-71e9-a948-fb09';
+export const CHAMELEON_AMBUSH_ID = '4a89-1c50-df0e-4b2b';
 export { CELESTIAL_CONDUIT_ID };
 /** An effect (not an ability): the target had damage allocated by the unit's Dartpipe this turn. */
 export const DARTPIPE_DAMAGE_ID = 'star-venom:dartpipe-damage';

@@ -7,7 +7,7 @@ import { Menu } from './drawers/Menu.js';
 import { Roster } from './drawers/Roster.js';
 import { TacticsDrawer } from './drawers/TacticsDrawer.js';
 import { startAttack } from './game/actions.js';
-import { beginDraft } from './game/draftActions.js';
+import { beginDraft, isChameleon } from './game/draftActions.js';
 import { engine } from './game/engine.js';
 import { useDecision, useGameState, useHuman } from './game/hooks.js';
 import { useGame } from './game/instance.js';
@@ -35,6 +35,8 @@ function useDecisionSync(): void {
       if (!ui.draft || ui.draft.unit !== d.unit) {
         beginDraft(state, d.unit, true);
         ui.select(d.unit);
+        // A unit set up from ambush starts off the board: show the whole battlefield.
+        if (isChameleon(state)) ui.moveCamera({ kind: 'fit' });
       }
     } else if (ui.draft) {
       ui.setDraft(null);
