@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import { strikeOrder } from './abilities/effects.js';
 import { createEngine, createScenario, type GameState } from './index.js';
+import { goddessOfLifeUnits } from './eligibility.js';
 import { formPlacement } from './query.js';
 import type { Placement, UnitId } from './types.js';
 import { editable, keepOnly, passTo, placeUnit, startGame } from './test-helpers.js';
@@ -300,5 +301,83 @@ describe('The Goddess Of Life (4f7c-2ca1-ae3f-d2d3)', () => {
     expect(back.players[0].goddessOfLifeUsed).toBeFalsy();
     expect(back.players[0].cp).toBe(4);
     expect(back.units[a.id]!.status).toBe('destroyed');
+  });
+});
+
+describe('Replacement units (Core 24.2)', () => {
+  const alarielleOf = (s: GameState) => named(s, 0, 'Alarielle the Everqueen');
+  function replaced(): { s: GameState; id: UnitId } {
+    const s = arranged(['Dryads', 'Alarielle the Everqueen'], 'end');
+    placeUnit(scenario, s, alarielleOf(s).id, 30, 30);
+    const d = named(s, 0, 'Dryads');
+    destroy(s, d.id);
+    d.abilitiesUsed = ['x'];
+    d.castsUsed = 2;
+    d.allOutAttack = true;
+    d.damage = 1;
+    s.effects = [
+      { id: 'e', name: 'Old', sourceUnit: d.id, targetUnit: d.id, owner: 1, expires: 'battle' },
+    ];
+    const r = engine.apply(s, {
+      t: 'command',
+      command: 'landAwakens',
+      unit: alarielleOf(s).id,
+      target: d.id,
+    });
+    const done = engine.apply(r.state, { t: 'place', placement: legalSetUp(r.state, d.id)! });
+    return { s: editable(done.state), id: d.id };
+  }
+
+  it('does not carry damage, tokens, abilities used or effects over to the replacement', () => {
+    const { s, id } = replaced();
+    const u = s.units[id]!;
+    expect(u.status).toBe('battlefield');
+    expect(u.damage).toBe(0);
+    expect(u.abilitiesUsed).toBeUndefined();
+    expect(u.castsUsed).toBeUndefined();
+    expect(u.allOutAttack).toBeUndefined();
+    expect(s.effects?.some((e) => e.targetUnit === id) ?? false).toBe(false);
+  });
+
+  it('a replacement unit that is destroyed again cannot be replaced by The Land Awakens', () => {
+    const { s, id } = replaced();
+    destroy(s, id);
+    s.players[0].cp = 4;
+    s.players[0].commandsUsed = [];
+    const opt = engine
+      .unitOptions(s, alarielleOf(s).id)
+      .find((o) => o.t === 'command' && o.command === 'landAwakens');
+    const targets = opt?.t === 'command' ? (opt.targets ?? []) : [];
+    expect(targets).not.toContain(id);
+    expect(() =>
+      engine.apply(s, {
+        t: 'command',
+        command: 'landAwakens',
+        unit: alarielleOf(s).id,
+        target: id,
+      }),
+    ).toThrow();
+  });
+
+  it('Alarielle, brought back by The Goddess Of Life, cannot be replaced again', () => {
+    const s = arranged(['Dryads', 'Alarielle the Everqueen'], 'movement');
+    placeUnit(scenario, s, named(s, 0, 'Dryads').id, 30, 32);
+    const a = alarielleOf(s);
+    destroy(s, a.id);
+    const r = engine.apply(s, {
+      t: 'command',
+      command: 'goddessOfLife',
+      unit: named(s, 0, 'Dryads').id,
+      target: a.id,
+    });
+    const done = editable(
+      engine.apply(r.state, { t: 'place', placement: legalSetUp(r.state, a.id)! }).state,
+    );
+    destroy(done, a.id);
+    // Even if the once-per-battle use were available again, a replaced unit is not a target.
+    done.players[0].goddessOfLifeUsed = false;
+    done.players[0].cp = 4;
+    done.players[0].commandsUsed = [];
+    expect(goddessOfLifeUnits(scenario, done, 0)).toEqual([]);
   });
 });

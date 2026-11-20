@@ -83,6 +83,19 @@ export function place(ctx: Ctx, placement: Placement): void {
     unit.shot = false;
     unit.fought = false;
     unit.chargeDeclared = false;
+    // Core 24.2: nothing the destroyed unit did or had carries over to the replacement.
+    delete unit.declinedTerrainFight;
+    delete unit.commandUsed;
+    delete unit.allOutAttack;
+    delete unit.castsUsed;
+    delete unit.miscast;
+    delete unit.ritualPoints;
+    delete unit.abilitiesUsed;
+    delete unit.magicalIntervention;
+    delete unit.inAmbush;
+    const used = s.players[unit.owner].usedOncePerBattle;
+    if (used)
+      s.players[unit.owner].usedOncePerBattle = used.filter((u) => !u.startsWith(`${unit.id}:`));
     // A new unit: no effect on the unit it replaces carries over.
     if (s.effects) s.effects = s.effects.filter((e) => e.targetUnit !== unit.id);
     const damage = frame.replacement?.damage ?? 0;

@@ -282,6 +282,8 @@ function startReplacement(
     m.alive = i < keep;
   });
   unit.damage = 0;
+  // Core 24.2: replaced once only; a replacement unit cannot be replaced again.
+  unit.replaced = true;
   s.stack.push({
     t: 'place',
     unit: unit.id,
