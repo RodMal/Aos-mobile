@@ -14,6 +14,54 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
+### R13 "Any phase" abilities in both turns
+
+- **Tier**: sonnet+review
+- **Touches**: engine, ai, ui/prompts
+- **Read**: `docs/ABILITIES.md` (Sylvaneth and Seraphon "Any ... Phase" abilities); RULES-DECISIONS I106, I104 (owner ruling 2026-11-20 on Core 13.0); `src/engine/abilities/` (timing of Any-phase abilities), `src/engine/decisions.ts`, `src/ai/`
+- **Ruling**: Owner ruling (2026-11-20), Core 13.0: "Any ... Phase" abilities are offered in both turns. In the opponent's turn they come after the active player has finished that phase. The NPC uses them only when they help (I108).
+- **Done when**: every "Any Hero Phase", "Any Charge Phase" and "Any Combat Phase" ability is offered in the opponent's turn after the active player finishes, not only in the owner's own phase; one test per affected ability (offered in both turns, after the active player's phase, and not before it); the NPC answers when it helps; the full-game e2e passes on phone and desktop. Update I106 and `docs/ABILITIES.md`.
+
+### R14 Groundshaker, Venomite Swarm and Ark of Sotek before fights
+
+- **Tier**: sonnet+review
+- **Touches**: engine, ai, ui/prompts
+- **Read**: `docs/ABILITIES.md`; RULES-DECISIONS I104, I106, I107 and the owner ruling (2026-11-20) on Core 13.1; the start-of-combat reaction window for Rhythm of the Chase in `src/engine/` (combat phase and decisions); `src/ai/sylvaneth.ts`, `src/ai/seraphon.ts`
+- **Ruling**: Owner ruling (2026-11-20), Core 13.1: non-FIGHT combat abilities are used before fighting starts. Groundshaker, Venomite Swarm and Ark of Sotek move from the fighter pick to the start-of-combat reaction window used by Rhythm of the Chase: the active player is offered first, then the defender. Once fighters are picked they cannot be used.
+- **Done when**: one test per ability (offered in the start-of-combat window, active player first then defender, and resolved before any fighter is picked); a test that none of the three is offered during the fight pick; the NPC uses them only when they help. Update I104, I106 and `docs/ABILITIES.md`.
+
+### R15 Replacement units: replace once, no carry-over
+
+- **Tier**: sonnet
+- **Touches**: engine
+- **Read**: RULES-DECISIONS I99 and the owner ruling (2026-11-20) on Core 24.2; `src/engine/commands.ts` (`landAwakensTargets`, `startReplacement`); `src/engine/placing.ts`; `src/ai/replacement.ts`
+- **Ruling**: Owner ruling (2026-11-20), Core 24.2: a unit can be replaced only once, and a replacement unit cannot be replaced (The Land Awakens, The Goddess Of Life). Effects on the destroyed unit do not carry over to the replacement.
+- **Done when**: tests that a unit already replaced cannot be a target of The Land Awakens or The Goddess Of Life, that a replacement unit cannot be replaced, and that effects on the destroyed unit (damage, tokens, abilities used) do not carry over; the NPC (`src/ai/replacement.ts`) respects both limits. Update I99.
+
+### R16 Climbing terrain costs movement
+
+- **Tier**: sonnet+review
+- **Touches**: engine, ui/board
+- **Read**: RULES-DECISIONS I53, I57 and the owner ruling (2026-11-20) on Core 15.2; `src/engine/movement.ts`; terrain heights in `src/data/battlefield.ts`
+- **Ruling**: Owner ruling (2026-11-20), Core 15.2: terrain 1" high or less is ignored. A model climbing taller terrain counts the vertical distance up and down toward its move, unless it has FLY.
+- **Done when**: a model crossing a spire without FLY has the vertical climb (up and down) counted toward its move, and with FLY it does not; tests for both; other tall terrain is handled the same way; ruins and outcrops (1" or less) cost nothing. Update I57 and the terrain notes in `docs/ABILITIES.md` if present.
+
+### R17 Venomites token as a tag
+
+- **Tier**: sonnet
+- **Touches**: engine, ui/prompts, ui/board, ai
+- **Read**: RULES-DECISIONS I104 (point 4 and the Venomite Swarm entry) and the owner ruling (2026-11-20) that the token is not physical; `src/engine/` (the Venomites token and `tableSide`), `src/ui/prompts`, `src/ui/board`, `src/ai/`; the seraphon-r12 e2e test
+- **Ruling**: Owner ruling (2026-11-20): the Venomites token is not physical. It is a tag on the Sunblood Pack unit, not a model placed on the board. There is no side choice and no board placement.
+- **Done when**: the placed token, the side prompt from R12 and the board drawing are removed; `tableSide` is removed if nothing else uses it; the Sunblood Pack carries the tag; Venomite Swarm uses the tag (a roll of 1 removes it for good, then the ability is not offered); tests and the seraphon-r12 e2e are updated; the rules version is bumped. Update I104.
+
+### R18 NPC thresholds: Merciless Ambush and Coatl Familiar
+
+- **Tier**: sonnet
+- **Touches**: ai
+- **Read**: RULES-DECISIONS I103 (Merciless Ambush), I104 (Coatl Familiar) and the owner ruling (2026-11-20); `src/ai/sylvaneth.ts`, `src/ai/seraphon.ts`
+- **Ruling**: Owner ruling (2026-11-20): the owner asked why the Merciless Ambush threshold is 6". It is not accepted and is replaced by a dice-based check. Coatl Familiar is used only when it helps the NPC.
+- **Done when**: Merciless Ambush: for the best target, work out the charge roll X needed for a legal set-up within 1/2" of the enemy and wholly within X" of an overgrown terrain feature; use the ability only if P(2D6 >= X) is at least about 58% (X <= 7) and the NPC has spare CP. Coatl Familiar: use it only when it helps, e.g. when the extra D6 turns a likely failed cast into a likely success, or the spell matters. Both are deterministic and cheap, with tests for each threshold. Update I103 and I104.
+
 ### M4k Manifestation movement abilities: Scything Blade, The Pendulum Swings, End Given Form, Pulled to the Grave
 
 - **Tier**: sonnet+review
@@ -46,7 +94,7 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 ## Waiting on the owner
 
 - The true size of the Awakened Wyldwood pieces: the traced outlines came out 6.6 to 8.5" long and 2.05 to 2.55" wide, below the owner's stated ranges. A real measurement of one piece fixes the scale (`src/data/wyldwood.ts`).
-- Whether ruins and outcrops block standing (currently allowed under the 1" ruling: `LOW_TERRAIN_KINDS` in `src/data/battlefield.ts`), and moving across a spire.
+- Whether a model may end a move on a ruin or outcrop (currently allowed under the 1" ruling: `LOW_TERRAIN_KINDS` in `src/data/battlefield.ts`). Owner only.
 
 ## Later
 
