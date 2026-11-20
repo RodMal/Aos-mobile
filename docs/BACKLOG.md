@@ -14,6 +14,29 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
+### M4n Gaps in what is already implemented: Endless Growth choice, tactic tiers
+
+- **Tier**: sonnet
+- **Touches**: engine, rules, ui/prompts
+- **Read**: `docs/ABILITIES.md`; `src/rules/factions/sylvaneth.ts` (`resolveEndlessGrowth`, S7), `src/engine/decisions.ts`, printed text of Endless Growth `3ff5-8812-c55e-7f5a` in `data/factions/sylvaneth.json`; `src/rules/core/tactics/siegeOfAshes.ts` and `legendOfTheParch.ts`, `src/rules/core/battleTactics.test.ts`
+- **Done when**: Endless Growth asks the player which effect to pick for each target (heal, or return models; the NPC keeps the automatic choice), with a test that each choice does what it says; tests for the Strike and Domination tiers of Siege of Ashes (Strike, and Domination: Repel the Attackers) and Legend of the Parch (Strike, and Domination: Hero of Legend), one per tier, each failing if the condition is changed. Update `docs/ABILITIES.md` and S7.
+
+### R19 Make a waiting reaction obvious
+
+- **Tier**: sonnet
+- **Touches**: ui/prompts
+- **Ruling**: owner request (2026-11-20). In a game, Alarielle's heal and the Huntmaster's Strike offer looked missing at end of turn. They were only queued behind an open Vengeance of Azyr reaction, and the owner had opened the battle log on top of it. The small "Reaction waiting / Back to reaction" banner was easy to miss.
+- **Read**: `src/ui/prompts/ReactionPrompt.tsx`, the "Back to reaction" banner and the battle log drawer (search `src/ui` for "Back to reaction"), `src/engine/turns.ts` (`endTurn` order).
+- **Done when**: a pending reaction for the human is clearly visible on phone and desktop, whichever panel or drawer is open (for example, the banner is larger and more prominent, or opening the log keeps the reaction prompt in view, or the log closes on its own when a reaction becomes due); at end of turn, a short note tells the player that end-of-turn abilities (heals, Huntmaster's Strike) come after the pending reactions; an e2e test opens the log while a reaction is waiting and asserts the reaction is still reachable and visible; it is checked on the pixel-7 and desktop projects.
+
+### R20 Shadowcreep and Realmroot Guide not after moving
+
+- **Tier**: sonnet
+- **Touches**: engine, ai
+- **Ruling**: I103 (owner, 2026-11-20): a unit that has already moved in that phase cannot use Shadowcreep or Realmroot Guide. Realmroot Guide cannot be used if the bearer or the target unit has already moved in that phase. The limit is that phase, not the whole turn.
+- **Read**: I103; `src/engine/relocate.ts` (who may use each ability), `src/engine/decisions.ts` (activated options), `src/ai/sylvaneth.ts`.
+- **Done when**: Shadowcreep is not offered for a unit that has moved in that phase (any move: normal, run, retreat, or a set-up counted as moving); Realmroot Guide is not offered when the bearer or the target unit has moved in that phase; applying either one anyway throws; the NPC respects this; tests cover moved in that phase versus not moved in that phase for each; bump the rules version if replay changes.
+
 ### R13 "Any phase" abilities in both turns
 
 - **Tier**: sonnet+review
@@ -67,13 +90,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: `docs/ABILITIES.md`; printed text in `data/factions/sylvaneth.json` (Awakened Wyldwood: Vengeful Forest Spirits `5dd6-a023-8cdb-5cb1`) and `data/factions/seraphon.json` (Realmshaper Engine: Fierce Guardians `bf4d-2061-b8d1-193`, Power Unleashed `aa75-204a-4256-8c68`); `src/engine/factionTerrain.test.ts`, `src/engine/wyldwood.ts`, `src/engine/eligibility.ts` (`isFactionTerrainUnit`; the terrain "never acts", I39), `src/rules/core/modifiers.ts`, RULES-DECISIONS I39, I40, I59
 - **Ruling**: I39 is superseded by the owner's 2026-11-18 ruling (I74): each faction terrain piece's abilities work as its warscroll prints them.
 - **Done when**: one test per ability: Vengeful Forest Spirits (D3 per target, mortal damage on 2+), Fierce Guardians (+1 to hit for Saurus and Kroxigor combat attacks against an enemy within 9" of the terrain), Power Unleashed (D3 per target on 2+, and D3 on the terrain if it has a Health characteristic). Say in `docs/RULES-DECISIONS.md` how I39 changes (the terrain acts through its abilities only, and still never moves or fights). Update `docs/ABILITIES.md`.
-
-### M4n Gaps in what is already implemented: Endless Growth choice, tactic tiers
-
-- **Tier**: sonnet
-- **Touches**: engine, rules, ui/prompts
-- **Read**: `docs/ABILITIES.md`; `src/rules/factions/sylvaneth.ts` (`resolveEndlessGrowth`, S7), `src/engine/decisions.ts`, printed text of Endless Growth `3ff5-8812-c55e-7f5a` in `data/factions/sylvaneth.json`; `src/rules/core/tactics/siegeOfAshes.ts` and `legendOfTheParch.ts`, `src/rules/core/battleTactics.test.ts`
-- **Done when**: Endless Growth asks the player which effect to pick for each target (heal, or return models; the NPC keeps the automatic choice), with a test that each choice does what it says; tests for the Strike and Domination tiers of Siege of Ashes (Strike, and Domination: Repel the Attackers) and Legend of the Parch (Strike, and Domination: Hero of Legend), one per tier, each failing if the condition is changed. Update `docs/ABILITIES.md` and S7.
 
 ## Waiting on the owner
 
