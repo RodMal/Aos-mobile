@@ -205,6 +205,8 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
           unit: unit.id,
         };
       }
+      case 'endGrowth':
+        throw new Error('internal: unresolved endGrowth frame on top of the stack');
       case 'turnEnd':
         throw new Error('internal: unresolved turnEnd frame on top of the stack');
       case 'resolve':
