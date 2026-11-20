@@ -6,8 +6,18 @@ import {
   allocatePending,
   resolveAttacks,
 } from './combat.js';
-import { GLAMOURWEAVE_REROLL_ID, HUNTMASTERS_STRIKE_ID } from './abilities/sylvaneth.js';
-import { huntmastersStrike, mercilessAmbush } from './relocating.js';
+import {
+  GLAMOURWEAVE_REROLL_ID,
+  HUNTMASTERS_STRIKE_ID,
+  MERCILESS_AMBUSH_ID,
+  RHYTHM_OF_THE_CHASE_ID,
+} from './abilities/sylvaneth.js';
+import {
+  confirmMercilessAmbush,
+  huntmastersStrike,
+  mercilessAmbush,
+  rhythmOfTheChase,
+} from './relocating.js';
 import { illegal, type Ctx } from './ctx.js';
 import { opponent, unitsOf } from './query.js';
 import { spendRageToNegateDamage } from '../rules/core/fury.js';
@@ -43,6 +53,19 @@ export function answerReaction(ctx: Ctx, action: Action): void {
   if (reaction?.t !== 'reaction') illegal('There is no reaction to answer.');
 
   const under = s.stack[s.stack.length - 2];
+
+  // -1. Merciless Ambush: confirm (pay and roll) or cancel, before any dice are rolled.
+  if (reaction.trigger.startsWith('ambush:')) {
+    s.stack.pop();
+    if (action.t === 'pass') return;
+    const ok =
+      action.t === 'ability' &&
+      action.abilityId === MERCILESS_AMBUSH_ID &&
+      reaction.options.some((o) => o.ability === 'mercilessAmbush' && o.unit === action.unit);
+    if (!ok) illegal('Confirm Merciless Ambush or cancel it.');
+    confirmMercilessAmbush(ctx, action.unit);
+    return;
+  }
 
   // 0. A Glamourweave re-roll: re-roll this failed roll, or keep it for a later one.
   if (under?.t === 'resolve' && reaction.options.some((o) => o.ability === 'glamourweave')) {
@@ -143,6 +166,16 @@ export function answerReaction(ctx: Ctx, action: Action): void {
     );
     if (!ok) illegal('That reaction is not available.');
     huntmastersStrike(ctx, action.unit);
+    return;
+  }
+  if (action.t === 'ability' && action.abilityId === RHYTHM_OF_THE_CHASE_ID) {
+    const opt = reaction.options.find(
+      (o) => o.ability === 'rhythmOfTheChase' && o.unit === action.unit,
+    );
+    if (!opt || (action.target && !opt.targets?.includes(action.target))) {
+      illegal('That reaction is not available.');
+    }
+    rhythmOfTheChase(ctx, action.unit, action.target);
     return;
   }
   if (action.t === 'command') {

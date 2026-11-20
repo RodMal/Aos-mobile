@@ -20,15 +20,9 @@ import { type AlarielleSeason } from '../rules/factions/sylvaneth.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import { friendlyWyldwoods } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID } from './wyldwood.js';
-import {
-  mercilessAmbush,
-  rhythmOfTheChase,
-  undoRelocation,
-  useSetUpAbility,
-} from './relocating.js';
+import { declareMercilessAmbush, undoRelocation, useSetUpAbility } from './relocating.js';
 import { SERAPHON_ACTIVATED_IDS, useSeraphonAbility } from './seraphonActive.js';
 import { SYLVANETH_ACTIVATED_IDS, useSylvanethAbility } from './sylvanethActive.js';
-import { RHYTHM_OF_THE_CHASE_ID } from './abilities/sylvaneth.js';
 import { SET_UP_ABILITY_IDS } from './relocate.js';
 import { choosePrayer } from './abilities/magic.js';
 import { chooseVengeance } from './vengeance.js';
@@ -213,7 +207,7 @@ export function createEngine(scenario: Scenario): Engine {
           } else if (d.phase === 'movement' && action.command === 'goddessOfLife') {
             goddessOfLife(ctx, action.unit, action.target);
           } else if (d.phase === 'charge' && action.command === 'mercilessAmbush') {
-            mercilessAmbush(ctx, action.unit);
+            declareMercilessAmbush(ctx, action.unit);
           } else {
             illegal(`Command "${action.command}" is not available in the ${d.phase} phase.`);
           }
@@ -263,9 +257,7 @@ export function createEngine(scenario: Scenario): Engine {
         break;
       case 'fightPick':
         if (action.t === 'fight') declareFight(ctx, d.player, action.unit);
-        else if (action.t === 'ability' && action.abilityId === RHYTHM_OF_THE_CHASE_ID) {
-          rhythmOfTheChase(ctx, action.unit, action.target);
-        } else if (action.t === 'ability' && SERAPHON_ACTIVATED_IDS.includes(action.abilityId)) {
+        else if (action.t === 'ability' && SERAPHON_ACTIVATED_IDS.includes(action.abilityId)) {
           useSeraphonAbility(ctx, action);
         } else if (action.t === 'ability' && SYLVANETH_ACTIVATED_IDS.includes(action.abilityId)) {
           useSylvanethAbility(ctx, action);

@@ -33,6 +33,8 @@ export {
   HUNTMASTERS_STRIKE_ID,
   LIFEBLOOM_ID,
   LIVING_BATTERING_RAM_ID,
+  MERCILESS_AMBUSH_ID,
+  RHYTHM_OF_THE_CHASE_ID,
   WYLDWOOD_REVENANTS_ID,
 } from './abilities/sylvaneth.js';
 export {

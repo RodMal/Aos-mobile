@@ -5,6 +5,8 @@ import {
   CELESTIAL_CONDUIT_ID,
   COATL_FAMILIAR_ID,
   HUNTMASTERS_STRIKE_ID,
+  MERCILESS_AMBUSH_ID,
+  RHYTHM_OF_THE_CHASE_ID,
   WYLDWOOD_REVENANTS_ID,
 } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
@@ -92,6 +94,42 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
                 }
               >
                 Huntmaster&apos;s Strike · {unitName} · Free
+              </button>
+            );
+          }
+          if (o.ability === 'rhythmOfTheChase') {
+            return (o.targets ?? []).map((target) => (
+              <button
+                key={`${i}-${target}`}
+                className="btn wide"
+                data-testid="rhythm-of-the-chase"
+                {...hover}
+                onClick={() =>
+                  dispatch({
+                    t: 'ability',
+                    unit: o.unit,
+                    abilityId: RHYTHM_OF_THE_CHASE_ID,
+                    target,
+                  })
+                }
+              >
+                Rhythm of the Chase · {unitName} on {state.units[target]?.name ?? target} · Free
+              </button>
+            ));
+          }
+          if (o.ability === 'mercilessAmbush') {
+            return (
+              <button
+                key={i}
+                className="btn wide"
+                data-testid="merciless-ambush-confirm"
+                disabled={o.cost > cp}
+                {...hover}
+                onClick={() =>
+                  dispatch({ t: 'ability', unit: o.unit, abilityId: MERCILESS_AMBUSH_ID })
+                }
+              >
+                Merciless Ambush · {unitName} · {o.cost} CP · roll the charge
               </button>
             );
           }

@@ -229,7 +229,7 @@ const SPELL_TRIGGER = /^(?:declare|spell|chant):(m:\d+:[^:]+|\d+:[^:]+):(.*)$/;
 export function triggerUnit(trigger: string): string | null {
   const declared = SPELL_TRIGGER.exec(trigger);
   if (declared) return declared[1]!;
-  const m = /^(?:spell|move|pain|shoot|fight|charge):([^:]+)/.exec(trigger);
+  const m = /^(?:spell|move|pain|shoot|fight|charge|ambush):([^:]+)/.exec(trigger);
   return m ? m[1]! : null;
 }
 
@@ -258,8 +258,11 @@ export function reactionText(trigger: string, ctx: LogContext): string {
   if (trigger === 'end:turn') {
     return 'The turn is ending. You may set up a unit that charged again.';
   }
+  if (trigger.startsWith('ambush:')) {
+    return 'Merciless Ambush: look at the map, then confirm to pay 1 CP and roll the charge, or cancel.';
+  }
   if (trigger === 'start:combat') {
-    return "Your opponent's Combat phase is starting. You may react with one of these units.";
+    return 'The Combat phase is starting, before any unit fights. You may use one of these abilities.';
   }
   if (trigger.startsWith('phase:')) {
     const phase = PHASE_NAMES[trigger.slice(6)];

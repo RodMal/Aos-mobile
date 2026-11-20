@@ -51,6 +51,9 @@ export function place(ctx: Ctx, placement: Placement): void {
   }
   if (frame.reason === 'charge') unit.charged = true;
   if (frame.reason === 'relocate') {
+    // Core 24.0: a unit set up other than in the deployment phase cannot use MOVE abilities in
+    // the movement phase of the same turn (owner, 2026-11-20). A pile-in is not a MOVE ability.
+    unit.setUpThisTurn = true;
     // Set up again: not a move. Merciless Ambush counts as a charge; Shadowcreep adds 1 to charges.
     if (frame.relocate?.kind === 'ambush') unit.charged = true;
     if (frame.relocate?.kind === 'shadowcreep') {

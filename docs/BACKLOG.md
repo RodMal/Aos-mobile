@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R10 Sylvaneth set-up and charge rulings: no move after re-set-up, Rhythm at start of combat, Merciless Ambush confirm
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ui/prompts
-- **Ruling**: I103 (owner, 2026-11-19), points 1–3
-- **Read**: I103 in `docs/RULES-DECISIONS.md`; `src/engine/relocate.ts`, `src/engine/relocating.ts`, `src/engine/decisions.ts` (fight pick), `src/engine/engine.ts` (combat phase start), `src/engine/reactions.ts`, `src/engine/eligibility.ts`
-- **Done when**: (1) a unit set up again by any of the M4g abilities can't move again in the same phase, but can in later phases; (2) Rhythm of the Chase is offered at the start of the combat phase, before the fight pick: the active player's start-of-combat abilities first, then the defender's, then alternating fights; (3) Merciless Ambush shows the map and asks the player to confirm or cancel (with refund) before its dice are rolled. One test per point. The full-game e2e spec still passes on phone and desktop. Bump the rules version.
-
 ### R11 The NPC uses the Sylvaneth set-up and charge abilities
 
 - **Tier**: sonnet

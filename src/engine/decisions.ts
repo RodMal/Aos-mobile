@@ -17,9 +17,9 @@ import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js'
 import {
   chargeSetUpOptions,
   chargeRestriction,
-  combatSetUpOptions,
   movementSetUpOptions,
   relocateViolations,
+  rhythmTargets,
 } from './relocate.js';
 import { friendlyWyldwoods, isAwakenedWyldwood } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID, canSetUpWyldwood, checkWyldwoodSetUp } from './wyldwood.js';
@@ -29,6 +29,7 @@ import {
   type GameState,
   type Placement,
   type PlayerId,
+  type ReactionOption,
   type Scenario,
   type UnitId,
   type UnitOption,
@@ -39,6 +40,7 @@ import {
 import {
   bothRawFighters,
   canCharge,
+  canFuryOfTheForest,
   canRally,
   commandBlocker,
   eligibleFighters,
@@ -104,7 +106,10 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
         return {
           kind: 'reaction',
           player: top.player,
-          options: top.options,
+          options:
+            top.trigger === 'start:combat'
+              ? startOfCombatOptions(scenario, state, top.options)
+              : top.options,
           trigger: top.trigger,
         };
       case 'magicalIntervention':
@@ -253,7 +258,6 @@ export function unitOptionsInner(
       : [];
     return [
       ...fight,
-      ...combatSetUpOptions(scenario, state, unit),
       ...combatOptions(scenario, state, unit),
       ...groundshakerOptions(scenario, state, unit),
     ];
@@ -387,4 +391,27 @@ export function checkPlacement(
     return [...base, ...relocateViolations(scenario, state, moving, placement, top.relocate)];
   }
   return base;
+}
+
+/**
+ * The start-of-combat offers still valid when shown: an earlier Rhythm of the Chase may have
+ * destroyed or moved the enemy a later offer (Fury of The Forest, the defender's Rhythm) relied on.
+ */
+function startOfCombatOptions(
+  scenario: Scenario,
+  state: GameState,
+  options: ReactionOption[],
+): ReactionOption[] {
+  return options.flatMap((o) => {
+    const unit = state.units[o.unit];
+    if (!unit) return [];
+    if (o.ability === 'rhythmOfTheChase') {
+      const targets = rhythmTargets(scenario, state, unit);
+      return targets.length > 0 ? [{ ...o, targets }] : [];
+    }
+    if (o.command === 'furyOfTheForest') {
+      return canFuryOfTheForest(scenario, state, unit) ? [o] : [];
+    }
+    return [o];
+  });
 }

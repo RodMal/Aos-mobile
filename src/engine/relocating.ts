@@ -110,6 +110,28 @@ export function guardianOfTheGlades(ctx: Ctx, unitId: UnitId): void {
 }
 
 /**
+ * Declaring Merciless Ambush asks the player to confirm first (owner, 2026-11-19), after looking at
+ * the map: nothing is paid or rolled until they do, and passing cancels (nothing to refund).
+ */
+export function declareMercilessAmbush(ctx: Ctx, unitId: UnitId): void {
+  const unit = ctx.s.units[unitId];
+  if (!unit || !canMercilessAmbush(ctx.scenario, ctx.s, unit)) {
+    illegal('That unit cannot use Merciless Ambush now.');
+  }
+  ctx.s.stack.push({
+    t: 'reaction',
+    player: unit.owner,
+    options: [{ ability: 'mercilessAmbush', unit: unit.id, cost: 1 }],
+    trigger: `ambush:${unit.id}`,
+  });
+}
+
+/** The answer to the confirmation: the command is paid and the dice rolled now. */
+export function confirmMercilessAmbush(ctx: Ctx, unitId: UnitId): void {
+  mercilessAmbush(ctx, unitId);
+}
+
+/**
  * Merciless Ambush: a charge roll of 2D6, then the unit may be set up again within 1/2" of an
  * enemy unit and wholly within X" of a terrain feature with an overgrown token (X: the roll).
  */
