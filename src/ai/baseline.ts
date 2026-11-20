@@ -44,6 +44,7 @@ import {
 import { diceMean } from '../data/profile.js';
 import { npcDeployPlacement } from '../engine/deployment.js';
 import { contestedObjective } from '../rules/core/objectives.js';
+import { replacementAction, replacementPlacement } from './replacement.js';
 import { chargePlacement, moveTowards, pileInPlacement } from './placement.js';
 import {
   GROUNDSHAKER_ID,
@@ -420,8 +421,12 @@ function placeAction(
     // A further Awakened Wyldwood starts at a legal spot near an objective: keep it there.
     return { t: 'place', placement: currentPlacement(unit) };
   }
-  // The NPC never uses the replacement commands; if one is pending, take it back.
-  if (d.reason === 'replacement' || d.reason === 'relocate') return { t: 'pass' };
+  if (d.reason === 'replacement') {
+    // The Land Awakens / The Goddess Of Life: the spot at an objective it wants, else take it back.
+    const placement = replacementPlacement(engine, state, unit);
+    return placement ? { t: 'place', placement } : { t: 'pass' };
+  }
+  if (d.reason === 'relocate') return { t: 'pass' };
   if (d.reason === 'summon') {
     const cur = currentPlacement(unit);
     if (engine.checkPlacement(state, cur).length === 0) {
@@ -571,12 +576,15 @@ function mainAction(
       const best = maxBy(hurt, lost);
       return best && lost(best) >= 2 ? { t: 'command', command: 'rally', unit: best.id } : null;
     }
-    case 'movement':
+    case 'movement': {
+      const goddess = replacementAction(engine, state, player, phase);
+      if (goddess) return goddess;
       for (const unit of units) {
         const action = movementAction(engine, state, unit);
         if (action) return action;
       }
       return null;
+    }
     case 'shooting':
       for (const unit of units) {
         // Star-venom, once the Dartpipe has done damage.
@@ -624,6 +632,8 @@ function mainAction(
           return eruptionAction(engine, state, unit, eruption);
         }
       }
+      const awakens = replacementAction(engine, state, player, phase);
+      if (awakens) return awakens;
       if (cp < SPARE_CP) return null;
       for (const unit of units) {
         const pt = engine

@@ -4,7 +4,7 @@
  * `replay` covers it. A saved game of an older version is not replayed: the start screen offers
  * a new game instead. See docs/HANDOVER.md. Kept import-free so e2e specs can read it.
  */
-export const RULES_VERSION = 10;
+export const RULES_VERSION = 11;
 
 /** A record saved before versions existed (no `rules` field) is read as this one. */
 export const LEGACY_RULES_VERSION = 1;
