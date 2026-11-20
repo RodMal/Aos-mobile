@@ -95,22 +95,22 @@ export function scryOptions(scenario: Scenario, state: GameState, unit: UnitStat
   if (state.phase !== 'hero' || state.active !== unit.owner || state.stack.length > 0) return [];
   if (!usable(scenario, unit) || !has(scenario, unit, SCRY_THE_STARS_ID)) return [];
   if ((state.players[unit.owner].usedOncePerBattle ?? []).includes(SCRY_THE_STARS_ID)) return [];
-  const targets = unitsOf(state, unit.owner).filter(
-    (u) =>
-      usable(scenario, u) &&
-      hasKeyword(scenario, u, 'SERAPHON') &&
-      (u.id === unit.id || unitWhollyWithin(scenario, unit, u, SCRY_RANGE)),
-  );
-  if (targets.length === 0) return [];
-  const max = Math.min(Math.max(1, state.round), targets.length);
-  return [
-    option(
-      SCRY_THE_STARS_ID,
-      'Scry the Stars',
-      targets.map((u) => u.id),
-      { maxTargets: max },
-    ),
-  ];
+  // The dice are rolled first and the units are picked afterwards (R12): no target here.
+  return scryCandidates(scenario, state, unit).length === 0
+    ? []
+    : [option(SCRY_THE_STARS_ID, 'Scry the Stars', [])];
+}
+
+/** The friendly Seraphon units Scry the Stars may protect: wholly within 18" (the unit itself too). */
+export function scryCandidates(scenario: Scenario, state: GameState, unit: UnitState): UnitId[] {
+  return unitsOf(state, unit.owner)
+    .filter(
+      (u) =>
+        usable(scenario, u) &&
+        hasKeyword(scenario, u, 'SERAPHON') &&
+        (u.id === unit.id || unitWhollyWithin(scenario, unit, u, SCRY_RANGE)),
+    )
+    .map((u) => u.id);
 }
 
 /** Star-venom: "Any Shooting Phase", against a unit the Dartpipe allocated damage to this turn. */
@@ -122,9 +122,19 @@ export function starVenomOptions(
   if (state.phase !== 'shooting' || state.active !== unit.owner || state.stack.length > 0) {
     return [];
   }
+  const targets = starVenomTargets(scenario, state, unit);
+  return targets.length === 0 ? [] : [option(STAR_VENOM_ID, 'Star-venom', targets)];
+}
+
+/**
+ * The enemy units Star-venom may be used on, in any shooting phase: those the unit's Dartpipe
+ * allocated damage to this turn (R12). In the enemy turn it is offered after Covering Fire
+ * (`starVenomReactions`), once the active player has finished (Core 13.0).
+ */
+export function starVenomTargets(scenario: Scenario, state: GameState, unit: UnitState): UnitId[] {
   if (!usable(scenario, unit) || !has(scenario, unit, STAR_VENOM_ID)) return [];
   if (usedByUnit(unit, STAR_VENOM_ID)) return [];
-  const targets = [
+  return [
     ...new Set(
       (state.effects ?? [])
         .filter((e) => e.id === DARTPIPE_DAMAGE_ID && e.sourceUnit === unit.id)
@@ -134,7 +144,33 @@ export function starVenomOptions(
     const t = state.units[id];
     return t !== undefined && targetable(scenario, t);
   });
-  return targets.length === 0 ? [] : [option(STAR_VENOM_ID, 'Star-venom', targets)];
+}
+
+/** Star-venom offered to the player who is not active, as a reaction after their Covering Fire. */
+export function starVenomReactions(
+  scenario: Scenario,
+  state: GameState,
+  player: 0 | 1,
+): ReactionOption[] {
+  const out: ReactionOption[] = [];
+  for (const u of unitsOf(state, player)) {
+    const targets = starVenomTargets(scenario, state, u);
+    if (targets.length > 0) out.push({ ability: 'starVenom', unit: u.id, cost: 0, targets });
+  }
+  return out;
+}
+
+/** Answers a `starVenom` reaction: the target must be one the option lists. */
+export function useStarVenomReaction(
+  ctx: Ctx,
+  option: ReactionOption,
+  unitId: UnitId,
+  targetId: UnitId | undefined,
+): void {
+  const unit = ctx.s.units[unitId]!;
+  const target = targetId ?? option.targets?.[0];
+  if (!target || !option.targets?.includes(target)) illegal('That is not a target for Star-venom.');
+  starVenom(ctx, unit, ctx.s.units[target]!);
 }
 
 /** The enemy units Armour Cruncher may still be used on (it does not stack on a target). */
@@ -223,11 +259,10 @@ export function useSeraphonAbility(ctx: Ctx, action: AbilityAction): void {
     (o): o is AbilityOption => o.t === 'ability' && o.abilityId === action.abilityId,
   );
   if (!opt) illegal(`${unit.name} cannot use that ability now.`);
+  if (action.abilityId === SCRY_THE_STARS_ID) return scryTheStars(ctx, unit);
   const ids = pickedTargets(action, opt, opt.name);
   const targets = ids.map((id) => s.units[id]!);
   switch (action.abilityId) {
-    case SCRY_THE_STARS_ID:
-      return scryTheStars(ctx, unit, targets);
     case VENOMITE_SWARM_ID:
       return venomiteSwarm(ctx, unit, targets[0]!);
     case ARK_OF_SOTEK_ID:
@@ -242,10 +277,10 @@ export function useSeraphonAbility(ctx: Ctx, action: AbilityAction): void {
 }
 
 /**
- * Scry the Stars: a dice for each battle round, and each 3+ gives Ward (5+) to the next unit
- * picked (the player picks before the roll, in the order they want the dice to be spent).
+ * Scry the Stars: a dice for each battle round, rolled first (R12, owner 2026-11-19). Each 3+
+ * gives Ward (5+) to a unit the player then picks (`chooseScry`); no 3+ gives nothing.
  */
-function scryTheStars(ctx: Ctx, unit: UnitState, picks: UnitState[]): void {
+function scryTheStars(ctx: Ctx, unit: UnitState): void {
   const { s } = ctx;
   const p = s.players[unit.owner];
   p.usedOncePerBattle = [...(p.usedOncePerBattle ?? []), SCRY_THE_STARS_ID];
@@ -253,24 +288,51 @@ function scryTheStars(ctx: Ctx, unit: UnitState, picks: UnitState[]): void {
   const dice = d6s(ctx, Math.max(1, s.round));
   roll(ctx, unit, 'Scry the Stars', dice);
   const successes = dice.filter((d) => d >= 3).length;
-  const warded = picks.slice(0, successes);
-  for (const target of warded) {
+  const units = scryCandidates(ctx.scenario, s, unit);
+  if (successes === 0 || units.length === 0) {
+    ctx.events.push({
+      t: 'note',
+      text: `${unit.name} scries the stars: 0 of ${dice.length} dice on 3+.`,
+    });
+    return;
+  }
+  s.stack.push({ t: 'scry', player: unit.owner, unit: unit.id, dice, successes, units });
+}
+
+/** Answers the Scry the Stars pick: `value` is 1 to `successes` unit ids joined by commas. */
+export function chooseScry(ctx: Ctx, value: string): void {
+  const { s } = ctx;
+  const frame = s.stack[s.stack.length - 1];
+  if (frame?.t !== 'scry') illegal('There is no Scry the Stars to answer.');
+  const max = Math.min(frame.successes, frame.units.length);
+  const picks = [
+    ...new Set(
+      value
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (picks.length < 1 || picks.length > max) illegal(`Pick 1 to ${max} units for Ward (5+).`);
+  if (picks.some((id) => !frame.units.includes(id))) {
+    illegal('Scry the Stars protects friendly Seraphon units wholly within 18".');
+  }
+  s.stack.pop();
+  for (const id of picks) {
     addEffect(s, {
       id: SCRY_THE_STARS_ID,
       name: 'Scry the Stars',
-      sourceUnit: unit.id,
-      targetUnit: target.id,
-      owner: unit.owner,
+      sourceUnit: frame.unit,
+      targetUnit: id,
+      owner: frame.player,
       expires: 'startOfNextTurn',
     });
   }
   ctx.events.push({
     t: 'note',
     text:
-      `${unit.name} scries the stars: ${successes} of ${dice.length} dice on 3+` +
-      (warded.length > 0
-        ? `; ${warded.map((u) => u.name).join(', ')} ${warded.length > 1 ? 'have' : 'has'} Ward (5+).`
-        : '.'),
+      `${s.units[frame.unit]!.name} scries the stars: ${frame.successes} of ${frame.dice.length} dice on 3+; ` +
+      `${picks.map((id) => s.units[id]!.name).join(', ')} ${picks.length > 1 ? 'have' : 'has'} Ward (5+).`,
   });
 }
 

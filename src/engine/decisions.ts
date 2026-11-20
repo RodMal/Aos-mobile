@@ -11,6 +11,7 @@ import {
 } from '../rules/core/fury.js';
 import { VENGEANCE_MAX, vengeanceCandidates, vengeanceFoes } from '../rules/factions/kroak.js';
 import { asterismOptions } from '../rules/factions/seraphon.js';
+import { VENOMITE_SIDES } from './venomites.js';
 import { combatOptions, scryOptions, starVenomOptions } from './seraphonActive.js';
 import { batteringRamOptions, groundshakerOptions, lifebloomOptions } from './sylvanethActive.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
@@ -143,6 +144,22 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
         };
       case 'creepingDread':
         return { kind: 'creepingDread', player: top.player, units: top.units, max: top.max };
+      case 'scry':
+        return {
+          kind: 'scry',
+          player: top.player,
+          unit: top.unit,
+          dice: top.dice,
+          units: top.units,
+          max: Math.min(top.successes, top.units.length),
+        };
+      case 'venomites':
+        return {
+          kind: 'venomites',
+          player: top.player,
+          unit: top.unit,
+          sides: [...VENOMITE_SIDES],
+        };
       case 'asterism':
         return {
           kind: 'asterism',

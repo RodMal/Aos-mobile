@@ -18,6 +18,7 @@ import {
 import { commandBlocker } from './eligibility.js';
 import { startRound } from './turns.js';
 import { checkPlacement, unitOptions } from './decisions.js';
+import { offerVenomiteToken } from './venomites.js';
 import { rollAndPushCharge, useCommandOn } from './commands.js';
 
 export function place(ctx: Ctx, placement: Placement): void {
@@ -98,6 +99,8 @@ export function place(ctx: Ctx, placement: Placement): void {
     if (!more) s.deploymentFinishedFirst = unit.owner;
   }
   ctx.events.push({ t: 'moved', unit: unit.id, kind: frame.reason, dice: frame.dice, distance });
+  // A Sunblood Pack's player places its Venomites token next to it (R12).
+  if (frame.reason === 'deploy') offerVenomiteToken(ctx, unit);
   if (frame.reason === 'deploy' && s.stack.length === 0) {
     startRound(ctx);
   }

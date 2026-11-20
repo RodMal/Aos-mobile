@@ -19,6 +19,8 @@ import {
   rhythmOfTheChase,
 } from './relocating.js';
 import { illegal, type Ctx } from './ctx.js';
+import { STAR_VENOM_ID } from './abilities/seraphon.js';
+import { starVenomReactions, useStarVenomReaction } from './seraphonActive.js';
 import { opponent, unitsOf } from './query.js';
 import { spendRageToNegateDamage } from '../rules/core/fury.js';
 import {
@@ -168,6 +170,12 @@ export function answerReaction(ctx: Ctx, action: Action): void {
     huntmastersStrike(ctx, action.unit);
     return;
   }
+  if (action.t === 'ability' && action.abilityId === STAR_VENOM_ID) {
+    const opt = reaction.options.find((o) => o.ability === 'starVenom' && o.unit === action.unit);
+    if (!opt) illegal('That reaction is not available.');
+    useStarVenomReaction(ctx, opt, action.unit, action.target);
+    return;
+  }
   if (action.t === 'ability' && action.abilityId === RHYTHM_OF_THE_CHASE_ID) {
     const opt = reaction.options.find(
       (o) => o.ability === 'rhythmOfTheChase' && o.unit === action.unit,
@@ -304,6 +312,17 @@ export function offerEndOfPhaseReaction(ctx: Ctx): boolean {
         });
         return true;
       }
+    }
+  }
+
+  // Star-venom, in the enemy shooting phase: after the active player has finished (Core 13.0),
+  // so after Covering Fire. Each use is once per unit, so this ends by itself (R12).
+  if (s.phase === 'shooting') {
+    const options = starVenomReactions(ctx.scenario, s, nonActive);
+    if (options.length > 0) {
+      if (s.stack[s.stack.length - 1]?.t !== 'endPhase') s.stack.push({ t: 'endPhase' });
+      s.stack.push({ t: 'reaction', player: nonActive, options, trigger: 'phase:shooting' });
+      return true;
     }
   }
 

@@ -2,12 +2,14 @@
 import { memo, useMemo } from 'react';
 import {
   aliveCount,
+  hasVenomites,
   overgrownTokenIds,
   overgrowthReach,
   terrainFeatures,
   unitCentre,
   unitFootprints,
   unitTrunks,
+  venomiteTokenAt,
   type GameState,
   type UnitState,
 } from '../../engine/index.js';
@@ -173,6 +175,36 @@ export function OvergrowthLayer({ onUnits = false }: { onUnits?: boolean }) {
           />
         </g>
       ))}
+    </g>
+  );
+}
+
+/** The Venomites token of every Sunblood Pack on the battlefield that still has one (R12). */
+export function VenomiteTokensLayer() {
+  const state = useGameState();
+  const human = useHuman();
+  const marks = state.unitOrder
+    .map((id) => state.units[id]!)
+    .filter((u) => u.status === 'battlefield' && !u.venomitesGone && hasVenomites(scenario, u));
+  if (marks.length === 0) return null;
+  return (
+    <g className="layer-venomites" pointerEvents="none">
+      {marks.map((u) => {
+        const at = venomiteTokenAt(scenario, u);
+        return (
+          <g
+            key={u.id}
+            className={`venomites ${u.owner === human ? 'friendly' : 'enemy'}`}
+            data-testid="venomites-token"
+            data-venomites={u.id}
+          >
+            <circle cx={at.x} cy={at.y} r={0.7} className="venomites-badge" />
+            <text x={at.x} y={at.y + 0.35} textAnchor="middle" className="venomites-glyph">
+              V
+            </text>
+          </g>
+        );
+      })}
     </g>
   );
 }
