@@ -16,6 +16,7 @@ import {
 import { createEngine, createScenario, type GameState } from '../engine/index.js';
 import { editable, keepOnly, placeUnit, startGame } from '../engine/test-helpers.js';
 import { chooseAction } from './baseline.js';
+import { ambushRollNeeded, twoDiceChance } from './sylvaneth.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
 const engine = createEngine(scenario);
@@ -174,6 +175,25 @@ describe('NPC: Merciless Ambush and Guardian Of The Glades', () => {
     placeUnit(scenario, poor, named(poor, 1, 'Kroxigor').id, obj.x + 7, WOOD.y);
     poor.players[0].cp = 1;
     expect(chooseAction(engine, poor)).not.toMatchObject({ command: 'mercilessAmbush' });
+  });
+
+  it('Merciless Ambush: the 2D6 chance of the roll needed decides (58% at X = 7)', () => {
+    expect(twoDiceChance(7)).toBeCloseTo(21 / 36, 5);
+    expect(twoDiceChance(8)).toBeLessThan(0.58);
+    const used = (dx: number) => {
+      const s = arranged([DRYCHA], 'charge');
+      placeUnit(scenario, s, named(s, 0, DRYCHA).id, obj.x - 12, obj.y);
+      placeUnit(scenario, s, named(s, 1, 'Kroxigor').id, obj.x + dx, WOOD.y);
+      const x = ambushRollNeeded(scenario, s, named(s, 0, DRYCHA), named(s, 1, 'Kroxigor'));
+      const a = chooseAction(engine, s);
+      return { x, used: a.t === 'command' && a.command === 'mercilessAmbush' };
+    };
+    const near = used(7);
+    expect(near.x).toBeLessThanOrEqual(7);
+    expect(near.used).toBe(true);
+    const far = used(28);
+    expect(far.x).toBeGreaterThan(7);
+    expect(far.used).toBe(false);
   });
 
   it('Guardian Of The Glades: declared to charge the enemy fighting a friendly Hero', () => {

@@ -4,6 +4,7 @@
  * objective checks (no dice, no simulation, so the 1200 ms per-game budget is untouched).
  */
 import { controlScores } from '../engine/index.js';
+import { getAbility } from '../engine/abilities/effects.js';
 import {
   hasKeyword,
   profileOf,
@@ -108,4 +109,37 @@ export function npcConduitHelps(scenario: Scenario, state: GameState, bearer: Un
     const c = unitCentre(u);
     return wanted.some((o) => Math.hypot(o.x - c.x, o.y - c.y) <= OBJECTIVE_REACH + o.radius);
   });
+}
+
+/** P(sum of `n` dice >= x), exact by counting. */
+function diceChance(n: number, x: number): number {
+  let counts = new Map<number, number>([[0, 1]]);
+  for (let i = 0; i < n; i++) {
+    const next = new Map<number, number>();
+    for (const [sum, c] of counts) {
+      for (let d = 1; d <= 6; d++) next.set(sum + d, (next.get(sum + d) ?? 0) + c);
+    }
+    counts = next;
+  }
+  let hit = 0;
+  for (const [sum, c] of counts) if (sum >= x) hit += c;
+  return hit / 6 ** n;
+}
+
+/**
+ * Coatl Familiar (once per battle) adds a D6 to the casting roll: used only when it helps (R18),
+ * that is when the spell would likely fail on 2D6 (under 50%) and likely succeed with the extra
+ * die (50% or more). `castingValue` is the spell's printed value.
+ */
+export function npcCoatlHelps(castingValue: number): boolean {
+  return diceChance(2, castingValue) < 0.5 && diceChance(3, castingValue) >= 0.5;
+}
+
+/** The casting value of the spell declared under the reaction being decided, if there is one. */
+export function declaredCastingValue(state: GameState): number | null {
+  for (let i = state.stack.length - 1; i >= 0; i--) {
+    const f = state.stack[i]!;
+    if (f.t === 'castReact') return getAbility(f.action.abilityId)?.castingValue ?? 6;
+  }
+  return null;
 }
