@@ -69,12 +69,7 @@ import {
   LIVING_BATTERING_RAM_ID,
   WYLDWOOD_REVENANTS_ID,
 } from '../engine/abilities/sylvaneth.js';
-import {
-  batteringRamOptions,
-  groundshakerOptions,
-  has,
-  lifebloomOptions,
-} from '../engine/sylvanethActive.js';
+import { batteringRamOptions, has, lifebloomOptions } from '../engine/sylvanethActive.js';
 import { npcAsterism } from '../rules/factions/seraphon.js';
 import { npcCreepingDreadTargets, npcSeason } from '../rules/factions/seasons.js';
 
@@ -125,6 +120,10 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       if (revenants) {
         return { t: 'ability', unit: revenants.unit, abilityId: WYLDWOOD_REVENANTS_ID };
       }
+      // "Any phase" abilities and the start-of-combat abilities (R13, R14, I108): each is free
+      // and helps when it has a target, so the NPC takes them; Lifebloom only when hurt.
+      const anyPhase = anyPhaseReaction(engine, state, d.options);
+      if (anyPhase) return anyPhase;
       const unbindOpt = d.options.find((o) => o.ability === 'unbind');
       if (unbindOpt) {
         return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };
@@ -170,8 +169,6 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       );
       const ability = seraphonCombatAction(engine, state, d.player);
       if (ability) return ability;
-      const groundshaker = ownAbilityAction(engine, state, d.player, GROUNDSHAKER_ID);
-      if (groundshaker) return groundshaker;
       const best = maxBy(units, (u) => bestAllocations(engine, state, u, 'fight').value);
       if (!best) return engine.defaultAction(state);
       return { t: 'fight', unit: best.id };
@@ -312,9 +309,41 @@ function seraphonCombatAction(engine: Engine, state: GameState, player: PlayerId
   return null;
 }
 
+const ANY_PHASE_IDS = {
+  lifebloom: LIFEBLOOM_ID,
+  livingBatteringRam: LIVING_BATTERING_RAM_ID,
+  groundshaker: GROUNDSHAKER_ID,
+  venomiteSwarm: VENOMITE_SWARM_ID,
+  arkOfSotek: ARK_OF_SOTEK_ID,
+} as const;
+
 /**
- * A once-per-turn ability of one of `player`'s units (Lifebloom, Living Battering Ram,
- * Groundshaker), against the target worth the most points when it has targets.
+ * The reactions of Lifebloom (the unit is hurt), Living Battering Ram, Groundshaker, Venomite
+ * Swarm and Ark of Sotek: free, so used whenever offered; the target worth the most points (the
+ * Ark takes as many as it may).
+ */
+function anyPhaseReaction(
+  engine: Engine,
+  state: GameState,
+  options: readonly ReactionOption[],
+): Action | null {
+  for (const o of options) {
+    const abilityId = o.ability && ANY_PHASE_IDS[o.ability as keyof typeof ANY_PHASE_IDS];
+    if (!abilityId) continue;
+    const ranked = [...(o.targets ?? [])].sort(
+      (a, b) => points(engine, state, b) - points(engine, state, a),
+    );
+    if (o.ability === 'lifebloom') return { t: 'ability', unit: o.unit, abilityId };
+    if (ranked.length === 0) continue;
+    return o.ability === 'arkOfSotek'
+      ? { t: 'ability', unit: o.unit, abilityId, targets: ranked.slice(0, o.maxTargets ?? 1) }
+      : { t: 'ability', unit: o.unit, abilityId, target: ranked[0]! };
+  }
+  return null;
+}
+
+/**
+ * A once-per-turn ability of one of `player`'s units (Lifebloom, Living Battering Ram), against the target worth the most points when it has targets.
  */
 function ownAbilityAction(
   engine: Engine,
@@ -345,7 +374,7 @@ function sylvanethOption(
       ? lifebloomOptions(scenario, state, unit)
       : abilityId === LIVING_BATTERING_RAM_ID
         ? batteringRamOptions(scenario, state, unit)
-        : groundshakerOptions(scenario, state, unit);
+        : [];
   return options[0];
 }
 

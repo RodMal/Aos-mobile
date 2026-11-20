@@ -13,14 +13,14 @@ import { VENGEANCE_MAX, vengeanceCandidates, vengeanceFoes } from '../rules/fact
 import { asterismOptions } from '../rules/factions/seraphon.js';
 import { VENOMITE_SIDES } from './venomites.js';
 import { combatOptions, scryOptions, starVenomOptions } from './seraphonActive.js';
-import { batteringRamOptions, groundshakerOptions, lifebloomOptions } from './sylvanethActive.js';
+import { batteringRamOptions, lifebloomOptions } from './sylvanethActive.js';
+import { refreshOption } from './anyPhase.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import {
   chargeSetUpOptions,
   chargeRestriction,
   movementSetUpOptions,
   relocateViolations,
-  rhythmTargets,
 } from './relocate.js';
 import { canHiddenHunters, chameleonOptions } from './reserve.js';
 import { friendlyWyldwoods, isAwakenedWyldwood } from './overgrowth.js';
@@ -282,11 +282,9 @@ export function unitOptionsInner(
     )
       ? [{ t: 'fight' }]
       : [];
-    return [
-      ...fight,
-      ...combatOptions(scenario, state, unit),
-      ...groundshakerOptions(scenario, state, unit),
-    ];
+    // Only FIGHT abilities once fighting starts (Core 13.1): Groundshaker, Venomite Swarm and Ark
+    // of Sotek are offered in the start-of-combat window instead (R14).
+    return [...fight, ...combatOptions(scenario, state, unit)];
   }
   if (d.kind !== 'main') return [];
   switch (d.phase) {
@@ -423,7 +421,7 @@ export function checkPlacement(
  * The start-of-combat offers still valid when shown: an earlier Rhythm of the Chase may have
  * destroyed or moved the enemy a later offer (Fury of The Forest, the defender's Rhythm) relied on.
  */
-function startOfCombatOptions(
+export function startOfCombatOptions(
   scenario: Scenario,
   state: GameState,
   options: ReactionOption[],
@@ -431,9 +429,9 @@ function startOfCombatOptions(
   return options.flatMap((o) => {
     const unit = state.units[o.unit];
     if (!unit) return [];
-    if (o.ability === 'rhythmOfTheChase') {
-      const targets = rhythmTargets(scenario, state, unit);
-      return targets.length > 0 ? [{ ...o, targets }] : [];
+    if (o.ability) {
+      const fresh = refreshOption(scenario, state, o);
+      return fresh ? [fresh] : [];
     }
     if (o.command === 'furyOfTheForest') {
       return canFuryOfTheForest(scenario, state, unit) ? [o] : [];

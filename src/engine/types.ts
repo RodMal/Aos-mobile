@@ -672,7 +672,12 @@ export interface ReactionOption {
     | 'celestialConduit'
     | 'coatlFamiliar'
     | 'wyldwoodRevenants'
-    | 'starVenom';
+    | 'starVenom'
+    | 'lifebloom'
+    | 'livingBatteringRam'
+    | 'groundshaker'
+    | 'venomiteSwarm'
+    | 'arkOfSotek';
   unit: UnitId;
   cost: number;
   /**
@@ -682,6 +687,12 @@ export interface ReactionOption {
    * paid and the dice rolled then) or pass to cancel; nothing has been paid yet.
    */
   targets?: UnitId[];
+  /**
+   * `lifebloom`, `livingBatteringRam`, `groundshaker`, `venomiteSwarm`, `arkOfSotek` (R13, R14):
+   * answer with `{ t: 'ability', unit, abilityId, target }` (Ark of Sotek: `targets`, 1 to
+   * `maxTargets` of `targets`; Lifebloom: neither) or pass.
+   */
+  maxTargets?: number;
   /** Fight Through the Pain: the damage points about to be allocated to `unit`. */
   damage?: number;
   /** Fight Through the Pain: the most rage dice that may be spent. */

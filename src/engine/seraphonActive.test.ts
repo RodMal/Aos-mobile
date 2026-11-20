@@ -25,7 +25,15 @@ import { ARMOUR_CRUNCHER_ROLL_ID } from './seraphonActive.js';
 import { createEngine, createScenario, type GameState } from './index.js';
 import { profileOf } from './query.js';
 import type { Action, GameEvent, UnitId } from './types.js';
-import { applyUntil, editable, keepOnly, placeUnit, startGame } from './test-helpers.js';
+import {
+  applyUntil,
+  editable,
+  enterCombat,
+  keepOnly,
+  placeUnit,
+  skipWindows,
+  startGame,
+} from './test-helpers.js';
 
 const scenario = createScenario([SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN]);
 const engine = createEngine(scenario);
@@ -73,15 +81,46 @@ const duel = (a: string, b: string, extra: Record<string, [number, number, numbe
   arena({ [a]: [30, 30, 90], [b]: [34, 30, 270], ...extra }, 'combat');
 
 describe('Venomite Swarm (cf2e-d237-9320-1105)', () => {
-  const fight = () => duel(SUNBLOOD, BELTHANOS);
+  const fight = () => enterCombat(engine, duel(SUNBLOOD, BELTHANOS));
 
-  it('is offered while a fighter is picked, against an enemy in combat with the unit', () => {
+  it('is offered in the start-of-combat window against an enemy in combat, before any fighter is picked', () => {
     const s = fight();
-    expect(engine.decision(s)).toMatchObject({ kind: 'fightPick', player: 0 });
-    expect(option(s, SUNBLOOD, VENOMITE_SWARM_ID)).toMatchObject({ targets: [BELTHANOS] });
-    const apart = editable(s);
+    expect(engine.decision(s)).toMatchObject({
+      kind: 'reaction',
+      trigger: 'start:combat',
+      player: 0,
+      options: [{ ability: 'venomiteSwarm', unit: SUNBLOOD, targets: [BELTHANOS] }],
+    });
+    const apart = duel(SUNBLOOD, BELTHANOS);
     placeUnit(scenario, apart, BELTHANOS, 50, 30);
-    expect(option(apart, SUNBLOOD, VENOMITE_SWARM_ID)).toBeUndefined();
+    expect(engine.decision(enterCombat(engine, apart))?.kind).not.toBe('reaction');
+  });
+
+  it('is not offered while a fighter is picked, or once any unit has fought (Core 13.1)', () => {
+    const s = fight();
+    const picking = skipWindows(engine, s);
+    expect(engine.decision(picking)).toMatchObject({ kind: 'fightPick' });
+    expect(option(picking, SUNBLOOD, VENOMITE_SWARM_ID)).toBeUndefined();
+    const fought = engine.apply(picking, { t: 'fight', unit: SUNBLOOD }).state;
+    expect(option(fought, SUNBLOOD, VENOMITE_SWARM_ID)).toBeUndefined();
+    expect(() =>
+      engine.apply(picking, use(SUNBLOOD, VENOMITE_SWARM_ID, { target: BELTHANOS })),
+    ).toThrow();
+  });
+
+  it('is offered to the active player first, then to the defender', () => {
+    // The defender's Belthanos has Rhythm of the Chase: its window follows the active player's.
+    const s = enterCombat(engine, duel(SUNBLOOD, BELTHANOS));
+    expect(engine.decision(s)).toMatchObject({ kind: 'reaction', player: 0 });
+    const defender = engine.apply(s, { t: 'pass' }).state;
+    expect(engine.decision(defender)).toMatchObject({
+      kind: 'reaction',
+      trigger: 'start:combat',
+      player: 1,
+    });
+    expect(engine.decision(engine.apply(defender, { t: 'pass' }).state)).toMatchObject({
+      kind: 'fightPick',
+    });
   });
 
   it('inflicts mortal damage equal to a D3 roll of 2 or more, once per turn for the army', () => {
@@ -92,6 +131,7 @@ describe('Venomite Swarm (cf2e-d237-9320-1105)', () => {
       use(SUNBLOOD, VENOMITE_SWARM_ID, { target: BELTHANOS }),
       (x) => rolls(x.events, 'Venomite Swarm')[0]! >= 2,
     );
+    expect(engine.decision(skipWindows(engine, r.state))).toMatchObject({ kind: 'fightPick' }); // resolved before any pick
     const die = rolls(r.events, 'Venomite Swarm')[0]!;
     expect(r.state.units[BELTHANOS]!.damage).toBe(die);
     expect(r.state.units[SUNBLOOD]!.venomitesGone).toBeUndefined();
@@ -116,7 +156,8 @@ describe('Venomite Swarm (cf2e-d237-9320-1105)', () => {
   });
 
   it('is not available in the other phases', () => {
-    const s = fight();
+    const s = editable(fight());
+    s.stack = [];
     s.phase = 'shooting';
     expect(option(s, SUNBLOOD, VENOMITE_SWARM_ID)).toBeUndefined();
   });
@@ -124,24 +165,39 @@ describe('Venomite Swarm (cf2e-d237-9320-1105)', () => {
 
 describe('Ark of Sotek (714c-4cb6-fce8-6ef9)', () => {
   const field = () =>
-    arena(
-      {
-        [BASTILADON]: [30, 30, 90],
-        [BELTHANOS]: [34, 30, 270],
-        [SPITES]: [30, 38],
-        [DRYCHA]: [20, 30],
-        [DRYADS2]: [30, 50],
-      },
-      'combat',
+    enterCombat(
+      engine,
+      arena(
+        {
+          [BASTILADON]: [30, 30, 90],
+          [BELTHANOS]: [34, 30, 270],
+          [SPITES]: [30, 38],
+          [DRYCHA]: [20, 30],
+          [DRYADS2]: [30, 50],
+        },
+        'combat',
+      ),
     );
 
-  it('picks up to 3 different enemy units within 9", not the one further away', () => {
+  it('is offered in the start-of-combat window to up to 3 enemy units within 9", not the one further away', () => {
     const s = field();
-    const opt = option(s, BASTILADON, ARK_OF_SOTEK_ID);
-    expect(opt).toMatchObject({ maxTargets: 3 });
-    expect(opt?.t === 'ability' ? [...opt.targets].sort() : []).toEqual(
-      [BELTHANOS, SPITES, DRYCHA].sort(),
-    );
+    const d = engine.decision(s);
+    if (d?.kind !== 'reaction') throw new Error('no window');
+    expect(d).toMatchObject({ trigger: 'start:combat', player: 0 });
+    const opt = d.options.find((o) => o.ability === 'arkOfSotek');
+    expect(opt).toMatchObject({ unit: BASTILADON, maxTargets: 3 });
+    expect([...(opt?.targets ?? [])].sort()).toEqual([BELTHANOS, SPITES, DRYCHA].sort());
+  });
+
+  it('is not offered while a fighter is picked, or once any unit has fought (Core 13.1)', () => {
+    const picking = skipWindows(engine, field());
+    expect(engine.decision(picking)).toMatchObject({ kind: 'fightPick' });
+    expect(option(picking, BASTILADON, ARK_OF_SOTEK_ID)).toBeUndefined();
+    expect(() =>
+      engine.apply(picking, use(BASTILADON, ARK_OF_SOTEK_ID, { targets: [BELTHANOS] })),
+    ).toThrow();
+    const fought = engine.apply(picking, { t: 'fight', unit: BASTILADON }).state;
+    expect(option(fought, BASTILADON, ARK_OF_SOTEK_ID)).toBeUndefined();
   });
 
   it('rolls a D3 for each target and inflicts mortal damage on a 2+', () => {
@@ -157,11 +213,10 @@ describe('Ark of Sotek (714c-4cb6-fce8-6ef9)', () => {
     );
     const [first] = rolls(r.events, 'Ark of Sotek');
     expect(rolls(r.events, 'Ark of Sotek')).toHaveLength(2);
+    expect(engine.decision(skipWindows(engine, r.state))).toMatchObject({ kind: 'fightPick' });
     expect(r.state.units[BELTHANOS]!.damage).toBe(first);
     expect(r.state.units[SPITES]!.damage).toBe(0);
     expect(r.state.units[DRYCHA]!.damage).toBe(0);
-    // Once per turn for the army.
-    expect(option(r.state, BASTILADON, ARK_OF_SOTEK_ID)).toBeUndefined();
   });
 
   it('refuses a 4th target, a repeated one and one out of range', () => {

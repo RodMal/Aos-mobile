@@ -25,8 +25,10 @@ import {
   ScriptedDice,
   applyUntil,
   editable,
+  enterCombat,
   keepOnly,
   placeUnit,
+  skipWindows,
   startGame,
 } from './test-helpers.js';
 
@@ -150,22 +152,59 @@ describe('Living Battering Ram (5abd-6507-dbee-ed76)', () => {
 });
 
 describe('Groundshaker (7124-769a-aafd-7b38)', () => {
-  const duel = (foe: UnitId = KROXIGOR): GameState => {
+  const duel = (foe: UnitId = KROXIGOR, active: 0 | 1 = 0): GameState => {
     const s = arena({ [DURTHU]: [30, 30, 90], [foe]: [34, 30, 270] }, 'combat');
     standNear(s, DURTHU, foe, 2.5);
+    s.active = active;
     return s;
   };
+  /** The start-of-combat window of Durthu's player, as the engine reaches it. */
+  const window = (foe: UnitId = KROXIGOR, active: 0 | 1 = 0): GameState =>
+    enterCombat(engine, duel(foe, active));
 
-  it('is offered while a fighter is picked, against Infantry (not Fly) or Cavalry in combat', () => {
-    const s = duel();
-    expect(engine.decision(s)).toMatchObject({ kind: 'fightPick', player: 0 });
-    expect(option(s, DURTHU, GROUNDSHAKER_ID)).toMatchObject({ targets: [KROXIGOR] });
+  const offeredGroundshaker = (s: GameState): boolean => {
+    const d = engine.decision(s);
+    return d?.kind === 'reaction' && d.options.some((o) => o.ability === 'groundshaker');
+  };
+
+  it('is offered in the start-of-combat window, against Infantry (not Fly) or Cavalry in combat', () => {
+    const s = window();
+    expect(engine.decision(s)).toMatchObject({
+      kind: 'reaction',
+      trigger: 'start:combat',
+      player: 0,
+      options: [{ ability: 'groundshaker', unit: DURTHU, targets: [KROXIGOR] }],
+    });
     // A Monster is not a target.
-    expect(option(duel(STEGADON_LIKE), DURTHU, GROUNDSHAKER_ID)).toBeUndefined();
+    expect(offeredGroundshaker(window(STEGADON_LIKE))).toBe(false);
     // A unit not in combat with it is not a target.
     const apart = duel();
     placeUnit(scenario, apart, KROXIGOR, 45, 30, 270);
-    expect(option(apart, DURTHU, GROUNDSHAKER_ID)).toBeUndefined();
+    expect(offeredGroundshaker(enterCombat(engine, apart))).toBe(false);
+  });
+
+  it('is offered to the defender after the active player has had their window', () => {
+    // Durthu's army is the defender: the active player (1) has nothing to use, so the window is Durthu's.
+    const s = window(KROXIGOR, 1);
+    expect(engine.decision(s)).toMatchObject({
+      kind: 'reaction',
+      trigger: 'start:combat',
+      player: 0,
+      options: [{ ability: 'groundshaker', unit: DURTHU }],
+    });
+  });
+
+  it('is never offered while a fighter is picked, nor once any unit has fought', () => {
+    const picking = skipWindows(engine, window());
+    expect(engine.decision(picking)).toMatchObject({ kind: 'fightPick' });
+    expect(option(picking, DURTHU, GROUNDSHAKER_ID)).toBeUndefined();
+    expect(() =>
+      engine.apply(picking, use(DURTHU, GROUNDSHAKER_ID, { target: KROXIGOR })),
+    ).toThrow();
+    // Once a unit has fought (the owner's report: it was still offered after they fought him).
+    const fought = engine.apply(picking, { t: 'fight', unit: DURTHU }).state;
+    expect(option(fought, DURTHU, GROUNDSHAKER_ID)).toBeUndefined();
+    expect(option(fought, KROXIGOR, GROUNDSHAKER_ID)).toBeUndefined();
   });
 
   it('reads the keywords: Infantry without Fly, or Cavalry', () => {
@@ -177,34 +216,108 @@ describe('Groundshaker (7124-769a-aafd-7b38)', () => {
     expect(target('MONSTER')).toBe(false);
   });
 
-  it('on a 3+ gives the target Strike-last for the rest of the turn; on a 1 or 2 nothing', () => {
-    const s = duel();
+  it('on a 3+ gives the target Strike-last for the rest of the turn, before any fighter is picked; on a 1 or 2 nothing', () => {
+    const s = window();
     expect(strikeOrder(scenario, s, s.units[KROXIGOR]!)).toBe('normal');
     const hit = applyUntil(
       engine,
       s,
-      use(DURTHU, GROUNDSHAKER_ID),
+      use(DURTHU, GROUNDSHAKER_ID, { target: KROXIGOR }),
       (x) => rolls(x.events, 'Groundshaker')[0]! >= 3,
     );
     expect(strikeOrder(scenario, hit.state, hit.state.units[KROXIGOR]!)).toBe('strikeLast');
+    expect(engine.decision(skipWindows(engine, hit.state))).toMatchObject({ kind: 'fightPick' });
     const miss = applyUntil(
       engine,
       s,
-      use(DURTHU, GROUNDSHAKER_ID),
+      use(DURTHU, GROUNDSHAKER_ID, { target: KROXIGOR }),
       (x) => rolls(x.events, 'Groundshaker')[0]! <= 2,
     );
     expect(strikeOrder(scenario, miss.state, miss.state.units[KROXIGOR]!)).toBe('normal');
-    // Once per turn for the army.
-    expect(option(hit.state, DURTHU, GROUNDSHAKER_ID)).toBeUndefined();
+    // Once per turn for the army: the window does not offer it again.
+    expect(() =>
+      engine.apply(hit.state, use(DURTHU, GROUNDSHAKER_ID, { target: KROXIGOR })),
+    ).toThrow();
   });
 
   it('a unit with only Groundshaker is not one that can fight', () => {
-    const s = duel();
+    const s = skipWindows(engine, window());
     const durthu = engine.unitOptions(s, DURTHU);
     expect(durthu.some((o) => o.t === 'fight')).toBe(true);
-    s.units[DURTHU]!.fought = true;
-    const after = engine.unitOptions(s, DURTHU);
+    const done = editable(s);
+    done.units[DURTHU]!.fought = true;
+    const after = engine.unitOptions(done, DURTHU);
     expect(after.some((o) => o.t === 'fight')).toBe(false);
+  });
+});
+
+describe('"Any phase" abilities in the opponent\'s turn (Core 13.0, R13)', () => {
+  /** Alarielle (player 0, damaged) while player 1 is active in `phase`. */
+  const enemyTurn = (phase: Phase): GameState => {
+    const s = arena({ [ALARIELLE]: [30, 30, 90], [KROXIGOR]: [34, 30, 270] }, phase);
+    standNear(s, ALARIELLE, KROXIGOR, 0.9);
+    s.active = 1;
+    s.units[ALARIELLE]!.damage = profileOf(scenario, s.units[ALARIELLE]!).health - 1;
+    s.units[ALARIELLE]!.charged = true;
+    return s;
+  };
+
+  it("Lifebloom: not offered during the active player's hero phase, offered after they finish", () => {
+    const s = enemyTurn('hero');
+    expect(engine.decision(s)).toMatchObject({ kind: 'main', player: 1, phase: 'hero' });
+    expect(option(s, ALARIELLE, LIFEBLOOM_ID)).toBeUndefined();
+    const after = engine.apply(s, { t: 'pass' }).state; // the active player ends the phase
+    expect(engine.decision(after)).toMatchObject({
+      kind: 'reaction',
+      trigger: 'phase:hero',
+      player: 0,
+      options: [{ ability: 'lifebloom', unit: ALARIELLE }],
+    });
+    const used = engine.apply(after, use(ALARIELLE, LIFEBLOOM_ID));
+    expect(rolls(used.events, 'Lifebloom')).toHaveLength(2);
+    expect(used.state.units[ALARIELLE]!.damage).toBeLessThan(after.units[ALARIELLE]!.damage);
+    expect(used.state.phase).not.toBe('hero');
+    // Declined, it is simply passed.
+    expect(engine.apply(after, { t: 'pass' }).state.phase).not.toBe('hero');
+  });
+
+  it("Lifebloom: not offered in the opponent's turn when already used that turn, or when undamaged", () => {
+    const used = enemyTurn('hero');
+    used.players[0].usedOncePerTurn = [LIFEBLOOM_ID];
+    expect(engine.decision(engine.apply(used, { t: 'pass' }).state)?.kind).not.toBe('reaction');
+    const whole = enemyTurn('hero');
+    whole.units[ALARIELLE]!.damage = 0;
+    expect(engine.decision(engine.apply(whole, { t: 'pass' }).state)?.kind).not.toBe('reaction');
+  });
+
+  it("Living Battering Ram: offered in the opponent's charge phase after they finish, not before", () => {
+    const s = enemyTurn('charge');
+    expect(engine.decision(s)).toMatchObject({ kind: 'main', player: 1, phase: 'charge' });
+    expect(option(s, ALARIELLE, LIVING_BATTERING_RAM_ID)).toBeUndefined();
+    const after = engine.apply(s, { t: 'pass' }).state;
+    expect(engine.decision(after)).toMatchObject({
+      kind: 'reaction',
+      trigger: 'phase:charge',
+      player: 0,
+      options: [{ ability: 'livingBatteringRam', unit: ALARIELLE, targets: [KROXIGOR] }],
+    });
+    const r = applyUntil(
+      engine,
+      after,
+      use(ALARIELLE, LIVING_BATTERING_RAM_ID, { target: KROXIGOR }),
+      (x) => rolls(x.events, 'Living Battering Ram')[0]! >= 4,
+    );
+    const die = rolls(r.events, 'Living Battering Ram')[0]!;
+    const total = r.events
+      .filter((e) => e.t === 'damage' && e.unit === KROXIGOR)
+      .reduce((n, e) => n + (e.t === 'damage' ? e.amount : 0), 0);
+    expect(total).toBe(die);
+  });
+
+  it('Living Battering Ram: not offered to a unit that did not charge', () => {
+    const s = enemyTurn('charge');
+    s.units[ALARIELLE]!.charged = false;
+    expect(engine.decision(engine.apply(s, { t: 'pass' }).state)?.kind).not.toBe('reaction');
   });
 });
 

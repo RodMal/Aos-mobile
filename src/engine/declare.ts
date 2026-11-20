@@ -9,7 +9,7 @@ import { currentFightTier, eligibleFighters } from './eligibility.js';
 import { advancePhase, finishTurn } from './turns.js';
 import { vengeanceCandidates } from '../rules/factions/kroak.js';
 import { advanceVengeance } from './vengeance.js';
-import { unitOptions } from './decisions.js';
+import { startOfCombatOptions, unitOptions } from './decisions.js';
 import { startAttacks } from './placing.js';
 import { offerEndOfPhaseReaction } from './reactions.js';
 
@@ -110,6 +110,15 @@ export function settle(ctx: Ctx): void {
     if (top.t === 'vengeance' && top.stage !== 'pick') {
       if (advanceVengeance(ctx, top)) continue;
       break;
+    }
+    if (
+      top.t === 'reaction' &&
+      top.trigger === 'start:combat' &&
+      startOfCombatOptions(ctx.scenario, s, top.options).length === 0
+    ) {
+      // An earlier ability used in this window left nothing for this one to do.
+      s.stack.pop();
+      continue;
     }
     if (top.t === 'endPhase') {
       if (offerEndOfPhaseReaction(ctx)) {

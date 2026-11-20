@@ -37,22 +37,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: I103; `src/engine/relocate.ts` (who may use each ability), `src/engine/decisions.ts` (activated options), `src/ai/sylvaneth.ts`.
 - **Done when**: Shadowcreep is not offered for a unit that has moved in that phase (any move: normal, run, retreat, or a set-up counted as moving); Realmroot Guide is not offered when the bearer or the target unit has moved in that phase; applying either one anyway throws; the NPC respects this; tests cover moved in that phase versus not moved in that phase for each; bump the rules version if replay changes.
 
-### R13 "Any phase" abilities in both turns
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ai, ui/prompts
-- **Read**: `docs/ABILITIES.md` (Sylvaneth and Seraphon "Any ... Phase" abilities); RULES-DECISIONS I106, I104 (owner ruling 2026-11-20 on Core 13.0); `src/engine/abilities/` (timing of Any-phase abilities), `src/engine/decisions.ts`, `src/ai/`
-- **Ruling**: Owner ruling (2026-11-20), Core 13.0: "Any ... Phase" abilities are offered in both turns. In the opponent's turn they come after the active player has finished that phase. The NPC uses them only when they help (I108).
-- **Done when**: every "Any Hero Phase", "Any Charge Phase" and "Any Combat Phase" ability is offered in the opponent's turn after the active player finishes, not only in the owner's own phase; one test per affected ability (offered in both turns, after the active player's phase, and not before it); the NPC answers when it helps; the full-game e2e passes on phone and desktop. Update I106 and `docs/ABILITIES.md`.
-
-### R14 Groundshaker, Venomite Swarm and Ark of Sotek before fights
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ai, ui/prompts
-- **Read**: `docs/ABILITIES.md`; RULES-DECISIONS I104, I106, I107 and the owner ruling (2026-11-20) on Core 13.1; the start-of-combat reaction window for Rhythm of the Chase in `src/engine/` (combat phase and decisions); `src/ai/sylvaneth.ts`, `src/ai/seraphon.ts`
-- **Ruling**: Owner ruling (2026-11-20), Core 13.1: non-FIGHT combat abilities are used before fighting starts. Groundshaker, Venomite Swarm and Ark of Sotek move from the fighter pick to the start-of-combat reaction window used by Rhythm of the Chase: the active player is offered first, then the defender. Once fighters are picked they cannot be used.
-- **Done when**: one test per ability (offered in the start-of-combat window, active player first then defender, and resolved before any fighter is picked); a test that none of the three is offered during the fight pick; the NPC uses them only when they help. Update I104, I106 and `docs/ABILITIES.md`.
-
 ### R16 Climbing terrain costs movement
 
 - **Tier**: sonnet+review

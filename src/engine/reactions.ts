@@ -19,6 +19,7 @@ import {
   rhythmOfTheChase,
 } from './relocating.js';
 import { illegal, type Ctx } from './ctx.js';
+import { endOfPhaseAbilities, kindOfAbilityId, useReactionAbility } from './anyPhase.js';
 import { STAR_VENOM_ID } from './abilities/seraphon.js';
 import { starVenomReactions, useStarVenomReaction } from './seraphonActive.js';
 import { opponent, unitsOf } from './query.js';
@@ -162,6 +163,8 @@ export function answerReaction(ctx: Ctx, action: Action): void {
     }
     return;
   }
+  if (reaction.trigger === 'start:combat') keepWindowOpen(ctx, reaction, action);
+  if (useReactionAbility(ctx, reaction.options, action)) return;
   if (action.t === 'ability' && action.abilityId === HUNTMASTERS_STRIKE_ID) {
     const ok = reaction.options.some(
       (o) => o.ability === 'huntmastersStrike' && o.unit === action.unit,
@@ -193,6 +196,28 @@ export function answerReaction(ctx: Ctx, action: Action): void {
     return;
   }
   illegal('Use a reaction or pass.');
+}
+
+/**
+ * The start-of-combat window stays open for its player after one ability: a player may use
+ * several (Groundshaker and Rhythm of the Chase, say) before the next player is asked. Pushed
+ * below anything the ability pushes; `settle` drops it when nothing is left.
+ */
+function keepWindowOpen(
+  ctx: Ctx,
+  reaction: Extract<Frame, { t: 'reaction' }>,
+  action: Action,
+): void {
+  if (action.t === 'pass' || !('unit' in action)) return;
+  const kind = action.t === 'ability' ? kindOfAbilityId(action.abilityId) : undefined;
+  const options = reaction.options.filter(
+    (o) =>
+      !(
+        o.unit === action.unit &&
+        (action.t === 'command' ? o.command === action.command : o.ability === kind)
+      ),
+  );
+  if (options.length > 0) ctx.s.stack.push({ ...reaction, options });
 }
 
 export function executeReactionCommand(
@@ -255,6 +280,8 @@ export function offerEndOfPhaseReaction(ctx: Ctx): boolean {
         });
       }
     }
+    // Any Hero Phase abilities (Lifebloom), after the active player has finished (Core 13.0, R13).
+    options.push(...endOfPhaseAbilities(ctx.scenario, s, nonActive));
     if (options.length > 0) {
       if (s.stack[s.stack.length - 1]?.t !== 'endPhase') {
         s.stack.push({ t: 'endPhase' });
@@ -341,6 +368,17 @@ export function offerEndOfPhaseReaction(ctx: Ctx): boolean {
         })),
         trigger: 'phase:charge',
       });
+      return true;
+    }
+  }
+
+  // Any Charge Phase abilities (Living Battering Ram), after the active player has finished and
+  // after Counter-charge, for a unit that charged this turn (Core 13.0, R13).
+  if (s.phase === 'charge') {
+    const options = endOfPhaseAbilities(ctx.scenario, s, nonActive);
+    if (options.length > 0) {
+      if (s.stack[s.stack.length - 1]?.t !== 'endPhase') s.stack.push({ t: 'endPhase' });
+      s.stack.push({ t: 'reaction', player: nonActive, options, trigger: 'phase:charge' });
       return true;
     }
   }

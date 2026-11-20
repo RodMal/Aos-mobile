@@ -50,9 +50,7 @@ export const ARMOUR_CRUNCHER_ROLL_ID = 'f6fe-3e8d-dd90-00b8:roll';
 
 /** The abilities that are one `ability` action by the unit itself (the reactions are answers). */
 export const SERAPHON_ACTIVATED_IDS: readonly string[] = [
-  VENOMITE_SWARM_ID,
   SCRY_THE_STARS_ID,
-  ARK_OF_SOTEK_ID,
   ARMOUR_CRUNCHER_ID,
   ARMOUR_CRUNCHER_ROLL_ID,
   STAR_VENOM_ID,
@@ -185,28 +183,29 @@ function cruncherTargets(scenario: Scenario, state: GameState, unit: UnitState):
     .map((e) => e.id);
 }
 
-/** Venomite Swarm, Ark of Sotek and Armour Cruncher: "Any Combat Phase", while a fighter is picked. */
+/** Venomite Swarm's targets: enemies in combat with the unit (a start-of-combat ability, R14). */
+export function venomiteTargets(scenario: Scenario, state: GameState, unit: UnitState): string[] {
+  if (state.phase !== 'combat' || !usable(scenario, unit)) return [];
+  if (!has(scenario, unit, VENOMITE_SWARM_ID) || unit.venomitesGone) return [];
+  if (usedThisTurn(state, unit, VENOMITE_SWARM_ID)) return [];
+  return enemiesInCombat(scenario, state, unit).map((e) => e.id);
+}
+
+/** Ark of Sotek's targets: enemies within 9" (a start-of-combat ability, R14). */
+export function arkTargets(scenario: Scenario, state: GameState, unit: UnitState): string[] {
+  if (state.phase !== 'combat' || !usable(scenario, unit)) return [];
+  if (!has(scenario, unit, ARK_OF_SOTEK_ID) || usedThisTurn(state, unit, ARK_OF_SOTEK_ID))
+    return [];
+  return enemiesWithin(scenario, state, unit, ARK_RANGE).map((e) => e.id);
+}
+
+/**
+ * Armour Cruncher: "Any Combat Phase", while a fighter is picked. Venomite Swarm and Ark of Sotek
+ * are offered at the start of combat instead (Core 13.1, R14; see `anyPhase.ts`).
+ */
 export function combatOptions(scenario: Scenario, state: GameState, unit: UnitState): UnitOption[] {
   if (state.phase !== 'combat' || state.stack.length > 0 || !usable(scenario, unit)) return [];
   const out: UnitOption[] = [];
-  if (
-    has(scenario, unit, VENOMITE_SWARM_ID) &&
-    !unit.venomitesGone &&
-    !usedThisTurn(state, unit, VENOMITE_SWARM_ID)
-  ) {
-    const targets = enemiesInCombat(scenario, state, unit).map((e) => e.id);
-    if (targets.length > 0) out.push(option(VENOMITE_SWARM_ID, 'Venomite Swarm', targets));
-  }
-  if (has(scenario, unit, ARK_OF_SOTEK_ID) && !usedThisTurn(state, unit, ARK_OF_SOTEK_ID)) {
-    const targets = enemiesWithin(scenario, state, unit, ARK_RANGE).map((e) => e.id);
-    if (targets.length > 0) {
-      out.push(
-        option(ARK_OF_SOTEK_ID, 'Ark of Sotek', targets, {
-          maxTargets: Math.min(ARK_MAX_TARGETS, targets.length),
-        }),
-      );
-    }
-  }
   if (has(scenario, unit, ARMOUR_CRUNCHER_ID) && !usedByUnit(unit, ARMOUR_CRUNCHER_ID)) {
     const targets = cruncherTargets(scenario, state, unit);
     if (targets.length > 0) {
@@ -263,10 +262,6 @@ export function useSeraphonAbility(ctx: Ctx, action: AbilityAction): void {
   const ids = pickedTargets(action, opt, opt.name);
   const targets = ids.map((id) => s.units[id]!);
   switch (action.abilityId) {
-    case VENOMITE_SWARM_ID:
-      return venomiteSwarm(ctx, unit, targets[0]!);
-    case ARK_OF_SOTEK_ID:
-      return arkOfSotek(ctx, unit, targets);
     case ARMOUR_CRUNCHER_ID:
       return armourCruncher(ctx, unit, targets[0]!, true);
     case ARMOUR_CRUNCHER_ROLL_ID:
@@ -337,7 +332,7 @@ export function chooseScry(ctx: Ctx, value: string): void {
 }
 
 /** Venomite Swarm: a D3; a 1 removes the token, 2+ is that much mortal damage. */
-function venomiteSwarm(ctx: Ctx, unit: UnitState, target: UnitState): void {
+export function venomiteSwarm(ctx: Ctx, unit: UnitState, target: UnitState): void {
   markArmy(ctx, unit, VENOMITE_SWARM_ID);
   markUnit(unit, VENOMITE_SWARM_ID);
   const die = rollD3(ctx, unit.owner, 'Venomite Swarm');
@@ -353,7 +348,7 @@ function venomiteSwarm(ctx: Ctx, unit: UnitState, target: UnitState): void {
 }
 
 /** Ark of Sotek: a D3 for each target, and 2+ is that much mortal damage. */
-function arkOfSotek(ctx: Ctx, unit: UnitState, targets: UnitState[]): void {
+export function arkOfSotek(ctx: Ctx, unit: UnitState, targets: UnitState[]): void {
   markArmy(ctx, unit, ARK_OF_SOTEK_ID);
   markUnit(unit, ARK_OF_SOTEK_ID);
   for (const target of targets) {
