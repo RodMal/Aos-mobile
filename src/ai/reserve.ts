@@ -14,6 +14,7 @@ import {
   type Engine,
   type GameState,
   type Placement,
+  unitsOf,
   type PlayerId,
   type UnitState,
 } from '../engine/index.js';
@@ -69,13 +70,11 @@ export function chameleonPlacement(
   );
 }
 
-/** Per engine: the phases in which a unit found no spot, so it is not searched for again. */
-const noSpot = new WeakMap<Engine, Set<string>>();
-
 /**
  * Movement phase: bring a unit in from ambush when it has a spot where it helps. The spot is
- * looked for on the state with the set-up frame pushed (no `apply`), once per unit per phase
- * when there is none.
+ * looked for on the state with the set-up frame pushed (no `apply`), and only at the start of
+ * the phase, before any unit of the army has moved, so the search runs once per phase and the
+ * choice depends on the state alone.
  */
 export function npcChameleonAction(
   engine: Engine,
@@ -83,17 +82,14 @@ export function npcChameleonAction(
   player: PlayerId,
 ): Action | null {
   if (state.round < 2) return null;
-  for (const unit of ambushUnits(state, player)) {
-    const key = `${state.seed}:${state.round}:${state.turnIndex}:${unit.id}`;
-    let failed = noSpot.get(engine);
-    if (failed?.has(key)) continue;
+  const waiting = ambushUnits(state, player);
+  if (waiting.length === 0 || unitsOf(state, player).some((u) => u.moved !== null)) return null;
+  for (const unit of waiting) {
     if (!engine.unitOptions(state, unit.id).some((o) => o.t === 'ability')) continue;
     const declared: GameState = { ...state, stack: [...state.stack, chameleonFrame(unit.id)] };
     if (chameleonPlacement(engine, declared, unit)) {
       return { t: 'ability', unit: unit.id, abilityId: CHAMELEON_AMBUSH_ID };
     }
-    if (!failed) noSpot.set(engine, (failed = new Set()));
-    failed.add(key);
   }
   return null;
 }
