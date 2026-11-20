@@ -17,7 +17,6 @@ import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js'
 import {
   chargeSetUpOptions,
   chargeRestriction,
-  combatSetUpOptions,
   movementSetUpOptions,
   relocateViolations,
 } from './relocate.js';
@@ -253,7 +252,6 @@ export function unitOptionsInner(
       : [];
     return [
       ...fight,
-      ...combatSetUpOptions(scenario, state, unit),
       ...combatOptions(scenario, state, unit),
       ...groundshakerOptions(scenario, state, unit),
     ];

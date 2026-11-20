@@ -10,6 +10,7 @@ import { unitGrants } from './abilities/effects.js';
 import {
   GUARDIAN_OF_THE_GLADES_ID,
   HUNTMASTERS_STRIKE_ID,
+  MERCILESS_AMBUSH_ID,
   REALMROOT_GUIDE_ID,
   RHYTHM_OF_THE_CHASE_ID,
   SHADOWCREEP_ID,
@@ -157,13 +158,14 @@ describe("Huntmaster's Strike (61d2-55e1-7873-e100)", () => {
 });
 
 describe('Rhythm of the Chase (b29c-dd1a-502d-27c4)', () => {
+  /** The start of player 0's combat phase, Belthanos in combat with the Kroxigor. */
   function fighting(): GameState {
-    const s = arranged([BELTHANOS], 'combat');
+    const s = arranged([BELTHANOS], 'charge');
     const b = named(s, 0, BELTHANOS).id;
     const krox = named(s, 1, 'Kroxigor').id;
     placeUnit(scenario, s, b, 30, 30, 90);
     placeUnit(scenario, s, krox, 30 + 4, 30, 270);
-    return s;
+    return engine.apply(s, { t: 'pass' }).state;
   }
   const use = (s: GameState): Action => ({
     t: 'ability',
@@ -176,17 +178,34 @@ describe('Rhythm of the Chase (b29c-dd1a-502d-27c4)', () => {
     return e?.t === 'roll' ? e.dice[0] : undefined;
   };
 
-  it('is offered while picking a fighter, against an enemy unit in combat with the unit', () => {
+  it('is offered at the start of the combat phase, before units are picked to fight', () => {
     const s = fighting();
-    expect(engine.decision(s)).toMatchObject({ kind: 'fightPick', player: 0 });
-    const opt = engine
-      .unitOptions(s, named(s, 0, BELTHANOS).id)
-      .find((o) => o.t === 'ability' && o.abilityId === RHYTHM_OF_THE_CHASE_ID);
-    expect(opt).toMatchObject({ targets: [named(s, 1, 'Kroxigor').id] });
-    // Not in combat: not offered.
-    const apart = editable(s);
-    placeUnit(scenario, apart, named(apart, 1, 'Kroxigor').id, 50, 30);
-    expect(hasOption(apart, named(apart, 0, BELTHANOS).id, RHYTHM_OF_THE_CHASE_ID)).toBe(false);
+    expect(s.phase).toBe('combat');
+    expect(engine.decision(s)).toMatchObject({
+      kind: 'reaction',
+      player: 0,
+      trigger: 'start:combat',
+      options: [
+        {
+          ability: 'rhythmOfTheChase',
+          unit: named(s, 0, BELTHANOS).id,
+          targets: [named(s, 1, 'Kroxigor').id],
+        },
+      ],
+    });
+    // Passing moves on to picking fighters, where it is no longer offered (only FIGHT abilities are).
+    const picked = engine.apply(s, { t: 'pass' }).state;
+    expect(engine.decision(picked)).toMatchObject({ kind: 'fightPick', player: 0 });
+    expect(hasOption(picked, named(picked, 0, BELTHANOS).id, RHYTHM_OF_THE_CHASE_ID)).toBe(false);
+    expect(() => engine.apply(picked, use(picked))).toThrow();
+  });
+
+  it('is not offered against an enemy unit that is not in combat with the unit', () => {
+    const s = arranged([BELTHANOS], 'charge');
+    placeUnit(scenario, s, named(s, 0, BELTHANOS).id, 30, 30, 90);
+    placeUnit(scenario, s, named(s, 1, 'Kroxigor').id, 50, 30, 270);
+    const started = engine.apply(s, { t: 'pass' }).state;
+    expect(engine.decision(started)?.kind).not.toBe('reaction');
   });
 
   it('on a 2+ inflicts that much mortal damage, then sets up within 1" of the target', () => {
@@ -205,8 +224,9 @@ describe('Rhythm of the Chase (b29c-dd1a-502d-27c4)', () => {
     const done = engine.apply(r.state, { t: 'place', placement: good! });
     expect(done.state.units[b]!.models[0]!.x).toBeCloseTo(good!.models[0]!.x);
     expect(done.state.units[b]!.moved).toBeNull();
-    // Once per turn for the army.
-    expect(hasOption(done.state, b, RHYTHM_OF_THE_CHASE_ID)).toBe(false);
+    // Once per turn for the army, and back to picking fighters.
+    expect(done.state.players[0].usedOncePerTurn).toContain(RHYTHM_OF_THE_CHASE_ID);
+    expect(engine.decision(done.state)?.kind).toBe('fightPick');
   });
 
   it('on a 1 does nothing', () => {
@@ -232,10 +252,42 @@ describe('Merciless Ambush (77b2-7e2-ba0c-83a1)', () => {
     command: 'mercilessAmbush',
     unit: named(s, 0, DRYCHA).id,
   });
+  const confirm = (s: GameState): Action => ({
+    t: 'ability',
+    unit: named(s, 0, DRYCHA).id,
+    abilityId: MERCILESS_AMBUSH_ID,
+  });
   const chargeDice = (r: StepResult): number => {
     const e = r.events.find((x) => x.t === 'chargeRoll');
     return e?.t === 'chargeRoll' ? e.dice[0] + e.dice[1] : 0;
   };
+
+  it('asks to confirm first: nothing is paid or rolled until then, and cancelling costs nothing', () => {
+    const s = ambush({ x: 40, y: 22 });
+    const d = named(s, 0, DRYCHA).id;
+    const asked = engine.apply(s, use(s));
+    expect(asked.events.some((e) => e.t === 'chargeRoll')).toBe(false);
+    expect(asked.state.players[0].cp).toBe(4);
+    expect(engine.decision(asked.state)).toMatchObject({
+      kind: 'reaction',
+      player: 0,
+      options: [{ ability: 'mercilessAmbush', unit: d }],
+    });
+    // Cancel: the command is still there, unpaid, and the unit has not declared a charge.
+    const back = engine.apply(asked.state, { t: 'pass' });
+    expect(back.state.players[0].cp).toBe(4);
+    expect(back.state.units[d]!.chargeDeclared).toBe(false);
+    expect(engine.decision(back.state)).toMatchObject({ kind: 'main', phase: 'charge' });
+    expect(engine.unitOptions(back.state, d)).toContainEqual({
+      t: 'command',
+      command: 'mercilessAmbush',
+      cost: 1,
+    });
+    // Confirm: the command is paid and the dice are rolled.
+    const sure = engine.apply(asked.state, confirm(s));
+    expect(sure.state.players[0].cp).toBe(3);
+    expect(sure.events.some((e) => e.t === 'chargeRoll')).toBe(true);
+  });
 
   it('is a command of the charge phase for a unit not in combat that has not run', () => {
     const s = ambush({ x: 30, y: 8 });
@@ -261,7 +313,8 @@ describe('Merciless Ambush (77b2-7e2-ba0c-83a1)', () => {
     // The enemy stands beside the Wyldwood, so a big enough roll reaches it.
     const s = ambush({ x: 40, y: 22 });
     const d = named(s, 0, DRYCHA).id;
-    const r = applyUntil(engine, s, use(s), (x) => chargeDice(x) >= 9);
+    const asked = engine.apply(s, use(s)).state;
+    const r = applyUntil(engine, asked, confirm(s), (x) => chargeDice(x) >= 9);
     const x = chargeDice(r);
     expect(r.state.players[0].cp).toBe(3);
     expect(engine.decision(r.state)).toMatchObject({ kind: 'place', reason: 'relocate', unit: d });
@@ -344,6 +397,31 @@ describe('Shadowcreep (76b2-ce61-8aec-f6c1)', () => {
     const done = engine.apply(r.state, { t: 'place', placement: near! });
     expect(unitGrants(scenario, done.state, done.state.units[id]!).chargeRollModifier).toBe(1);
     expect(hasOption(done.state, id, SHADOWCREEP_ID)).toBe(false);
+  });
+
+  it('a unit set up again cannot move in the movement phase of that turn (Core 24.0), but can pile in', () => {
+    const s = movement();
+    const id = named(s, 0, SPITES).id;
+    const moveKinds = (st: GameState) =>
+      engine.unitOptions(st, id).filter((o) => o.t === 'move');
+    expect(moveKinds(s).length).toBeGreaterThan(0);
+    const r = engine.apply(s, use(s));
+    const near = legalNear(
+      r.state,
+      id,
+      { x: scenario.battlefield.terrain.find((f) => f.centre[0] > 4)!.centre[0], y: 22 },
+      14,
+    );
+    const done = engine.apply(r.state, { t: 'place', placement: near! }).state;
+    expect(done.units[id]!.setUpThisTurn).toBe(true);
+    expect(moveKinds(done)).toEqual([]);
+    // Declining the set-up leaves the unit free to move.
+    const declined = engine.apply(engine.apply(s, use(s)).state, { t: 'pass' }).state;
+    expect(moveKinds(declined).length).toBeGreaterThan(0);
+    // The next turn it moves again.
+    const later = editable(done);
+    later.units[id]!.setUpThisTurn = false;
+    expect(moveKinds(later).length).toBeGreaterThan(0);
   });
 
   it('is taken back when the set-up is declined', () => {
@@ -535,7 +613,12 @@ describe('Merciless Ambush and Forward to Victory', () => {
     const d = named(s, 0, 'Drycha Hamadreth').id;
     placeUnit(scenario, s, d, 30, 30);
     placeUnit(scenario, s, named(s, 1, 'Kroxigor').id, 40, 22);
-    const r = engine.apply(s, { t: 'command', command: 'mercilessAmbush', unit: d });
+    const asked = engine.apply(s, { t: 'command', command: 'mercilessAmbush', unit: d }).state;
+    const r = engine.apply(asked, {
+      t: 'ability',
+      unit: d,
+      abilityId: MERCILESS_AMBUSH_ID,
+    });
     const declined = engine.apply(r.state, { t: 'pass' }).state;
     expect(declined.units[d]!.charged).toBe(false);
     const options = engine.unitOptions(declined, d);

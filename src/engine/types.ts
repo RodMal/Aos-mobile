@@ -628,11 +628,19 @@ export interface ReactionOption {
     | 'fightThroughThePain'
     | 'glamourweave'
     | 'huntmastersStrike'
+    | 'rhythmOfTheChase'
+    | 'mercilessAmbush'
     | 'celestialConduit'
     | 'coatlFamiliar'
     | 'wyldwoodRevenants';
   unit: UnitId;
   cost: number;
+  /**
+   * `rhythmOfTheChase`: the enemy units it may target (answer with `{ t: 'ability', unit, abilityId,
+   * target }`). `mercilessAmbush`: confirm with `{ t: 'ability', unit, abilityId }` (the command is
+   * paid and the dice rolled then) or pass to cancel; nothing has been paid yet.
+   */
+  targets?: UnitId[];
   /** Fight Through the Pain: the damage points about to be allocated to `unit`. */
   damage?: number;
   /** Fight Through the Pain: the most rage dice that may be spent. */

@@ -93,7 +93,7 @@ export function canHuntmaster(scenario: Scenario, state: GameState, unit: UnitSt
   );
 }
 
-/** Rhythm of the Chase: enemy units in combat with `unit`, in a combat phase; empty if unusable. */
+/** Rhythm of the Chase: enemy units in combat with `unit`, in a combat phase before any unit has fought; empty if unusable. */
 export function rhythmTargets(scenario: Scenario, state: GameState, unit: UnitState): UnitId[] {
   if (state.phase !== 'combat' || !usable(scenario, unit)) return [];
   if (!hasSylvanethAbility(scenario, unit, RHYTHM_OF_THE_CHASE_ID)) return [];
@@ -252,26 +252,6 @@ export function chargeSetUpOptions(
     out.push({ t: 'command', command: 'mercilessAmbush', cost: 1 });
   }
   return out;
-}
-
-/** Rhythm of the Chase, offered while a fighter is being picked (any combat phase). */
-export function combatSetUpOptions(
-  scenario: Scenario,
-  state: GameState,
-  unit: UnitState,
-): UnitOption[] {
-  const targets = rhythmTargets(scenario, state, unit);
-  return targets.length === 0
-    ? []
-    : [
-        {
-          t: 'ability',
-          abilityId: RHYTHM_OF_THE_CHASE_ID,
-          name: 'Rhythm of the Chase',
-          kind: 'activated',
-          targets,
-        },
-      ];
 }
 
 // ─── Where a unit may be set up again ───────────────────────────────────────────
