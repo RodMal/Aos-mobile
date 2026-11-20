@@ -27,6 +27,8 @@ export interface PositionOptions {
   side?: 0 | 1;
   /** Start with interactive deployment instead of the quick start. */
   deploy?: boolean;
+  /** How many seeds to try from `seed` (default 20), for a position the NPC reaches rarely. */
+  seeds?: number;
 }
 
 /**
@@ -42,19 +44,20 @@ export async function openPosition(
 ): Promise<Position> {
   const side = options.side ?? 0;
   const deploy = options.deploy === true;
+  const seeds = options.seeds ?? 20;
   // The searching page always opens as player 0, who decides first, so the computer never
   // plays (and saves over the record written below) before the page is reloaded.
   await page.goto(`./?e2e=1&seed=${seed}&side=0&fast=1&new=1`);
   await page.waitForFunction(() => !!(window as unknown as Hooks).__aosTest);
   const position = await page.evaluate(
-    ({ seed, stopSource, rules, side, deploy }) => {
+    ({ seed, stopSource, rules, side, deploy, seeds }) => {
       const { engine, chooseAction } = (window as unknown as Hooks).__aosTest!;
       const stopFn = new Function(`return (${stopSource})`)() as (
         e: Engine,
         s: GameState,
         d: Decision,
       ) => string | null;
-      for (let k = seed; k < seed + 20; k++) {
+      for (let k = seed; k < seed + seeds; k++) {
         let state = engine.newGame(k, deploy ? { deploy: true } : undefined);
         const actions: Action[] = [];
         for (let i = 0; i < 4000; i++) {
@@ -80,9 +83,9 @@ export async function openPosition(
           state = engine.apply(state, action).state;
         }
       }
-      throw new Error(`seeds ${seed} to ${seed + 19}: the position was never reached`);
+      throw new Error(`seeds ${seed} to ${seed + seeds - 1}: the position was never reached`);
     },
-    { seed, stopSource: stop.toString(), rules: RULES_VERSION, side, deploy },
+    { seed, stopSource: stop.toString(), rules: RULES_VERSION, side, deploy, seeds },
   );
   await page.goto(`./?seed=${position.seed}&side=${side}&fast=1`);
   return position;
