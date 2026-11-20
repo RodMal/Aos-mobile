@@ -52,6 +52,7 @@ import {
   npcStarVenomTarget,
 } from './seraphon.js';
 import { replacementAction, replacementPlacement } from './replacement.js';
+import { chameleonPlacement, npcChameleonAction, npcHiddenHunters } from './reserve.js';
 import {
   relocatePlacement,
   sylvanethChargeAction,
@@ -465,6 +466,8 @@ function placeAction(
 ): Action | null {
   const unit = state.units[d.unit]!;
   if (d.reason === 'deploy') {
+    const ambush = npcHiddenHunters(engine, state, d);
+    if (ambush) return ambush;
     const placement = npcDeployPlacement(engine.scenario, state, unit);
     return placement ? { t: 'place', placement } : null;
   }
@@ -479,7 +482,11 @@ function placeAction(
   }
   if (d.reason === 'relocate') {
     // A Sylvaneth set-up: the spot its plan wants, else leave the unit (and take the use back).
-    const placement = relocatePlacement(engine, state, unit);
+    const top = state.stack[state.stack.length - 1];
+    const placement =
+      top?.t === 'place' && top.relocate?.kind === 'chameleon'
+        ? chameleonPlacement(engine, state, unit)
+        : relocatePlacement(engine, state, unit);
     return placement ? { t: 'place', placement } : { t: 'pass' };
   }
   if (d.reason === 'summon') {
@@ -632,6 +639,8 @@ function mainAction(
       return best && lost(best) >= 2 ? { t: 'command', command: 'rally', unit: best.id } : null;
     }
     case 'movement': {
+      const ambush = npcChameleonAction(engine, state, player);
+      if (ambush) return ambush;
       const goddess = replacementAction(engine, state, player, phase);
       if (goddess) return goddess;
       const setUp = sylvanethMovementAction(engine, state, player, planHelpers(engine));

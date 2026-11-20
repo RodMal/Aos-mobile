@@ -93,29 +93,29 @@ The four Asterism abilities (Itzl, Quetzl, Sotek, Tepok) can be used only once p
 
 ### Warscrolls
 
-| Ability                       | Unit                         | BSData id           | Status      | Evidence and gaps                         | Task |
-| ----------------------------- | ---------------------------- | ------------------- | ----------- | ----------------------------------------- | ---- |
-| Arcane Vassal                 | Lord Kroak                   | 6bfc-5f30-ec02-307  | Implemented | `kroak.test.ts`; I83                      |      |
-| Supreme Master of Order       | Lord Kroak                   | 244b-f6f2-322d-5345 | Implemented | `kroak.test.ts`; I82                      |      |
-| Dead for Innumerable Ages     | Lord Kroak                   | c5a7-920c-9ff8-652  | Implemented | `kroak.test.ts`; I84                      |      |
-| Celestial Deliverance (spell) | Lord Kroak                   | f7bf-5a9-2828-a74   | Implemented | `magic.test.ts`; I29                      |      |
-| Brutal Blows                  | Kroxigor                     | 786b-b219-e23-42f8  | Implemented | `seraphon.test.ts`; I100                  |      |
-| Starspawned                   | Sunblood Pack                | f571-744e-c103-8568 | Implemented | `seraphon.test.ts`; I101                  |      |
-| Venomite Swarm                | Sunblood Pack                | cf2e-d237-9320-1105 | Implemented | `seraphonActive.test.ts`; I104            |      |
-| Scaled Protectors             | Sunblood Pack                | 3ffa-e9b3-901b-8d06 | Implemented | `seraphon.test.ts`; I100                  |      |
-| Beastmaster (trait)           | Sunblood Pack                | 5e50-d938-39d2-19a6 | Implemented | `seraphon.test.ts`; I102                  |      |
-| Selfless Protectors           | Saurus Guard                 | e49d-3d7e-2eee-a5e0 | Implemented | `seraphon.test.ts`; I102                  |      |
-| Celestial Conduit             | Saurus Astrolith Bearer      | 153d-3737-615b-b904 | Implemented | `seraphonActive.test.ts`; I104            |      |
-| Revivifying Energies          | Saurus Astrolith Bearer      | 15e-ebba-9386-bd1a  | Implemented | `seraphon.test.ts`; I102                  |      |
-| Ordered Cohorts               | Saurus Warriors              | 4181-bbd5-a4d8-1f59 | Implemented | `seraphon.test.ts`; I102                  |      |
-| Scry the Stars                | Skink Starseer               | b8a5-8e24-ad08-d213 | Implemented | `seraphonActive.test.ts`; I104            |      |
-| Celestial Doom (spell)        | Skink Starseer               | 2209-9b15-d3f-15ed  | Implemented | `magic.test.ts`; I29                      |      |
-| Coatl Familiar (artefact)     | Skink Starseer               | 2302-6d4-c346-7bc6  | Implemented | `seraphonActive.test.ts`; I104            |      |
-| Ark of Sotek                  | Bastiladon with Ark of Sotek | 714c-4cb6-fce8-6ef9 | Implemented | `seraphonActive.test.ts`; I104            |      |
-| Armour Cruncher (trait)       | Bastiladon with Ark of Sotek | f6fe-3e8d-dd90-00b8 | Implemented | `seraphonActive.test.ts`; I105            |      |
-| Hidden Hunters                | Hunters of Huanchi           | c78e-71e9-a948-fb09 | Missing     | Set up in reserve in ambush               | M4j  |
-| Star-venom                    | Hunters of Huanchi           | c71d-2217-fcf1-6110 | Implemented | `seraphonActive.test.ts`; I104            |      |
-| Chameleon Ambush              | Hunters of Huanchi           | 4a89-1c50-df0e-4b2b | Missing     | Set up anywhere more than 9" from enemies | M4j  |
+| Ability                       | Unit                         | BSData id           | Status      | Evidence and gaps                             | Task |
+| ----------------------------- | ---------------------------- | ------------------- | ----------- | --------------------------------------------- | ---- |
+| Arcane Vassal                 | Lord Kroak                   | 6bfc-5f30-ec02-307  | Implemented | `kroak.test.ts`; I83                          |      |
+| Supreme Master of Order       | Lord Kroak                   | 244b-f6f2-322d-5345 | Implemented | `kroak.test.ts`; I82                          |      |
+| Dead for Innumerable Ages     | Lord Kroak                   | c5a7-920c-9ff8-652  | Implemented | `kroak.test.ts`; I84                          |      |
+| Celestial Deliverance (spell) | Lord Kroak                   | f7bf-5a9-2828-a74   | Implemented | `magic.test.ts`; I29                          |      |
+| Brutal Blows                  | Kroxigor                     | 786b-b219-e23-42f8  | Implemented | `seraphon.test.ts`; I100                      |      |
+| Starspawned                   | Sunblood Pack                | f571-744e-c103-8568 | Implemented | `seraphon.test.ts`; I101                      |      |
+| Venomite Swarm                | Sunblood Pack                | cf2e-d237-9320-1105 | Implemented | `seraphonActive.test.ts`; I104                |      |
+| Scaled Protectors             | Sunblood Pack                | 3ffa-e9b3-901b-8d06 | Implemented | `seraphon.test.ts`; I100                      |      |
+| Beastmaster (trait)           | Sunblood Pack                | 5e50-d938-39d2-19a6 | Implemented | `seraphon.test.ts`; I102                      |      |
+| Selfless Protectors           | Saurus Guard                 | e49d-3d7e-2eee-a5e0 | Implemented | `seraphon.test.ts`; I102                      |      |
+| Celestial Conduit             | Saurus Astrolith Bearer      | 153d-3737-615b-b904 | Implemented | `seraphonActive.test.ts`; I104                |      |
+| Revivifying Energies          | Saurus Astrolith Bearer      | 15e-ebba-9386-bd1a  | Implemented | `seraphon.test.ts`; I102                      |      |
+| Ordered Cohorts               | Saurus Warriors              | 4181-bbd5-a4d8-1f59 | Implemented | `seraphon.test.ts`; I102                      |      |
+| Scry the Stars                | Skink Starseer               | b8a5-8e24-ad08-d213 | Implemented | `seraphonActive.test.ts`; I104                |      |
+| Celestial Doom (spell)        | Skink Starseer               | 2209-9b15-d3f-15ed  | Implemented | `magic.test.ts`; I29                          |      |
+| Coatl Familiar (artefact)     | Skink Starseer               | 2302-6d4-c346-7bc6  | Implemented | `seraphonActive.test.ts`; I104                |      |
+| Ark of Sotek                  | Bastiladon with Ark of Sotek | 714c-4cb6-fce8-6ef9 | Implemented | `seraphonActive.test.ts`; I104                |      |
+| Armour Cruncher (trait)       | Bastiladon with Ark of Sotek | f6fe-3e8d-dd90-00b8 | Implemented | `seraphonActive.test.ts`; I105                |      |
+| Hidden Hunters                | Hunters of Huanchi           | c78e-71e9-a948-fb09 | Implemented | `reserve.test.ts`, `ai/reserve.test.ts`; I109 |      |
+| Star-venom                    | Hunters of Huanchi           | c71d-2217-fcf1-6110 | Implemented | `seraphonActive.test.ts`; I104                |      |
+| Chameleon Ambush              | Hunters of Huanchi           | 4a89-1c50-df0e-4b2b | Implemented | `reserve.test.ts`, `ai/reserve.test.ts`; I109 |      |
 
 ### Spell and manifestation lores
 

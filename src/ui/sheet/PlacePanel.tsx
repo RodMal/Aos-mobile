@@ -1,7 +1,8 @@
 /** Placing a unit (move, run, retreat, charge, pile-in): status, re-form tools, confirm. */
+import { HIDDEN_HUNTERS_ID } from '../../engine/abilities/seraphon.js';
 import { commandBlocker } from '../../rules/core/commands.js';
 import { dispatch } from '../game/actions.js';
-import { beginDraft, editDraft, engageDraft } from '../game/draftActions.js';
+import { beginDraft, editDraft, engageDraft, isChameleon } from '../game/draftActions.js';
 import { scenario } from '../game/engine.js';
 import { inches } from '../game/eventText.js';
 import { useDecision, useGameState } from '../game/hooks.js';
@@ -152,10 +153,13 @@ export function PlacePanel() {
       </p>
       {first && <p className="panel-hint small">{note}</p>}
       <div className="tools" role="toolbar" aria-label="Formation">
-        {(d.reason === 'charge' || d.reason === 'pileIn' || d.reason === 'deploy') && (
+        {(d.reason === 'charge' ||
+          d.reason === 'pileIn' ||
+          d.reason === 'deploy' ||
+          isChameleon(state)) && (
           <Tool
             icon="engage"
-            label={d.reason === 'deploy' ? 'Auto' : 'Engage'}
+            label={d.reason === 'deploy' || isChameleon(state) ? 'Auto' : 'Engage'}
             onClick={() => {
               if (!engageDraft())
                 useGame.getState().showToast('No legal position found. Drag the unit.', 'error');
@@ -206,6 +210,19 @@ export function PlacePanel() {
           data-testid="forward-to-victory"
         >
           Forward to Victory · 1 CP
+        </button>
+      )}
+      {d.reason === 'deploy' && d.canAmbush && (
+        <button
+          className="btn wide"
+          onClick={() => {
+            if (dispatch({ t: 'ability', unit: d.unit, abilityId: HIDDEN_HUNTERS_ID })) {
+              setDraft(null);
+            }
+          }}
+          data-testid="hidden-hunters"
+        >
+          Hidden Hunters: set up in reserve in ambush
         </button>
       )}
       <div className="confirm-row">

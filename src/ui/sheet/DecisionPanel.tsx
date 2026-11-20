@@ -1,6 +1,7 @@
 /** Nothing selected: the current decision in words and its one obvious button. */
 import { useMemo } from 'react';
 import { aliveCount, unitsOf, type Decision } from '../../engine/index.js';
+import { ambushUnits } from '../../engine/reserve.js';
 import { dispatch, endPhase, phaseName } from '../game/actions.js';
 import { engine, playerName } from '../game/engine.js';
 import { useDecision, useGameState, useHuman } from '../game/hooks.js';
@@ -107,7 +108,7 @@ export function ReadyUnits({ label, only }: { label: string; only?: 'fight' }) {
   const human = useHuman();
   const ready = useMemo(
     () =>
-      unitsOf(state, human).filter((u) => {
+      [...unitsOf(state, human), ...ambushUnits(state, human)].filter((u) => {
         const options = engine.unitOptions(state, u.id);
         // "Can fight" lists fighters only: a unit with just a combat ability (Rhythm of the
         // Chase) is not waiting to be picked.
@@ -119,7 +120,10 @@ export function ReadyUnits({ label, only }: { label: string; only?: 'fight' }) {
   const choose = (id: string) => {
     const ui = useUi.getState();
     ui.select(id);
-    ui.moveCamera({ kind: 'unit', unit: id, zoom: false, onlyIfHidden: false });
+    // A unit waiting in ambush is not on the board.
+    if (state.units[id]!.status === 'battlefield') {
+      ui.moveCamera({ kind: 'unit', unit: id, zoom: false, onlyIfHidden: false });
+    }
   };
   return (
     <div className="ready" data-testid="ready-units">

@@ -66,7 +66,9 @@ import {
   setUpWyldwood,
 } from './commands.js';
 import { flushMortalDamage, npcGlamourweaveReroll } from './combat.js';
-import { declareCharge, place, skipPlace } from './placing.js';
+import { declareCharge, hiddenHunters, place, skipPlace } from './placing.js';
+import { chameleonAmbush } from './reserve.js';
+import { CHAMELEON_AMBUSH_ID, HIDDEN_HUNTERS_ID } from './abilities/seraphon.js';
 import { answerReaction, offerEndOfPhaseReaction } from './reactions.js';
 import { declareFight, declareShoot, declareTargets, settle } from './declare.js';
 
@@ -147,6 +149,8 @@ export function createEngine(scenario: Scenario): Engine {
           declareMove(ctx, action.unit, action.kind, action.atTheDouble);
         } else if (action.t === 'ability' && action.abilityId === WYLDWOOD_SETUP_ID) {
           setUpWyldwood(ctx, action.unit);
+        } else if (action.t === 'ability' && action.abilityId === CHAMELEON_AMBUSH_ID) {
+          chameleonAmbush(ctx, action);
         } else if (action.t === 'ability' && SET_UP_ABILITY_IDS.includes(action.abilityId)) {
           useSetUpAbility(ctx, action);
         } else if (action.t === 'ability' && SERAPHON_ACTIVATED_IDS.includes(action.abilityId)) {
@@ -254,6 +258,13 @@ export function createEngine(scenario: Scenario): Engine {
           action.unit === d.unit
         ) {
           forwardToVictory(ctx, action.unit);
+        } else if (
+          action.t === 'ability' &&
+          action.abilityId === HIDDEN_HUNTERS_ID &&
+          d.reason === 'deploy' &&
+          action.unit === d.unit
+        ) {
+          hiddenHunters(ctx, action.unit);
         } else illegal('Place the unit or leave it where it is.');
         break;
       case 'fightPick':

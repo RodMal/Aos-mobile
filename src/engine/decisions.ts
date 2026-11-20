@@ -22,6 +22,7 @@ import {
   relocateViolations,
   rhythmTargets,
 } from './relocate.js';
+import { canHiddenHunters, chameleonOptions } from './reserve.js';
 import { friendlyWyldwoods, isAwakenedWyldwood } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID, canSetUpWyldwood, checkWyldwoodSetUp } from './wyldwood.js';
 import {
@@ -92,6 +93,10 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
           allowance: top.allowance,
           dice: top.dice,
           canPass: top.reason !== 'deploy',
+          ...(top.reason === 'deploy' &&
+          canHiddenHunters(scenario, state, unitById(state, top.unit))
+            ? { canAmbush: true }
+            : {}),
           ...(top.reason === 'pileIn' && !inCombat(scenario, state, unitById(state, top.unit))
             ? { free: true }
             : {}),
@@ -226,7 +231,11 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
 export function unitOptions(scenario: Scenario, state: GameState, unitId: UnitId): UnitOption[] {
   const d = decision(scenario, state);
   const unit = state.units[unitId];
-  if (!d || !unit || unit.status !== 'battlefield' || unit.owner !== d.player) return [];
+  if (!d || !unit || unit.owner !== d.player) return [];
+  // A unit waiting in ambush is not on the battlefield, but its player may set it up (Chameleon Ambush).
+  if (unit.status !== 'battlefield') {
+    return d.kind === 'main' ? chameleonOptions(scenario, state, unit) : [];
+  }
   if (
     d.kind === 'main' &&
     wyldwoodHandle(scenario, state, unit) &&

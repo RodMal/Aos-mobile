@@ -101,6 +101,11 @@ export interface UnitState {
   venomitesAt?: { x: number; y: number };
   /** Set when a unit/manifestation was set up on the battlefield this turn (bars movement-phase moves). */
   setUpThisTurn?: boolean;
+  /**
+   * A unit in `status: 'reserve'` that was set up in reserve in ambush (Hidden Hunters, Core
+   * 24.1): it counts as deployed and waits for Chameleon Ambush; destroyed at the start of round 4.
+   */
+  inAmbush?: boolean;
   /** True for summoned manifestation units. */
   isManifestation?: boolean;
   /**
@@ -361,7 +366,7 @@ export type Frame =
  * it stands; with `undo` it also takes the use back (the army as it was before).
  */
 export interface Relocation {
-  kind: 'huntmaster' | 'rhythm' | 'ambush' | 'shadowcreep' | 'realmroot';
+  kind: 'huntmaster' | 'rhythm' | 'ambush' | 'shadowcreep' | 'realmroot' | 'chameleon';
   undo?: PlayerState;
   /** Merciless Ambush: the charge roll, X. */
   reach?: number;
@@ -524,6 +529,8 @@ export type Decision =
       allowance: number;
       dice: number[];
       canPass: boolean;
+      /** A deploy placement of a unit that may be set up in reserve in ambush instead (Hidden Hunters). */
+      canAmbush?: boolean;
       /** A pile-in by a unit that is no longer in combat: up to 3" in any direction. */
       free?: boolean;
     }

@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4j Reserve and ambush: Hidden Hunters, Chameleon Ambush
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ai, ui/prompts, ui/board
-- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/seraphon.json` (Hunters of Huanchi with Dartpipes: Hidden Hunters `c78e-71e9-a948-fb09`, Chameleon Ambush `4a89-1c50-df0e-4b2b`); `src/engine/deployment.ts` (units in `reserve`), `src/engine/placing.ts`, `src/engine/decisions.ts`, `src/engine/types.ts` (`UnitState.status`), the core rules on reserves in `data/ruleset.json`
-- **Done when**: one test per ability: Hidden Hunters (the unit is set up in reserve in ambush and counts as deployed), Chameleon Ambush (set up anywhere more than 9" from enemy units, at the printed timing, with the other core reserve limits). Say in `docs/RULES-DECISIONS.md` how the NPC treats an enemy unit in reserve. Update `docs/ABILITIES.md`.
-
 ### M4k Manifestation movement abilities: Scything Blade, The Pendulum Swings, End Given Form, Pulled to the Grave
 
 - **Tier**: sonnet+review

@@ -31,6 +31,7 @@ import {
   vengeanceCandidates,
 } from '../rules/factions/kroak.js';
 import { healUnit, destroyUnit } from './damage.js';
+import { AMBUSH_DESTROYED_ROUND, destroyAmbushUnits } from './reserve.js';
 import { PHASES, type Action, type PlayerId, type ReactionOption } from './types.js';
 
 // ─── Turn sequence ──────────────────────────────────────────────────────────────
@@ -143,6 +144,7 @@ export function beginRound(ctx: Ctx): void {
 export function startRound(ctx: Ctx): void {
   const { s, scenario } = ctx;
   ctx.events.push({ t: 'roundStart', round: s.round });
+  if (s.round === AMBUSH_DESTROYED_ROUND) destroyAmbushUnits(ctx);
   s.seizedThisRound = null;
   for (const p of [0, 1] as PlayerId[]) {
     s.players[p].cp = 0;

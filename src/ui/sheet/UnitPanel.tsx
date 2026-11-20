@@ -30,7 +30,9 @@ export function UnitPanel({ unitId }: { unitId: string }) {
     unit.status !== 'battlefield'
       ? unit.status === 'destroyed'
         ? 'Destroyed'
-        : 'In reserve'
+        : unit.inAmbush
+          ? 'In reserve in ambush'
+          : 'In reserve'
       : [
           unit.moved &&
             `${unit.moved === 'normal' ? 'moved' : unit.moved === 'run' ? 'ran' : 'retreated'}`,

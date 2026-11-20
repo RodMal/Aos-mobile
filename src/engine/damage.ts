@@ -173,7 +173,7 @@ export function healUnit(ctx: Ctx, unit: UnitState, amount: number, source: stri
 
 /** Destroys or banishes a unit/manifestation immediately. */
 export function destroyUnit(ctx: Ctx, unit: UnitState, source: string): void {
-  if (unit.status !== 'battlefield') return;
+  if (unit.status !== 'battlefield' && !(unit.status === 'reserve' && unit.inAmbush)) return;
   recordUnitDestroyedForTactics(ctx.scenario, ctx.s, unit);
   let slain = 0;
   for (const m of unit.models) {

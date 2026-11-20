@@ -62,6 +62,8 @@ export const SHADOWCREEP_RANGE = 3;
 export const HUNTMASTER_GAP = 6;
 /** Shadowcreep and Realmroot Guide: "more than 9\" from all enemy units". */
 export const OVERGROWTH_SET_UP_GAP = 9;
+/** Chameleon Ambush: "more than 9\" from all enemy units". */
+export const CHAMELEON_GAP = 9;
 /** Rhythm of the Chase: "within 1\" of the target". */
 export const RHYTHM_RANGE = 1;
 
@@ -353,6 +355,8 @@ export function relocateGap(kind: Relocation['kind']): number {
     case 'shadowcreep':
     case 'realmroot':
       return OVERGROWTH_SET_UP_GAP;
+    case 'chameleon':
+      return CHAMELEON_GAP;
     default:
       return 0;
   }
