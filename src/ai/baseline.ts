@@ -201,8 +201,8 @@ export function chooseAction(engine: Engine, state: GameState): Action {
         value: npcScryPicks(engine.scenario, state, d.player, d.units, d.max).join(','),
       };
     case 'venomites':
-      // Next to the unit, on the side facing the middle of the table (it never matters otherwise).
-      return { t: 'choose', value: 'bottom' };
+      // Next to the unit, on the side towards the enemy (player 0 holds the small x, player 1 the large).
+      return { t: 'choose', value: d.player === 0 ? 'right' : 'left' };
     case 'creepingDread': {
       const ids = npcCreepingDreadTargets(engine.scenario, state, d.units, d.max);
       return ids.length > 0 ? { t: 'choose', value: ids.join(',') } : { t: 'pass' };

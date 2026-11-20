@@ -2,7 +2,14 @@
 import type { Decision } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
 import { useGameState } from '../game/hooks.js';
+import { tableSide, type Rot, type Side } from '../board/view.js';
 import { Modal } from './Modal.js';
+
+/** How the board is turned right now (the phone turns the table to run down the screen). */
+function boardRot(): Rot {
+  const r = document.querySelector('[data-testid="board"]')?.getAttribute('data-rot');
+  return r === '90' ? 90 : r === '-90' ? -90 : 0;
+}
 
 const LABEL = { top: 'Above', bottom: 'Below', left: 'Left of', right: 'Right of' } as const;
 
@@ -21,7 +28,7 @@ export function VenomitesPrompt({ d }: { d: Extract<Decision, { kind: 'venomites
             key={side}
             className="btn wide"
             data-testid={`venomites-${side}`}
-            onClick={() => dispatch({ t: 'choose', value: side })}
+            onClick={() => dispatch({ t: 'choose', value: tableSide(boardRot(), side as Side) })}
           >
             {LABEL[side]} the unit
           </button>
