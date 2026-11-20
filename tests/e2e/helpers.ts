@@ -295,8 +295,13 @@ export async function minimalPlayerStep(page: Page): Promise<string | null> {
   for (const [name, control] of controls) {
     if (await usable(control)) {
       if (name === 'pick unit' && (await usable(page.getByTestId('end-phase')))) continue;
-      await control.click({ timeout: 3000 });
-      return name;
+      // A prompt can open between the check and the click and cover the control (its scrim takes
+      // the click); the next step answers that prompt, so a failed click is not an error.
+      const clicked = await control.click({ timeout: 3000 }).then(
+        () => true,
+        () => false,
+      );
+      return clicked ? name : null;
     }
   }
   return null;
