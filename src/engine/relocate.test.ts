@@ -227,6 +227,14 @@ describe('Rhythm of the Chase (b29c-dd1a-502d-27c4)', () => {
     // Once per turn for the army, and back to picking fighters.
     expect(done.state.players[0].usedOncePerTurn).toContain(RHYTHM_OF_THE_CHASE_ID);
     expect(engine.decision(done.state)?.kind).toBe('fightPick');
+    // A pile-in is not a MOVE ability: the unit that was set up again may still pile in.
+    expect(done.state.units[b]!.setUpThisTurn).toBe(true);
+    const fight = engine.apply(done.state, { t: 'fight', unit: b }).state;
+    expect(engine.decision(fight)).toMatchObject({ kind: 'place', reason: 'pileIn', unit: b });
+    const here = formPlacement(scenario, fight.units[b]!, centreOf(fight, b), 0);
+    expect(engine.checkPlacement(fight, here)).toEqual([]);
+    const piled = engine.apply(fight, { t: 'place', placement: here }).state;
+    expect(engine.decision(piled)?.kind).not.toBe('place');
   });
 
   it('on a 1 does nothing', () => {
@@ -417,9 +425,17 @@ describe('Shadowcreep (76b2-ce61-8aec-f6c1)', () => {
     // Declining the set-up leaves the unit free to move.
     const declined = engine.apply(engine.apply(s, use(s)).state, { t: 'pass' }).state;
     expect(moveKinds(declined).length).toBeGreaterThan(0);
-    // The next turn it moves again.
-    const later = editable(done);
-    later.units[id]!.setUpThisTurn = false;
+    // The next turn of its player (reached through the engine) it moves again.
+    let later = done;
+    let sawOther = false;
+    for (let i = 0; i < 400; i++) {
+      if (later.active === 1) sawOther = true;
+      if (sawOther && later.active === 0 && later.phase === 'movement') break;
+      later = engine.apply(later, engine.defaultAction(later)).state;
+    }
+    expect(later.active).toBe(0);
+    expect(later.phase).toBe('movement');
+    expect(later.units[id]!.setUpThisTurn).toBe(false);
     expect(moveKinds(later).length).toBeGreaterThan(0);
   });
 
@@ -626,5 +642,48 @@ describe('Merciless Ambush and Forward to Victory', () => {
     expect(() =>
       engine.apply(declined, { t: 'command', command: 'forwardToVictory', unit: d }),
     ).toThrow();
+  });
+});
+
+describe('Start of combat: both players', () => {
+  const both = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SYLVANETH_LORDS_OF_THE_CLAN]);
+  const eng = createEngine(both);
+  const pick = (s: GameState, owner: 0 | 1) =>
+    Object.values(s.units).find((u) => u.owner === owner && u.name === BELTHANOS)!.id;
+
+  function charge(): GameState {
+    const s = editable(startGame(eng, 1));
+    keepOnly(s, [pick(s, 0), pick(s, 1)]);
+    placeUnit(both, s, pick(s, 0), 30, 30, 90);
+    placeUnit(both, s, pick(s, 1), 34, 30, 270);
+    s.active = 0;
+    s.phase = 'charge';
+    s.stack = [];
+    return s;
+  }
+
+  it("the active player's start-of-combat abilities come first, then the defender's, then fights", () => {
+    const s = charge();
+    const started = eng.apply(s, { t: 'pass' }).state;
+    expect(eng.decision(started)).toMatchObject({ kind: 'reaction', player: 0 });
+    const second = eng.apply(started, { t: 'pass' }).state;
+    expect(eng.decision(second)).toMatchObject({
+      kind: 'reaction',
+      player: 1,
+      options: [{ ability: 'rhythmOfTheChase', unit: pick(s, 1) }],
+    });
+    const third = eng.apply(second, { t: 'pass' }).state;
+    expect(eng.decision(third)).toMatchObject({ kind: 'fightPick', player: 0 });
+  });
+
+  it('an offer that is no longer valid when shown is dropped', () => {
+    const s = charge();
+    const started = eng.apply(s, { t: 'pass' }).state;
+    const after = editable(eng.apply(started, { t: 'pass' }).state);
+    // The enemy has left combat (as if destroyed or moved by the first player's ability).
+    placeUnit(both, after, pick(s, 0), 10, 10, 90);
+    const d = eng.decision(after);
+    expect(d).toMatchObject({ kind: 'reaction', player: 1 });
+    expect(d?.kind === 'reaction' ? d.options : null).toEqual([]);
   });
 });
