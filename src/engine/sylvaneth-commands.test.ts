@@ -2,6 +2,7 @@
  * Sylvaneth commands (task M4e): Fury of The Forest, The Land Awakens, The Goddess Of Life.
  * Printed text in data/factions/sylvaneth.json; interpretations in docs/RULES-DECISIONS.md.
  */
+import { VENGEFUL_FOREST_SPIRITS_ID } from './factionTerrainActive.js';
 import { describe, expect, it } from 'vitest';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import { strikeOrder } from './abilities/effects.js';
@@ -63,6 +64,8 @@ describe('Fury of The Forest (081a-ebf2-6a79-c4db)', () => {
     const dryads = named(s, 0, 'Dryads');
     const krox = named(s, 1, 'Kroxigor');
     s.units[krox.id]!.status = 'battlefield';
+    // The Wyldwood is beside the fight: Vengeful Forest Spirits is spent so it opens no window.
+    s.players[0].usedOncePerTurn = [VENGEFUL_FOREST_SPIRITS_ID];
     const at = opts.outside ? { x: 8, y: 8 } : { x: 30, y: 24 };
     placeUnit(scenario, s, dryads.id, at.x, at.y, 90);
     placeUnit(scenario, s, krox.id, at.x + 4, at.y, 270);

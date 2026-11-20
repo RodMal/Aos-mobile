@@ -385,6 +385,15 @@ export function abilityAttackModifiers(
       out.push(...def.offenceModifiers(sit.attacker, sit, scenario, state));
   }
 
+  // Faction terrain acts for its army through its abilities (I74): one lookup per attack.
+  const terrain = state.units[`${sit.attacker.owner}:terrain`];
+  if (terrain && terrain.status === 'battlefield') {
+    for (const ab of abilitiesOf(scenario, terrain)) {
+      const def = REGISTRY.get(ab.id);
+      if (def?.terrainModifiers) out.push(...def.terrainModifiers(terrain, sit, scenario, state));
+    }
+  }
+
   for (const eff of state.effects ?? []) {
     // Avoid double-counting if allOutAttack/allOutDefence/coveringFire was also passed via `sit`
     if (

@@ -25,6 +25,7 @@ import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js'
 import { friendlyWyldwoods } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID } from './wyldwood.js';
 import { declareMercilessAmbush, undoRelocation, useSetUpAbility } from './relocating.js';
+import { POWER_UNLEASHED_ID, VENGEFUL_FOREST_SPIRITS_ID } from './factionTerrainActive.js';
 import { SERAPHON_ACTIVATED_IDS, chooseScry, useSeraphonAbility } from './seraphonActive.js';
 import { chooseVenomiteToken } from './venomites.js';
 import { SYLVANETH_ACTIVATED_IDS, useSylvanethAbility } from './sylvanethActive.js';
@@ -117,7 +118,10 @@ export function createEngine(scenario: Scenario): Engine {
         state,
         action.unit,
         d.player,
-        action.t === 'ability' && action.abilityId === WYLDWOOD_SETUP_ID,
+        action.t === 'ability' &&
+          (action.abilityId === WYLDWOOD_SETUP_ID ||
+            action.abilityId === POWER_UNLEASHED_ID ||
+            action.abilityId === VENGEFUL_FOREST_SPIRITS_ID),
       );
     }
     const s = cloneState(state);

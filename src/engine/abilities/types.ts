@@ -130,6 +130,16 @@ export interface AbilityDefinition {
     scenario: Scenario,
     state: GameState,
   ) => Modifier[];
+  /**
+   * Attack modifiers from the faction terrain of the attacker's army, whose warscroll has this
+   * ability, for attacks made by other units of the army (Fierce Guardians).
+   */
+  terrainModifiers?: (
+    terrain: UnitState,
+    sit: AttackSituation,
+    scenario: Scenario,
+    state: GameState,
+  ) => Modifier[];
   /** The weapon as `unit` (whose warscroll has this ability) uses it. */
   weaponFor?: (unit: UnitState, weapon: Weapon, scenario: Scenario, state: GameState) => Weapon;
   /** Trigger fired at `triggerWindow` while an ActiveEffect with `effect.id === def.id` is in play. */

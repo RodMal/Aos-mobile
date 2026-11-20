@@ -14,6 +14,7 @@ import { asterismOptions } from '../rules/factions/seraphon.js';
 import { VENOMITE_SIDES } from './venomites.js';
 import { scryOptions, starVenomOptions } from './seraphonActive.js';
 import { batteringRamOptions, lifebloomOptions } from './sylvanethActive.js';
+import { powerUnleashedOptions } from './factionTerrainActive.js';
 import { refreshOption, startOfCombatAbilities } from './anyPhase.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import {
@@ -272,10 +273,14 @@ export function unitOptions(scenario: Scenario, state: GameState, unitId: UnitId
       kind: 'activated',
       targets: [],
     };
-    if (isFactionTerrainUnit(scenario, unit)) return [setUp];
+    if (isFactionTerrainUnit(scenario, unit)) {
+      return [setUp, ...powerUnleashedOptions(scenario, state, unit)];
+    }
     return [...unitOptionsInner(scenario, state, unit, d), setUp];
   }
-  if (isFactionTerrainUnit(scenario, unit)) return [];
+  if (isFactionTerrainUnit(scenario, unit)) {
+    return d.kind === 'main' ? powerUnleashedOptions(scenario, state, unit) : [];
+  }
   return unitOptionsInner(scenario, state, unit, d);
 }
 

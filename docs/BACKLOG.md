@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4m Faction terrain abilities
-
-- **Tier**: sonnet+review
-- **Touches**: engine, rules, ai, ui/prompts
-- **Read**: `docs/ABILITIES.md`; printed text in `data/factions/sylvaneth.json` (Awakened Wyldwood: Vengeful Forest Spirits `5dd6-a023-8cdb-5cb1`) and `data/factions/seraphon.json` (Realmshaper Engine: Fierce Guardians `bf4d-2061-b8d1-193`, Power Unleashed `aa75-204a-4256-8c68`); `src/engine/factionTerrain.test.ts`, `src/engine/wyldwood.ts`, `src/engine/eligibility.ts` (`isFactionTerrainUnit`; the terrain "never acts", I39), `src/rules/core/modifiers.ts`, RULES-DECISIONS I39, I40, I59
-- **Ruling**: I39 is superseded by the owner's 2026-11-18 ruling (I74): each faction terrain piece's abilities work as its warscroll prints them.
-- **Done when**: one test per ability: Vengeful Forest Spirits (D3 per target, mortal damage on 2+), Fierce Guardians (+1 to hit for Saurus and Kroxigor combat attacks against an enemy within 9" of the terrain), Power Unleashed (D3 per target on 2+, and D3 on the terrain if it has a Health characteristic). Say in `docs/RULES-DECISIONS.md` how I39 changes (the terrain acts through its abilities only, and still never moves or fights). Update `docs/ABILITIES.md`.
-
 ### R19 Make a waiting reaction obvious
 
 - **Tier**: sonnet

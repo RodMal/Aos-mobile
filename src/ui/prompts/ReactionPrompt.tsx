@@ -15,6 +15,7 @@ import {
   RHYTHM_OF_THE_CHASE_ID,
   STAR_VENOM_ID,
   VENOMITE_SWARM_ID,
+  VENGEFUL_FOREST_SPIRITS_ID,
   WYLDWOOD_REVENANTS_ID,
 } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
@@ -136,6 +137,22 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
                 onClick={() => dispatch({ t: 'ability', unit: o.unit, abilityId: LIFEBLOOM_ID })}
               >
                 Lifebloom (heal 2D6) · {unitName} · Free
+              </button>
+            );
+          }
+          if (o.ability === 'vengefulForestSpirits') {
+            return (
+              <button
+                key={i}
+                className="btn wide"
+                data-testid="vengeful-forest-spirits"
+                {...hover}
+                onClick={() =>
+                  dispatch({ t: 'ability', unit: o.unit, abilityId: VENGEFUL_FOREST_SPIRITS_ID })
+                }
+              >
+                Vengeful Forest Spirits (D3 mortal damage on 2+ to {(o.targets ?? []).length} enemy{' '}
+                {(o.targets ?? []).length === 1 ? 'unit' : 'units'} within 3&quot;) · Free
               </button>
             );
           }

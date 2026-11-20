@@ -29,7 +29,7 @@ The "Task" column names the backlog task that closes each gap.
 | Nature's Titans         | 470d-dce9-5e70-29fb | Implemented | `sylvaneth.test.ts` (Heal 3 on a Monster, no roll)                                                                                                                     |      |
 | Budding Forest          | 3885-ae8f-a0ed-7b62 | Implemented | `wyldwood.test.ts` ("carries its owner's overgrown token")                                                                                                             |      |
 | Ever Growing            | 8c86-1655-c6c7-be0b | Implemented | `overgrowth.test.ts` (closest feature, enemy control, enemy faction terrain, per-Wyldwood Burgeoning); I66, I71, I73                                                   |      |
-| Vengeful Forest Spirits | 5dd6-a023-8cdb-5cb1 | Missing     | Faction terrain never acts (I39, `factionTerrain.test.ts`); no mortal damage                                                                                           | M4m  |
+| Vengeful Forest Spirits | 5dd6-a023-8cdb-5cb1 | Implemented | `factionTerrainActive.test.ts` (start-of-combat window, 3", once a turn per army, NPC); I74, I113                                                                      |      |
 
 ### Warscrolls
 
@@ -79,17 +79,17 @@ The "Task" column names the backlog task that closes each gap.
 
 The four Asterism abilities (Itzl, Quetzl, Sotek, Tepok) can be used only once prophesied by The Great Plan (deployment) and Further the Great Plan (start of each round after the first); both are implemented (M4b).
 
-| Ability                               | BSData id           | Status      | Gap                                                                         | Task |
-| ------------------------------------- | ------------------- | ----------- | --------------------------------------------------------------------------- | ---- |
-| The Great Plan                        | 9db2-50c6-6181-fc51 | Implemented | `seraphon.test.ts`, `session.test.ts` (old saves); I76                      |      |
-| Further the Great Plan                | 4d17-ddf6-7d2a-9889 | Implemented | `seraphon.test.ts`, `asterism.spec.ts`; I77, I78                            |      |
-| Itzl the Tamer                        | 360d-fd80-f153-269f | Implemented | `seraphon.test.ts`; I80                                                     |      |
-| Quetzl the Preserver                  | 5089-fe1e-4dd7-5eb4 | Implemented | `seraphon.test.ts`; I80                                                     |      |
-| Sotek the Deliverer                   | 6960-effd-2a46-d7d4 | Implemented | `seraphon.test.ts`, `asterism.spec.ts`; I79                                 |      |
-| Tepok the Seer                        | 90ae-3432-b3f3-4727 | Implemented | `seraphon.test.ts`; I79                                                     |      |
-| Vengeance of Azyr (Sunclaw Starhost)  | 7c7e-3757-9881-5bd7 | Implemented | `kroak.test.ts`, `session.test.ts` (old saves), `kroak.spec.ts`; I85 to I88 |      |
-| Fierce Guardians (Realmshaper Engine) | bf4d-2061-b8d1-193  | Missing     | +1 to hit for Saurus and Kroxigor within 9" of the terrain                  | M4m  |
-| Power Unleashed (Realmshaper Engine)  | aa75-204a-4256-8c68 | Missing     | Faction terrain never acts (I39)                                            | M4m  |
+| Ability                               | BSData id           | Status      | Gap                                                                                             | Task |
+| ------------------------------------- | ------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ---- |
+| The Great Plan                        | 9db2-50c6-6181-fc51 | Implemented | `seraphon.test.ts`, `session.test.ts` (old saves); I76                                          |      |
+| Further the Great Plan                | 4d17-ddf6-7d2a-9889 | Implemented | `seraphon.test.ts`, `asterism.spec.ts`; I77, I78                                                |      |
+| Itzl the Tamer                        | 360d-fd80-f153-269f | Implemented | `seraphon.test.ts`; I80                                                                         |      |
+| Quetzl the Preserver                  | 5089-fe1e-4dd7-5eb4 | Implemented | `seraphon.test.ts`; I80                                                                         |      |
+| Sotek the Deliverer                   | 6960-effd-2a46-d7d4 | Implemented | `seraphon.test.ts`, `asterism.spec.ts`; I79                                                     |      |
+| Tepok the Seer                        | 90ae-3432-b3f3-4727 | Implemented | `seraphon.test.ts`; I79                                                                         |      |
+| Vengeance of Azyr (Sunclaw Starhost)  | 7c7e-3757-9881-5bd7 | Implemented | `kroak.test.ts`, `session.test.ts` (old saves), `kroak.spec.ts`; I85 to I88                     |      |
+| Fierce Guardians (Realmshaper Engine) | bf4d-2061-b8d1-193  | Implemented | `factionTerrainActive.test.ts` (+1 to hit, Saurus/Kroxigor, within 9"); I113                    |      |
+| Power Unleashed (Realmshaper Engine)  | aa75-204a-4256-8c68 | Implemented | `factionTerrainActive.test.ts` (Wizard within 3", up to 3 targets round one feature, NPC); I113 |      |
 
 ### Warscrolls
 
