@@ -93,6 +93,7 @@ export function place(ctx: Ctx, placement: Placement): void {
     delete unit.abilitiesUsed;
     delete unit.magicalIntervention;
     delete unit.inAmbush;
+    unit.enhancementsLost = true;
     const used = s.players[unit.owner].usedOncePerBattle;
     if (used)
       s.players[unit.owner].usedOncePerBattle = used.filter((u) => !u.startsWith(`${unit.id}:`));

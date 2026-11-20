@@ -104,6 +104,8 @@ export interface UnitState {
    * Life). A unit is replaced once only, and a replacement unit cannot be replaced (Core 24.2).
    */
   replaced?: boolean;
+  /** A replacement unit does not keep the enhancements of the unit it replaces (Core 24.2). */
+  enhancementsLost?: boolean;
   /** Set when a unit/manifestation was set up on the battlefield this turn (bars movement-phase moves). */
   setUpThisTurn?: boolean;
   /**

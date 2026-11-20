@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import { strikeOrder } from './abilities/effects.js';
 import { createEngine, createScenario, type GameState } from './index.js';
+import { abilitiesOf } from './abilities/effects.js';
+import { profileOf } from './query.js';
 import { goddessOfLifeUnits } from './eligibility.js';
 import { formPlacement } from './query.js';
 import type { Placement, UnitId } from './types.js';
@@ -337,6 +339,30 @@ describe('Replacement units (Core 24.2)', () => {
     expect(u.castsUsed).toBeUndefined();
     expect(u.allOutAttack).toBeUndefined();
     expect(s.effects?.some((e) => e.targetUnit === id) ?? false).toBe(false);
+  });
+
+  it('the replacement does not keep the enhancement of the destroyed unit', () => {
+    const s = arranged(['Dryads', 'Alarielle the Everqueen'], 'end');
+    placeUnit(scenario, s, alarielleOf(s).id, 30, 30);
+    const d = Object.values(s.units).find(
+      (u) =>
+        u.owner === 0 &&
+        u.name === 'Dryads' &&
+        scenario.armies[0].units[u.armyIndex]!.enhancements.length > 0,
+    )!;
+    expect(abilitiesOf(scenario, d).length).toBeGreaterThan(
+      profileOf(scenario, d).abilities.length,
+    );
+    destroy(s, d.id);
+    const r = engine.apply(s, {
+      t: 'command',
+      command: 'landAwakens',
+      unit: alarielleOf(s).id,
+      target: d.id,
+    });
+    const done = engine.apply(r.state, { t: 'place', placement: legalSetUp(r.state, d.id)! }).state;
+    const back = done.units[d.id]!;
+    expect(abilitiesOf(scenario, back)).toEqual(profileOf(scenario, back).abilities);
   });
 
   it('a replacement unit that is destroyed again cannot be replaced by The Land Awakens', () => {
