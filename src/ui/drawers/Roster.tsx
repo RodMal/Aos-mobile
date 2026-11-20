@@ -3,6 +3,7 @@ import { aliveCount, type PlayerId } from '../../engine/index.js';
 import { playerName, scenario } from '../game/engine.js';
 import { useGameState, useHuman } from '../game/hooks.js';
 import { useUi } from '../game/uiStore.js';
+import { fightWord } from '../game/fightStatus.js';
 import { Drawer } from './Drawer.js';
 
 export function Roster() {
@@ -41,7 +42,7 @@ export function Roster() {
                   u.moved && 'moved',
                   u.charged && 'charged',
                   u.shot && 'shot',
-                  u.fought && 'fought',
+                  fightWord(state, u) || false,
                 ]
                   .filter(Boolean)
                   .join(' · ');

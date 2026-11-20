@@ -232,6 +232,25 @@ describe('combat phase', () => {
     expect(r.events.some((e) => e.t === 'attacks')).toBe(true);
     expect(r.state.players[1].cp).toBe(1);
   });
+
+  it('the attacker is already marked as fought when All-out Defence is offered, and is not offered it again', () => {
+    const s = editable(start);
+    s.players[1].cp = 3;
+    let t = engine.apply(s, { t: 'fight', unit: DRYADS }).state;
+    expect(t.units[DRYADS]!.fought).toBe(true); // flagged on being picked (the label)
+    expect(eligibleFighters(scenario, t, 0).map((u) => u.id)).not.toContain(DRYADS);
+    t = engine.apply(t, { t: 'pass' }).state;
+    t = engine.apply(t, engine.defaultAction(t)).state;
+    const first = engine.decision(t);
+    expect(first).toMatchObject({ kind: 'reaction', trigger: `fight:${DRYADS}` });
+    // Once answered, the same unit never raises another fight reaction.
+    t = engine.apply(t, { t: 'pass' }).state;
+    for (let i = 0; i < 40 && t.phase === 'combat'; i++) {
+      const d = engine.decision(t);
+      if (d?.kind === 'reaction') expect(d.trigger).not.toBe(`fight:${DRYADS}`);
+      t = engine.apply(t, engine.defaultAction(t)).state;
+    }
+  });
 });
 
 describe('retreat', () => {
