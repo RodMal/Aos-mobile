@@ -69,6 +69,7 @@ import {
   LIVING_BATTERING_RAM_ID,
   WYLDWOOD_REVENANTS_ID,
 } from '../engine/abilities/sylvaneth.js';
+import { autoGrowthAnswer } from '../rules/factions/sylvaneth.js';
 import { batteringRamOptions, has, lifebloomOptions } from '../engine/sylvanethActive.js';
 import { npcAsterism } from '../rules/factions/seraphon.js';
 import { npcCreepingDreadTargets, npcSeason } from '../rules/factions/seasons.js';
@@ -193,6 +194,13 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       const pick = npcSeason(engine.scenario, state, d.player);
       return { t: 'choose', value: d.seasons.includes(pick) ? pick : d.seasons[0]! };
     }
+    case 'endlessGrowth':
+      // Whatever restores the most: Aspect of Heartwood when it helps, a returned model over a heal.
+      return { t: 'choose', value: autoGrowthAnswer(d.stage, d.options) };
+    case 'endlessGrowth':
+      // The NPC keeps the automatic choice: Aspect of Heartwood when it helps, a returned model
+      // over a heal (I108, I112).
+      return { t: 'choose', value: autoGrowthAnswer(d.stage, d.options) };
     case 'scry':
       return {
         t: 'choose',

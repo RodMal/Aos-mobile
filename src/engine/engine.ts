@@ -16,7 +16,11 @@ import {
 import { suggestFugitive } from '../rules/core/battleTactics.js';
 import { initFury, resolveEruptionOfFury } from '../rules/core/fury.js';
 import { resolvePlaceOfPower, type PlaceOfPowerBoon } from './terrain.js';
-import { type AlarielleSeason } from '../rules/factions/sylvaneth.js';
+import {
+  autoGrowthAnswer,
+  answerEndlessGrowth,
+  type AlarielleSeason,
+} from '../rules/factions/sylvaneth.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
 import { friendlyWyldwoods } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID } from './wyldwood.js';
@@ -362,6 +366,10 @@ export function createEngine(scenario: Scenario): Engine {
       case 'vengeance':
         chooseVengeance(ctx, action);
         break;
+      case 'endlessGrowth':
+        if (action.t === 'choose') answerEndlessGrowth(ctx, action.value);
+        else illegal('Choose how Endless Growth resolves for this unit.');
+        break;
       case 'scry':
         if (action.t === 'choose') chooseScry(ctx, action.value);
         else illegal('Pick the units that get Ward (5+).');
@@ -459,6 +467,8 @@ export function createEngine(scenario: Scenario): Engine {
         // Optional for engine-driven games, like a Place of Power: the default prophesies
         // nothing (the NPC picks, see `chooseAction`).
         return { t: 'pass' };
+      case 'endlessGrowth':
+        return { t: 'choose', value: autoGrowthAnswer(d.stage, d.options) };
       case 'scry':
         return { t: 'choose', value: d.units.slice(0, d.max).join(',') };
       case 'venomites':

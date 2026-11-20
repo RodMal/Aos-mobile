@@ -6,7 +6,7 @@ import { opponent } from './query.js';
 import { canUsePlaceOfPower } from './terrain.js';
 import { type Action, type PlayerId, type UnitId } from './types.js';
 import { currentFightTier, eligibleFighters } from './eligibility.js';
-import { resolveEndlessGrowth } from '../rules/factions/sylvaneth.js';
+import { advanceEndlessGrowth } from '../rules/factions/sylvaneth.js';
 import { advancePhase, finishTurn } from './turns.js';
 import { vengeanceCandidates } from '../rules/factions/kroak.js';
 import { advanceVengeance } from './vengeance.js';
@@ -95,8 +95,8 @@ export function settle(ctx: Ctx): void {
     if (top.t === 'endGrowth') {
       // Mortal damage held for Fight Through the Pain is allocated first (the caller loops).
       if ((s.pendingMortal?.length ?? 0) > 0) break;
+      if (advanceEndlessGrowth(ctx, top)) break; // waiting for the player's choice
       s.stack.pop();
-      resolveEndlessGrowth(ctx, top.player);
       continue;
     }
     if (top.t === 'turnEnd') {

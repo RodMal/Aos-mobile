@@ -9,7 +9,13 @@ import {
   startGame,
 } from '../../engine/test-helpers.js';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../../data/lists.js';
-import { creepingOvergrowthRange, resolveEndlessGrowth } from './sylvaneth.js';
+import type { EndGrowthFrame } from '../../engine/types.js';
+import {
+  advanceEndlessGrowth,
+  answerEndlessGrowth,
+  creepingOvergrowthRange,
+  resolveEndlessGrowth,
+} from './sylvaneth.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
 const engine = createEngine(scenario);
@@ -131,5 +137,81 @@ describe('Endless Growth', () => {
     resolveEndlessGrowth(ctx2, 0);
     expect(bel2.damage).toBe(4);
     expect(ctx2.events).toEqual([]);
+  });
+});
+
+describe('Endless Growth: the player chooses the effect (I112)', () => {
+  /** Dryads (Health 1) with 2 slain models and 1 damage, wholly within the overgrowth. */
+  function hurtDryads() {
+    const s = editable(startGame(engine, 1));
+    const dryads = named(s, 'Dryads');
+    keepOnly(s, [dryads.id]);
+    grownAround(s, dryads.id);
+    dryads.models[8]!.alive = false;
+    dryads.models[9]!.alive = false;
+    dryads.damage = 1;
+    return { s, dryads };
+  }
+  const frame = (): EndGrowthFrame => ({ t: 'endGrowth', player: 0 });
+
+  it('asks heal or return once the D3 is rolled, and Heal does what it says', () => {
+    const { s, dryads } = hurtDryads();
+    const ctx = ctxWith(s, [2]);
+    const f = frame();
+    expect(advanceEndlessGrowth(ctx, f)).toBe(true);
+    expect(f.ask).toEqual({ stage: 'effect', unit: dryads.id, roll: 2, heal: 1, models: 2 });
+    answerEndlessGrowth(ctx, 'heal', f);
+    expect(advanceEndlessGrowth(ctx, f)).toBe(false);
+    expect(dryads.damage).toBe(0);
+    expect(dryads.models.filter((m) => !m.alive)).toHaveLength(2);
+  });
+
+  it('Return brings back the models that fit in the roll and leaves the damage', () => {
+    const { s, dryads } = hurtDryads();
+    const ctx = ctxWith(s, [2]);
+    const f = frame();
+    advanceEndlessGrowth(ctx, f);
+    answerEndlessGrowth(ctx, 'return', f);
+    expect(advanceEndlessGrowth(ctx, f)).toBe(false);
+    expect(dryads.models.filter((m) => !m.alive)).toHaveLength(0);
+    expect(dryads.damage).toBe(1);
+  });
+
+  it('does not ask when only one effect does anything, and rejects a bad answer', () => {
+    const { s, dryads } = hurtDryads();
+    dryads.damage = 0;
+    const f = frame();
+    expect(advanceEndlessGrowth(ctxWith(s, [3]), f)).toBe(false);
+    expect(dryads.models.filter((m) => !m.alive)).toHaveLength(0);
+    const g = hurtDryads();
+    const f2 = frame();
+    const ctx = ctxWith(g.s, [2]);
+    advanceEndlessGrowth(ctx, f2);
+    expect(() => answerEndlessGrowth(ctx, 'd6', f2)).toThrow();
+  });
+
+  it('the automatic answer (NPC, engine default) returns models; resolveEndlessGrowth uses it', () => {
+    const { s, dryads } = hurtDryads();
+    resolveEndlessGrowth(ctxWith(s, [2]), 0);
+    expect(dryads.models.filter((m) => !m.alive)).toHaveLength(0);
+    expect(dryads.damage).toBe(1);
+  });
+
+  it('through the engine: a decision for the player, answered with choose', () => {
+    let { s, dryads } = hurtDryads();
+    s.active = 0;
+    s.firstPlayer = 0;
+    s.phase = 'end';
+    s.stack = [];
+    s = engine.apply(s, { t: 'pass' }).state;
+    while (engine.decision(s)?.kind === 'reaction') s = engine.apply(s, { t: 'pass' }).state;
+    const d = engine.decision(s)!;
+    expect(d).toMatchObject({ kind: 'endlessGrowth', player: 0, unit: dryads.id, stage: 'effect' });
+    const healed = engine.apply(s, { t: 'choose', value: 'heal' }).state;
+    expect(healed.units[dryads.id]!.damage).toBe(0);
+    expect(healed.units[dryads.id]!.models.filter((m) => !m.alive)).toHaveLength(2);
+    const back = engine.apply(s, { t: 'choose', value: 'return' }).state;
+    expect(back.units[dryads.id]!.damage).toBe(1);
+    expect(back.units[dryads.id]!.models.filter((m) => !m.alive).length).toBeLessThan(2);
   });
 });
