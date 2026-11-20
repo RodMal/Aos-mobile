@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../../data/lists.js';
 import { createEngine, createScenario } from '../../engine/index.js';
-import { editable, keepOnly, passTo, placeUnit, startGame } from '../../engine/test-helpers.js';
+import {
+  editable,
+  keepOnly,
+  passTo,
+  placeUnit,
+  skipWindows,
+  startGame,
+} from '../../engine/test-helpers.js';
 import { fightWord } from './fightStatus.js';
 
 const scenario = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
@@ -18,7 +25,8 @@ describe('fightWord', () => {
     s.players[1].cp = 0;
     s.players[0].rageDice = 0;
     s.players[1].rageDice = 0;
-    let t = editable(passTo(engine, s, 'combat'));
+    // The defender's Ark of Sotek is offered in the start-of-combat window (R14): passed here.
+    let t = editable(skipWindows(engine, passTo(engine, s, 'combat')));
     t.units['0:0']!.fought = true;
     expect(fightWord(t, t.units[BASTILADON]!)).toBe('');
     const seen: string[] = [];

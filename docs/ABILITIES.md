@@ -33,31 +33,31 @@ The "Task" column names the backlog task that closes each gap.
 
 ### Warscrolls
 
-| Ability                     | Unit                    | BSData id           | Status      | Evidence and gaps                                                                                                                                 | Task |
-| --------------------------- | ----------------------- | ------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| Metamorphosis (spell)       | Alarielle the Everqueen | b4bf-ef71-9dfe-e837 | Implemented | `magic.test.ts` (token, splash, Fight Through the Pain); I29. Visible target needed (I75, `visibility.test.ts`)                                   |      |
-| Seasons Of War              | Alarielle the Everqueen | d584-62b7-8083-8f63 | Implemented | `seasons.test.ts` (never last round's, Reaping, Dwindling, Burgeoning per Wyldwood, Everdusk); I54, I71                                           |      |
-| Battle Damaged              | Alarielle the Everqueen | 135b-afc5-4fd9-3460 | Implemented | `sylvaneth.test.ts` (Antlers Attacks 4 from 10 damage points); I95                                                                                |      |
-| Lifebloom                   | Alarielle the Everqueen | e4b4-8e4d-5f0-eb6a  | Implemented | `sylvanethActive.test.ts`: Heal (2D6), once per turn per army, your own hero phase; I106                                                          |      |
-| Living Battering Ram        | Alarielle the Everqueen | 5abd-6507-dbee-ed76 | Implemented | `sylvanethActive.test.ts`: after a charge, a visible enemy within 1", 3+ is mortal damage equal to the roll; I106                                 |      |
-| The Goddess Of Life         | Alarielle the Everqueen | 4f7c-2ca1-ae3f-d2d3 | Implemented | `sylvaneth-commands.test.ts` (8 damage points, no ward rolls, once per battle, 2 CP, cancel); I99                                                 |      |
-| Huntmaster's Strike         | Belthanos               | 61d2-55e1-7873-e100 | Implemented | `relocate.test.ts` (end of any turn, charged units; wholly within the overgrowth, more than 6" from enemies; decline); I103                       |      |
-| Kurnothi War-horn           | Belthanos               | 59e8-f376-a5df-144c | Implemented | `sylvaneth.test.ts` (+2" for Belthanos himself, in the move allowance, card and ring); I91                                                        |      |
-| Rhythm of the Chase         | Belthanos               | b29c-dd1a-502d-27c4 | Implemented | `relocate.test.ts` (D3, mortal damage on 2+, then within 1" of the target; once per turn); I103                                                   |      |
-| Battle Damaged              | Belthanos               | c6b8-a8fd-b2-59fa   | Implemented | `sylvaneth.test.ts` (Mandibles Attacks 3 from 10 damage points); I95                                                                              |      |
-| Groundshaker                | Spirit of Durthu        | 7124-769a-aafd-7b38 | Implemented | `sylvanethActive.test.ts`: 3+ gives Strike-last for the turn; the keyword reading is I107                                                         |      |
-| Battle Damaged              | Spirit of Durthu        | 2eb1-9bd5-1544-36d9 | Implemented | `sylvaneth.test.ts` (Guardian Sword Attacks 3 from 10 damage points); I95                                                                         |      |
-| Guardian Of The Glades      | Spirit of Durthu        | ea9f-5c5b-8b97-78aa | Implemented | `relocate.test.ts` (+2 to the charge roll, must end within 1/2" of an enemy in combat with another friendly Sylvaneth Hero); I103                 |      |
-| Glamourweave (artefact)     | Spirit of Durthu        | cafd-9cf1-871c-f47e | Implemented | `sylvaneth.test.ts` (one re-roll each of hit, wound and save per phase). Offered to the player at each failed roll; the NPC takes the first (I96) |      |
-| Terror Of The Deep Woods    | Drycha Hamadreth        | a1f-39fd-6570-f3d5  | Implemented | `sylvaneth.test.ts` (no Run or Retreat within 9"); I93                                                                                            |      |
-| Enrage The Spites (spell)   | Drycha Hamadreth        | a924-fd6e-9278-4d4c | Implemented | `magic.test.ts` (up to 3 picked targets, overgrowth, NPC); I62                                                                                    |      |
-| Merciless Ambush            | Drycha Hamadreth        | 77b2-7e2-ba0c-83a1  | Implemented | `relocate.test.ts` (command, charge roll X, within 1/2" of an enemy and wholly within X" of a feature with an overgrown token, has charged); I103 |      |
-| Shadowcreep                 | Spite-Revenants         | 76b2-ce61-8aec-f6c1 | Implemented | `relocate.test.ts` (wholly within 3" of terrain, more than 9" from enemies, +1 to charge rolls); I103                                             |      |
-| Wyldwood Revenants          | Warsong Revenant        | dc61-1f39-51f9-52da | Implemented | `sylvanethActive.test.ts`: a reaction to an unmodified chanting roll of 1, once per turn per army; I106                                           |      |
-| Alarielle's Song            | Warsong Revenant        | 3f73-3ee4-8f6b-b16b | Implemented | `sylvaneth.test.ts` (Ward 6+ within 12", -1 to enemy ward rolls); I92                                                                             |      |
-| Realmroot Guide (trait)     | Warsong Revenant        | c133-8f0c-936d-30d3 | Implemented | `relocate.test.ts` (this unit and up to 1 other, wholly within the overgrowth, more than 9" from enemies, once per battle); I103                  |      |
-| One With The Forest         | Dryads                  | f62f-75b0-48cd-101e | Implemented | `sylvaneth.test.ts` (-1 to hit and wound wholly within the overgrowth); I94                                                                       |      |
-| Aspect of Heartwood (trait) | Dryads                  | 0770-09a1-99c6-1a99 | Implemented | `sylvanethActive.test.ts`: D6, Heal 6 or a returned Kurnothi model, once per battle; the engine picks (I106), the player chooses in M4n           |      |
+| Ability                     | Unit                    | BSData id           | Status      | Evidence and gaps                                                                                                                                        | Task |
+| --------------------------- | ----------------------- | ------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| Metamorphosis (spell)       | Alarielle the Everqueen | b4bf-ef71-9dfe-e837 | Implemented | `magic.test.ts` (token, splash, Fight Through the Pain); I29. Visible target needed (I75, `visibility.test.ts`)                                          |      |
+| Seasons Of War              | Alarielle the Everqueen | d584-62b7-8083-8f63 | Implemented | `seasons.test.ts` (never last round's, Reaping, Dwindling, Burgeoning per Wyldwood, Everdusk); I54, I71                                                  |      |
+| Battle Damaged              | Alarielle the Everqueen | 135b-afc5-4fd9-3460 | Implemented | `sylvaneth.test.ts` (Antlers Attacks 4 from 10 damage points); I95                                                                                       |      |
+| Lifebloom                   | Alarielle the Everqueen | e4b4-8e4d-5f0-eb6a  | Implemented | `sylvanethActive.test.ts`: Heal (2D6), once per turn per army, your own hero phase and, after the active player has finished, the opponent's (R13); I106 |
+| Living Battering Ram        | Alarielle the Everqueen | 5abd-6507-dbee-ed76 | Implemented | `sylvanethActive.test.ts`: after a charge, a visible enemy within 1", 3+ is mortal damage equal to the roll, in either charge phase (R13); I106          |
+| The Goddess Of Life         | Alarielle the Everqueen | 4f7c-2ca1-ae3f-d2d3 | Implemented | `sylvaneth-commands.test.ts` (8 damage points, no ward rolls, once per battle, 2 CP, cancel); I99                                                        |      |
+| Huntmaster's Strike         | Belthanos               | 61d2-55e1-7873-e100 | Implemented | `relocate.test.ts` (end of any turn, charged units; wholly within the overgrowth, more than 6" from enemies; decline); I103                              |      |
+| Kurnothi War-horn           | Belthanos               | 59e8-f376-a5df-144c | Implemented | `sylvaneth.test.ts` (+2" for Belthanos himself, in the move allowance, card and ring); I91                                                               |      |
+| Rhythm of the Chase         | Belthanos               | b29c-dd1a-502d-27c4 | Implemented | `relocate.test.ts` (D3, mortal damage on 2+, then within 1" of the target; once per turn); I103                                                          |      |
+| Battle Damaged              | Belthanos               | c6b8-a8fd-b2-59fa   | Implemented | `sylvaneth.test.ts` (Mandibles Attacks 3 from 10 damage points); I95                                                                                     |      |
+| Groundshaker                | Spirit of Durthu        | 7124-769a-aafd-7b38 | Implemented | `sylvanethActive.test.ts`: start-of-combat window, 3+ gives Strike-last for the turn, never while a fighter is picked (R14); the keyword reading is I107 |
+| Battle Damaged              | Spirit of Durthu        | 2eb1-9bd5-1544-36d9 | Implemented | `sylvaneth.test.ts` (Guardian Sword Attacks 3 from 10 damage points); I95                                                                                |      |
+| Guardian Of The Glades      | Spirit of Durthu        | ea9f-5c5b-8b97-78aa | Implemented | `relocate.test.ts` (+2 to the charge roll, must end within 1/2" of an enemy in combat with another friendly Sylvaneth Hero); I103                        |      |
+| Glamourweave (artefact)     | Spirit of Durthu        | cafd-9cf1-871c-f47e | Implemented | `sylvaneth.test.ts` (one re-roll each of hit, wound and save per phase). Offered to the player at each failed roll; the NPC takes the first (I96)        |      |
+| Terror Of The Deep Woods    | Drycha Hamadreth        | a1f-39fd-6570-f3d5  | Implemented | `sylvaneth.test.ts` (no Run or Retreat within 9"); I93                                                                                                   |      |
+| Enrage The Spites (spell)   | Drycha Hamadreth        | a924-fd6e-9278-4d4c | Implemented | `magic.test.ts` (up to 3 picked targets, overgrowth, NPC); I62                                                                                           |      |
+| Merciless Ambush            | Drycha Hamadreth        | 77b2-7e2-ba0c-83a1  | Implemented | `relocate.test.ts` (command, charge roll X, within 1/2" of an enemy and wholly within X" of a feature with an overgrown token, has charged); I103        |      |
+| Shadowcreep                 | Spite-Revenants         | 76b2-ce61-8aec-f6c1 | Implemented | `relocate.test.ts` (wholly within 3" of terrain, more than 9" from enemies, +1 to charge rolls); I103                                                    |      |
+| Wyldwood Revenants          | Warsong Revenant        | dc61-1f39-51f9-52da | Implemented | `sylvanethActive.test.ts`: a reaction to an unmodified chanting roll of 1, once per turn per army; I106                                                  |      |
+| Alarielle's Song            | Warsong Revenant        | 3f73-3ee4-8f6b-b16b | Implemented | `sylvaneth.test.ts` (Ward 6+ within 12", -1 to enemy ward rolls); I92                                                                                    |      |
+| Realmroot Guide (trait)     | Warsong Revenant        | c133-8f0c-936d-30d3 | Implemented | `relocate.test.ts` (this unit and up to 1 other, wholly within the overgrowth, more than 9" from enemies, once per battle); I103                         |      |
+| One With The Forest         | Dryads                  | f62f-75b0-48cd-101e | Implemented | `sylvaneth.test.ts` (-1 to hit and wound wholly within the overgrowth); I94                                                                              |      |
+| Aspect of Heartwood (trait) | Dryads                  | 0770-09a1-99c6-1a99 | Implemented | `sylvanethActive.test.ts`: D6, Heal 6 or a returned Kurnothi model, once per battle; the engine picks (I106), the player chooses in M4n                  |      |
 
 ### Spell, prayer and manifestation lores
 
@@ -93,29 +93,29 @@ The four Asterism abilities (Itzl, Quetzl, Sotek, Tepok) can be used only once p
 
 ### Warscrolls
 
-| Ability                       | Unit                         | BSData id           | Status      | Evidence and gaps                             | Task |
-| ----------------------------- | ---------------------------- | ------------------- | ----------- | --------------------------------------------- | ---- |
-| Arcane Vassal                 | Lord Kroak                   | 6bfc-5f30-ec02-307  | Implemented | `kroak.test.ts`; I83                          |      |
-| Supreme Master of Order       | Lord Kroak                   | 244b-f6f2-322d-5345 | Implemented | `kroak.test.ts`; I82                          |      |
-| Dead for Innumerable Ages     | Lord Kroak                   | c5a7-920c-9ff8-652  | Implemented | `kroak.test.ts`; I84                          |      |
-| Celestial Deliverance (spell) | Lord Kroak                   | f7bf-5a9-2828-a74   | Implemented | `magic.test.ts`; I29                          |      |
-| Brutal Blows                  | Kroxigor                     | 786b-b219-e23-42f8  | Implemented | `seraphon.test.ts`; I100                      |      |
-| Starspawned                   | Sunblood Pack                | f571-744e-c103-8568 | Implemented | `seraphon.test.ts`; I101                      |      |
-| Venomite Swarm                | Sunblood Pack                | cf2e-d237-9320-1105 | Implemented | `seraphonActive.test.ts`; I104                |      |
-| Scaled Protectors             | Sunblood Pack                | 3ffa-e9b3-901b-8d06 | Implemented | `seraphon.test.ts`; I100                      |      |
-| Beastmaster (trait)           | Sunblood Pack                | 5e50-d938-39d2-19a6 | Implemented | `seraphon.test.ts`; I102                      |      |
-| Selfless Protectors           | Saurus Guard                 | e49d-3d7e-2eee-a5e0 | Implemented | `seraphon.test.ts`; I102                      |      |
-| Celestial Conduit             | Saurus Astrolith Bearer      | 153d-3737-615b-b904 | Implemented | `seraphonActive.test.ts`; I104                |      |
-| Revivifying Energies          | Saurus Astrolith Bearer      | 15e-ebba-9386-bd1a  | Implemented | `seraphon.test.ts`; I102                      |      |
-| Ordered Cohorts               | Saurus Warriors              | 4181-bbd5-a4d8-1f59 | Implemented | `seraphon.test.ts`; I102                      |      |
-| Scry the Stars                | Skink Starseer               | b8a5-8e24-ad08-d213 | Implemented | `seraphonActive.test.ts`; I104                |      |
-| Celestial Doom (spell)        | Skink Starseer               | 2209-9b15-d3f-15ed  | Implemented | `magic.test.ts`; I29                          |      |
-| Coatl Familiar (artefact)     | Skink Starseer               | 2302-6d4-c346-7bc6  | Implemented | `seraphonActive.test.ts`; I104                |      |
-| Ark of Sotek                  | Bastiladon with Ark of Sotek | 714c-4cb6-fce8-6ef9 | Implemented | `seraphonActive.test.ts`; I104                |      |
-| Armour Cruncher (trait)       | Bastiladon with Ark of Sotek | f6fe-3e8d-dd90-00b8 | Implemented | `seraphonActive.test.ts`; I105                |      |
-| Hidden Hunters                | Hunters of Huanchi           | c78e-71e9-a948-fb09 | Implemented | `reserve.test.ts`, `ai/reserve.test.ts`; I109 |      |
-| Star-venom                    | Hunters of Huanchi           | c71d-2217-fcf1-6110 | Implemented | `seraphonActive.test.ts`; I104                |      |
-| Chameleon Ambush              | Hunters of Huanchi           | 4a89-1c50-df0e-4b2b | Implemented | `reserve.test.ts`, `ai/reserve.test.ts`; I109 |      |
+| Ability                       | Unit                         | BSData id           | Status      | Evidence and gaps                                            | Task |
+| ----------------------------- | ---------------------------- | ------------------- | ----------- | ------------------------------------------------------------ | ---- |
+| Arcane Vassal                 | Lord Kroak                   | 6bfc-5f30-ec02-307  | Implemented | `kroak.test.ts`; I83                                         |      |
+| Supreme Master of Order       | Lord Kroak                   | 244b-f6f2-322d-5345 | Implemented | `kroak.test.ts`; I82                                         |      |
+| Dead for Innumerable Ages     | Lord Kroak                   | c5a7-920c-9ff8-652  | Implemented | `kroak.test.ts`; I84                                         |      |
+| Celestial Deliverance (spell) | Lord Kroak                   | f7bf-5a9-2828-a74   | Implemented | `magic.test.ts`; I29                                         |      |
+| Brutal Blows                  | Kroxigor                     | 786b-b219-e23-42f8  | Implemented | `seraphon.test.ts`; I100                                     |      |
+| Starspawned                   | Sunblood Pack                | f571-744e-c103-8568 | Implemented | `seraphon.test.ts`; I101                                     |      |
+| Venomite Swarm                | Sunblood Pack                | cf2e-d237-9320-1105 | Implemented | `seraphonActive.test.ts` (start-of-combat window, R14); I104 |      |
+| Scaled Protectors             | Sunblood Pack                | 3ffa-e9b3-901b-8d06 | Implemented | `seraphon.test.ts`; I100                                     |      |
+| Beastmaster (trait)           | Sunblood Pack                | 5e50-d938-39d2-19a6 | Implemented | `seraphon.test.ts`; I102                                     |      |
+| Selfless Protectors           | Saurus Guard                 | e49d-3d7e-2eee-a5e0 | Implemented | `seraphon.test.ts`; I102                                     |      |
+| Celestial Conduit             | Saurus Astrolith Bearer      | 153d-3737-615b-b904 | Implemented | `seraphonActive.test.ts`; I104                               |      |
+| Revivifying Energies          | Saurus Astrolith Bearer      | 15e-ebba-9386-bd1a  | Implemented | `seraphon.test.ts`; I102                                     |      |
+| Ordered Cohorts               | Saurus Warriors              | 4181-bbd5-a4d8-1f59 | Implemented | `seraphon.test.ts`; I102                                     |      |
+| Scry the Stars                | Skink Starseer               | b8a5-8e24-ad08-d213 | Implemented | `seraphonActive.test.ts`; I104                               |      |
+| Celestial Doom (spell)        | Skink Starseer               | 2209-9b15-d3f-15ed  | Implemented | `magic.test.ts`; I29                                         |      |
+| Coatl Familiar (artefact)     | Skink Starseer               | 2302-6d4-c346-7bc6  | Implemented | `seraphonActive.test.ts`; I104                               |      |
+| Ark of Sotek                  | Bastiladon with Ark of Sotek | 714c-4cb6-fce8-6ef9 | Implemented | `seraphonActive.test.ts` (start-of-combat window, R14); I104 |      |
+| Armour Cruncher (trait)       | Bastiladon with Ark of Sotek | f6fe-3e8d-dd90-00b8 | Implemented | `seraphonActive.test.ts` (start-of-combat window, R14); I105 |      |
+| Hidden Hunters                | Hunters of Huanchi           | c78e-71e9-a948-fb09 | Implemented | `reserve.test.ts`, `ai/reserve.test.ts`; I109                |      |
+| Star-venom                    | Hunters of Huanchi           | c71d-2217-fcf1-6110 | Implemented | `seraphonActive.test.ts`; I104                               |      |
+| Chameleon Ambush              | Hunters of Huanchi           | 4a89-1c50-df0e-4b2b | Implemented | `reserve.test.ts`, `ai/reserve.test.ts`; I109                |      |
 
 ### Spell and manifestation lores
 

@@ -5,12 +5,12 @@
 import { expect, test } from '@playwright/test';
 import { openPosition } from './positions.js';
 
-for (const [command, label, phase] of [
-  ['goddessOfLife', 'The Goddess Of Life', 'movement'],
-  ['landAwakens', 'The Land Awakens', 'end'],
+for (const [command, label, phase, seeds] of [
+  ['goddessOfLife', 'The Goddess Of Life', 'movement', 150],
+  ['landAwakens', 'The Land Awakens', 'end', 20],
 ] as const) {
   test(`${label} is offered as an army command`, async ({ page }, info) => {
-    test.setTimeout(240_000);
+    test.setTimeout(420_000);
     const stop = `(e, s, d) => {
       if (d.kind !== 'main' || d.player !== 0 || d.phase !== '${phase}') return null;
       for (const u of Object.values(s.units)) {
@@ -20,7 +20,9 @@ for (const [command, label, phase] of [
       }
       return null;
     }`;
-    const pos = await openPosition(page, 5, new Function(`return ${stop}`)() as never);
+    const pos = await openPosition(page, 5, new Function(`return ${stop}`)() as never, {
+      seeds,
+    });
     const name = pos.state.units[pos.note]!.name;
     const panel = page.getByTestId('army-commands');
     await expect(panel).toBeVisible();

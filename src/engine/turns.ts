@@ -6,7 +6,8 @@ import { clearExpiredEffects } from './abilities/effects.js';
 import { d6, illegal, type Ctx } from './ctx.js';
 import { attackerOf, opponent, unitsOf } from './query.js';
 import { canFuryOfTheForest } from './eligibility.js';
-import { canHuntmaster, rhythmTargets } from './relocate.js';
+import { canHuntmaster } from './relocate.js';
+import { startOfCombatAbilities } from './anyPhase.js';
 import {
   evaluateEndOfTurnTactics,
   initBattleTactics,
@@ -373,21 +374,17 @@ export function advancePhase(ctx: Ctx): void {
 
 /**
  * The start of the combat phase (Core 13.0, 13.1): abilities that are not FIGHT abilities are used
- * before fighting starts, the active player's first and then the defender's. Rhythm of the Chase
- * is one (owner, 2026-11-20). The defender's Fury of The Forest comes after their own.
+ * before fighting starts, the active player's first and then the defender's. Rhythm of the Chase,
+ * Groundshaker, Venomite Swarm and Ark of Sotek are such abilities (owner, 2026-11-20; R14). The defender's Fury of The Forest comes after their own.
  */
 function offerStartOfCombat(ctx: Ctx): void {
   const { s, scenario } = ctx;
   offerFuryOfTheForest(ctx);
   for (const player of [opponent(s.active), s.active]) {
-    const options: ReactionOption[] = unitsOf(s, player).flatMap((u) => {
-      const targets = rhythmTargets(scenario, s, u);
-      return targets.length > 0
-        ? [{ ability: 'rhythmOfTheChase' as const, unit: u.id, cost: 0, targets }]
-        : [];
-    });
-    if (options.length > 0)
-      s.stack.push({ t: 'reaction', player, options, trigger: 'start:combat' });
+    // Always pushed: what the player can use is worked out when the window comes up, after the
+    // other player's abilities (settle drops an empty one).
+    const options = startOfCombatAbilities(scenario, s, player);
+    s.stack.push({ t: 'reaction', player, options, trigger: 'start:combat', window: true });
   }
 }
 

@@ -25,6 +25,7 @@ import {
   editable,
   keepOnly,
   passTo,
+  skipWindows,
   placeUnit,
   startGame,
   weapon,
@@ -271,7 +272,7 @@ describe('Glamourweave (cafd-9cf1-871c-f47e)', () => {
     placeUnit(scenario, base, DURTHU, 20, 22, 90);
     placeUnit(scenario, base, ENEMY, 26, 22, 270);
     expect(inCombat(scenario, base, unit(base, DURTHU))).toBe(true);
-    let s = passTo(engine, base, 'combat');
+    let s = skipWindows(engine, passTo(engine, base, 'combat'));
     s = engine.apply(s, { t: 'fight', unit: DURTHU }).state;
     return engine.apply(s, { t: 'pass' }).state; // no pile-in
   }

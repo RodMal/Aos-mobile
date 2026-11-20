@@ -262,7 +262,7 @@ export function reactionText(trigger: string, ctx: LogContext): string {
     return 'Merciless Ambush: look at the map, then confirm to pay 1 CP and roll the charge, or cancel.';
   }
   if (trigger === 'start:combat') {
-    return 'The Combat phase is starting, before any unit fights. You may use one of these abilities.';
+    return 'The Combat phase is starting, before any unit fights. You may use these abilities now: once a unit fights it is too late.';
   }
   if (trigger.startsWith('phase:')) {
     const phase = PHASE_NAMES[trigger.slice(6)];

@@ -211,7 +211,17 @@ export type Frame =
       relocate?: Relocation;
     }
   | { t: 'targets'; unit: UnitId; mode: AttackMode }
-  | { t: 'reaction'; player: PlayerId; options: ReactionOption[]; trigger: string }
+  | {
+      t: 'reaction';
+      player: PlayerId;
+      options: ReactionOption[];
+      trigger: string;
+      /**
+       * A start-of-combat ability window: its options are rebuilt when it comes up, as an
+       * earlier ability (Rhythm of the Chase setting a unit up) may have given this player a target.
+       */
+      window?: true;
+    }
   /**
    * Attacks declared and waiting to be rolled, kept under a `reaction` frame while the
    * defender decides on All-out Defence. Never the top frame when a decision is asked for.
@@ -678,7 +688,14 @@ export interface ReactionOption {
     | 'celestialConduit'
     | 'coatlFamiliar'
     | 'wyldwoodRevenants'
-    | 'starVenom';
+    | 'starVenom'
+    | 'lifebloom'
+    | 'livingBatteringRam'
+    | 'groundshaker'
+    | 'venomiteSwarm'
+    | 'arkOfSotek'
+    | 'armourCruncher'
+    | 'armourCruncherRoll';
   unit: UnitId;
   cost: number;
   /**
@@ -688,6 +705,12 @@ export interface ReactionOption {
    * paid and the dice rolled then) or pass to cancel; nothing has been paid yet.
    */
   targets?: UnitId[];
+  /**
+   * `lifebloom`, `livingBatteringRam`, `groundshaker`, `venomiteSwarm`, `arkOfSotek` (R13, R14):
+   * answer with `{ t: 'ability', unit, abilityId, target }` (Ark of Sotek: `targets`, 1 to
+   * `maxTargets` of `targets`; Lifebloom: neither) or pass.
+   */
+  maxTargets?: number;
   /** Fight Through the Pain: the damage points about to be allocated to `unit`. */
   damage?: number;
   /** Fight Through the Pain: the most rage dice that may be spent. */

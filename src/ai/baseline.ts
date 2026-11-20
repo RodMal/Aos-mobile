@@ -44,7 +44,7 @@ import {
 import { diceMean } from '../data/profile.js';
 import { npcDeployPlacement } from '../engine/deployment.js';
 import { contestedObjective } from '../rules/core/objectives.js';
-import { scryCandidates } from '../engine/seraphonActive.js';
+import { ARMOUR_CRUNCHER_ROLL_ID, scryCandidates } from '../engine/seraphonActive.js';
 import {
   npcConduitHelps,
   npcCoatlHelps,
@@ -69,12 +69,7 @@ import {
   LIVING_BATTERING_RAM_ID,
   WYLDWOOD_REVENANTS_ID,
 } from '../engine/abilities/sylvaneth.js';
-import {
-  batteringRamOptions,
-  groundshakerOptions,
-  has,
-  lifebloomOptions,
-} from '../engine/sylvanethActive.js';
+import { batteringRamOptions, has, lifebloomOptions } from '../engine/sylvanethActive.js';
 import { npcAsterism } from '../rules/factions/seraphon.js';
 import { npcCreepingDreadTargets, npcSeason } from '../rules/factions/seasons.js';
 
@@ -125,6 +120,10 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       if (revenants) {
         return { t: 'ability', unit: revenants.unit, abilityId: WYLDWOOD_REVENANTS_ID };
       }
+      // "Any phase" abilities and the start-of-combat abilities (R13, R14, I108): each is free
+      // and helps when it has a target, so the NPC takes them; Lifebloom only when hurt.
+      const anyPhase = anyPhaseReaction(engine, state, d.options);
+      if (anyPhase) return anyPhase;
       const unbindOpt = d.options.find((o) => o.ability === 'unbind');
       if (unbindOpt) {
         return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };
@@ -168,10 +167,6 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       const units = unitsOf(state, d.player).filter((u) =>
         engine.unitOptions(state, u.id).some((o) => o.t === 'fight'),
       );
-      const ability = seraphonCombatAction(engine, state, d.player);
-      if (ability) return ability;
-      const groundshaker = ownAbilityAction(engine, state, d.player, GROUNDSHAKER_ID);
-      if (groundshaker) return groundshaker;
       const best = maxBy(units, (u) => bestAllocations(engine, state, u, 'fight').value);
       if (!best) return engine.defaultAction(state);
       return { t: 'fight', unit: best.id };
@@ -285,36 +280,53 @@ export function painAction(engine: Engine, state: GameState, option: ReactionOpt
   return { t: 'ability', unit: unit.id, abilityId: 'fight-through-the-pain', rageDice };
 }
 
+const ANY_PHASE_IDS = {
+  lifebloom: LIFEBLOOM_ID,
+  livingBatteringRam: LIVING_BATTERING_RAM_ID,
+  groundshaker: GROUNDSHAKER_ID,
+  venomiteSwarm: VENOMITE_SWARM_ID,
+  arkOfSotek: ARK_OF_SOTEK_ID,
+  armourCruncher: ARMOUR_CRUNCHER_ID,
+  armourCruncherRoll: ARMOUR_CRUNCHER_ROLL_ID,
+} as const;
+
 /**
- * Venomite Swarm, Ark of Sotek and Armour Cruncher while a fighter is picked: each is once per
- * turn (or needs a rage dice), so using them first never loops. The target worth the most
- * points; the Ark takes as many as it may.
+ * The reactions of Lifebloom (the unit is hurt), Living Battering Ram, Groundshaker, Venomite
+ * Swarm and Ark of Sotek: free, so used whenever offered; the target worth the most points (the
+ * Ark takes as many as it may).
  */
-function seraphonCombatAction(engine: Engine, state: GameState, player: PlayerId): Action | null {
-  for (const unit of unitsOf(state, player)) {
-    for (const o of engine.unitOptions(state, unit.id)) {
-      if (o.t !== 'ability' || o.targets.length === 0) continue;
-      const known = [VENOMITE_SWARM_ID, ARK_OF_SOTEK_ID, ARMOUR_CRUNCHER_ID];
-      if (!known.some((id) => o.abilityId.startsWith(id))) continue;
-      const ranked = [...o.targets].sort(
-        (a, b) => points(engine, state, b) - points(engine, state, a),
-      );
-      return o.abilityId === ARK_OF_SOTEK_ID
-        ? {
-            t: 'ability',
-            unit: unit.id,
-            abilityId: o.abilityId,
-            targets: ranked.slice(0, o.maxTargets ?? 1),
-          }
-        : { t: 'ability', unit: unit.id, abilityId: o.abilityId, target: ranked[0]! };
-    }
+function anyPhaseReaction(
+  engine: Engine,
+  state: GameState,
+  options: readonly ReactionOption[],
+): Action | null {
+  for (const o of options) {
+    const abilityId = o.ability && ANY_PHASE_IDS[o.ability as keyof typeof ANY_PHASE_IDS];
+    if (!abilityId) continue;
+    // Mortal damage (Venomite Swarm, Ark of Sotek, the Ram) goes at the enemy it is likeliest to
+    // finish, like Rhythm of the Chase; Groundshaker at the one worth the most points.
+    const left = (id: string): number => {
+      const t = state.units[id]!;
+      return profileOf(engine.scenario, t).health * aliveIndices(t).length - t.damage;
+    };
+    const mortal = o.ability !== 'groundshaker';
+    const ranked = [...(o.targets ?? [])].sort(
+      (a, b) =>
+        (mortal ? left(a) - left(b) : 0) ||
+        points(engine, state, b) - points(engine, state, a) ||
+        (a < b ? -1 : 1),
+    );
+    if (o.ability === 'lifebloom') return { t: 'ability', unit: o.unit, abilityId };
+    if (ranked.length === 0) continue;
+    return o.ability === 'arkOfSotek'
+      ? { t: 'ability', unit: o.unit, abilityId, targets: ranked.slice(0, o.maxTargets ?? 1) }
+      : { t: 'ability', unit: o.unit, abilityId, target: ranked[0]! };
   }
   return null;
 }
 
 /**
- * A once-per-turn ability of one of `player`'s units (Lifebloom, Living Battering Ram,
- * Groundshaker), against the target worth the most points when it has targets.
+ * A once-per-turn ability of one of `player`'s units (Lifebloom, Living Battering Ram), against the target worth the most points when it has targets.
  */
 function ownAbilityAction(
   engine: Engine,
@@ -345,7 +357,7 @@ function sylvanethOption(
       ? lifebloomOptions(scenario, state, unit)
       : abilityId === LIVING_BATTERING_RAM_ID
         ? batteringRamOptions(scenario, state, unit)
-        : groundshakerOptions(scenario, state, unit);
+        : [];
   return options[0];
 }
 
