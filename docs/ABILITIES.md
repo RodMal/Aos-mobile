@@ -21,7 +21,7 @@ The "Task" column names the backlog task that closes each gap.
 | Ability                 | BSData id           | Status      | Evidence and gaps                                                                                                                                                      | Task |
 | ----------------------- | ------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | The Creeping Overgrowth | bf2f-f70a-be1e-4d63 | Implemented | `src/engine/overgrowth.test.ts` (range by token count, spells use it, shading); I37, I66, I68                                                                          |      |
-| Endless Growth          | 3ff5-8812-c55e-7f5a | Partly      | `sylvaneth.test.ts`. The engine picks heal or return itself (S7); the player never chooses the effect (Aspect of Heartwood: I106)                                      | M4n  |
+| Endless Growth          | 3ff5-8812-c55e-7f5a | Implemented | `sylvaneth.test.ts`. The player chooses heal or return per target (I112); the NPC picks automatically                                                                  |      |
 | The Land Awakens        | dcad-fc9a-65a3-b46f | Implemented | `sylvaneth-commands.test.ts` (destroyed Dryads or Revenant Infantry, half the models, overgrowth and 9" limits, cancel refunds); I99                                   |      |
 | Fury of The Forest      | 081a-ebf2-6a79-c4db | Implemented | `sylvaneth-commands.test.ts` (reaction at the start of the enemy combat phase, 1 enemy, wholly within the overgrowth); I99                                             |      |
 | Reclaimed By Nature     | cea9-4cb0-e5fb-bd3e | Implemented | `src/engine/wyldwood.test.ts` (limits, three-piece cap, NPC); I46, I61                                                                                                 |      |
@@ -57,7 +57,7 @@ The "Task" column names the backlog task that closes each gap.
 | Alarielle's Song            | Warsong Revenant        | 3f73-3ee4-8f6b-b16b | Implemented | `sylvaneth.test.ts` (Ward 6+ within 12", -1 to enemy ward rolls); I92                                                                                    |      |
 | Realmroot Guide (trait)     | Warsong Revenant        | c133-8f0c-936d-30d3 | Implemented | `relocate.test.ts` (this unit and up to 1 other, wholly within the overgrowth, more than 9" from enemies, once per battle); I103                         |      |
 | One With The Forest         | Dryads                  | f62f-75b0-48cd-101e | Implemented | `sylvaneth.test.ts` (-1 to hit and wound wholly within the overgrowth); I94                                                                              |      |
-| Aspect of Heartwood (trait) | Dryads                  | 0770-09a1-99c6-1a99 | Implemented | `sylvanethActive.test.ts`: D6, Heal 6 or a returned Kurnothi model, once per battle; the engine picks (I106), the player chooses in M4n                  |      |
+| Aspect of Heartwood (trait) | Dryads                  | 0770-09a1-99c6-1a99 | Implemented | `sylvanethActive.test.ts`: D6, Heal 6 or a returned Kurnothi model, once per battle; the player chooses per target (I112), the NPC picks automatically   |      |
 
 ### Spell, prayer and manifestation lores
 
@@ -151,12 +151,12 @@ Summoning is tested (above). The warscroll abilities of the manifestations are n
 
 Not BSData abilities, listed because the lists name them. Rules in `src/rules/core/tactics/`, tests in `src/rules/core/battleTactics.test.ts`.
 
-| Card                  | Status      | Evidence and gaps                                               | Task |
-| --------------------- | ----------- | --------------------------------------------------------------- | ---- |
-| Flanking Firestorm    | Implemented | Strike and Domination tested                                    |      |
-| Burning for Vengeance | Implemented | Strike and Domination tested; fugitive pick (I41)               |      |
-| Siege of Ashes        | Partly      | Code for all three tiers; only Affray (Form a Wall) is tested   | M4n  |
-| Legend of the Parch   | Partly      | Code for all three tiers; only Affray (Daring Rescue) is tested | M4n  |
+| Card                  | Status      | Evidence and gaps                                 | Task |
+| --------------------- | ----------- | ------------------------------------------------- | ---- |
+| Flanking Firestorm    | Implemented | Strike and Domination tested                      |      |
+| Burning for Vengeance | Implemented | Strike and Domination tested; fugitive pick (I41) |      |
+| Siege of Ashes        | Implemented | All three tiers tested (`tacticTiers.test.ts`)    |      |
+| Legend of the Parch   | Implemented | All three tiers tested (`tacticTiers.test.ts`)    |      |
 
 ## Not counted
 

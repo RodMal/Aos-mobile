@@ -162,6 +162,12 @@ export function doomedByQueuedDamage(ctx: Ctx, unit: UnitState): boolean {
 
 export const applyMortalDamage = inflictMortalDamage;
 
+/** How many slain models `unit` may still get back: a replacement unit is capped (`maxModels`). */
+export function modelRoom(unit: UnitState): number {
+  const alive = unit.models.filter((m) => m.alive).length;
+  return Math.max(0, (unit.maxModels ?? unit.models.length) - alive);
+}
+
 /** Heals up to `amount` damage points allocated to `unit`. */
 export function healUnit(ctx: Ctx, unit: UnitState, amount: number, source: string): number {
   if (unit.status !== 'battlefield' || unit.damage <= 0 || amount <= 0) return 0;

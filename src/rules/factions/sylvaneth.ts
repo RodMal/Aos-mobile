@@ -30,7 +30,7 @@ import { illegal, type Ctx } from '../../engine/ctx.js';
 import { abilitiesOf, hasEffectiveKeyword } from '../../engine/abilities/effects.js';
 import { ASPECT_OF_HEARTWOOD_ID } from '../../engine/abilities/sylvaneth.js';
 import { battleKey, usedThisBattle } from '../../engine/relocate.js';
-import { returnPosition } from '../../engine/damage.js';
+import { modelRoom, returnPosition } from '../../engine/damage.js';
 import {
   closestFeatureWithoutToken,
   creepingOvergrowthRange,
@@ -209,9 +209,9 @@ export function autoGrowthAnswer(stage: 'aspect' | 'effect', options: string[]):
   return options.includes('kurnothi') ? 'kurnothi' : 'd6';
 }
 
-/** Slain model indices of `u` that may come back. */
+/** Slain model indices of `u` that may come back (a replacement unit is capped, `modelRoom`). */
 function slainOf(u: UnitState): number[] {
-  return u.models.flatMap((m, i) => (m.alive ? [] : [i]));
+  return u.models.flatMap((m, i) => (m.alive ? [] : [i])).slice(0, modelRoom(u));
 }
 
 /** Answers the question waiting on the `endGrowth` frame (the top of the stack by default). */
