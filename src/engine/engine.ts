@@ -21,7 +21,8 @@ import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js'
 import { friendlyWyldwoods } from './overgrowth.js';
 import { WYLDWOOD_SETUP_ID } from './wyldwood.js';
 import { declareMercilessAmbush, undoRelocation, useSetUpAbility } from './relocating.js';
-import { SERAPHON_ACTIVATED_IDS, useSeraphonAbility } from './seraphonActive.js';
+import { SERAPHON_ACTIVATED_IDS, chooseScry, useSeraphonAbility } from './seraphonActive.js';
+import { chooseVenomiteToken } from './venomites.js';
 import { SYLVANETH_ACTIVATED_IDS, useSylvanethAbility } from './sylvanethActive.js';
 import { SET_UP_ABILITY_IDS } from './relocate.js';
 import { choosePrayer } from './abilities/magic.js';
@@ -350,6 +351,14 @@ export function createEngine(scenario: Scenario): Engine {
       case 'vengeance':
         chooseVengeance(ctx, action);
         break;
+      case 'scry':
+        if (action.t === 'choose') chooseScry(ctx, action.value);
+        else illegal('Pick the units that get Ward (5+).');
+        break;
+      case 'venomites':
+        if (action.t === 'choose') chooseVenomiteToken(ctx, action.value);
+        else illegal('Place the Venomites token.');
+        break;
       case 'creepingDread':
         if (action.t === 'pass') s.stack.pop();
         else if (action.t === 'choose') chooseCreepingDread(ctx, action.value);
@@ -439,6 +448,10 @@ export function createEngine(scenario: Scenario): Engine {
         // Optional for engine-driven games, like a Place of Power: the default prophesies
         // nothing (the NPC picks, see `chooseAction`).
         return { t: 'pass' };
+      case 'scry':
+        return { t: 'choose', value: d.units.slice(0, d.max).join(',') };
+      case 'venomites':
+        return { t: 'choose', value: 'bottom' };
       case 'creepingDread':
         return { t: 'pass' };
       case 'reaction': {

@@ -58,6 +58,14 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
       return mine
         ? { title: 'Season of War', hint: 'Pick a season of war for this battle round.' }
         : { title: `${who} season of war`, hint: 'The opponent is choosing…' };
+    case 'scry':
+      return mine
+        ? { title: 'Scry the Stars', hint: 'Pick the units that get Ward (5+).' }
+        : { title: `${who} scries the stars`, hint: 'The opponent is choosing…' };
+    case 'venomites':
+      return mine
+        ? { title: 'Venomites token', hint: 'Place the token next to the unit.' }
+        : { title: `${who} places a token`, hint: 'The opponent is placing the Venomites token…' };
     case 'creepingDread':
       return mine
         ? { title: 'Creeping Dread', hint: 'Pick enemy units in the overgrowth, or pass.' }

@@ -10,7 +10,9 @@ import { PlaceOfPowerPrompt } from './PlaceOfPowerPrompt.js';
 import { PriorityPrompt } from './PriorityPrompt.js';
 import { RerollPrompt } from './RerollPrompt.js';
 import { ReactionPrompt } from './ReactionPrompt.js';
+import { ScryPrompt } from './ScryPrompt.js';
 import { SeasonPrompt } from './SeasonPrompt.js';
+import { VenomitesPrompt } from './VenomitesPrompt.js';
 
 export { ConfirmDialog } from './ConfirmDialog.js';
 export { Chooser } from './Chooser.js';
@@ -51,6 +53,8 @@ export function DecisionPrompts() {
   if (d.kind === 'alarielleSeason') {
     return <SeasonPrompt key={state.round} d={d} />;
   }
+  if (d.kind === 'scry') return <ScryPrompt key={`${d.unit}:${d.dice.join('')}`} d={d} />;
+  if (d.kind === 'venomites') return <VenomitesPrompt key={d.unit} d={d} />;
   if (d.kind === 'creepingDread') {
     return <CreepingDreadPrompt key={state.round * 10 + state.turnIndex} d={d} />;
   }

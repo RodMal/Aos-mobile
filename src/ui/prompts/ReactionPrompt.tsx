@@ -7,6 +7,7 @@ import {
   HUNTMASTERS_STRIKE_ID,
   MERCILESS_AMBUSH_ID,
   RHYTHM_OF_THE_CHASE_ID,
+  STAR_VENOM_ID,
   WYLDWOOD_REVENANTS_ID,
 } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
@@ -114,6 +115,21 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
                 }
               >
                 Rhythm of the Chase · {unitName} on {state.units[target]?.name ?? target} · Free
+              </button>
+            ));
+          }
+          if (o.ability === 'starVenom') {
+            return (o.targets ?? []).map((target) => (
+              <button
+                key={`${i}-${target}`}
+                className="btn wide"
+                data-testid="star-venom"
+                {...hover}
+                onClick={() =>
+                  dispatch({ t: 'ability', unit: o.unit, abilityId: STAR_VENOM_ID, target })
+                }
+              >
+                Star-venom · {unitName} on {state.units[target]?.name ?? target} · Free
               </button>
             ));
           }

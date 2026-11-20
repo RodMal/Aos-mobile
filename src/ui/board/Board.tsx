@@ -16,6 +16,7 @@ import {
   Defs,
   LabelsLayer,
   OvergrowthLayer,
+  VenomiteTokensLayer,
   FlaggedTerrainLayer,
   OvergrowthReachLayer,
   ObjectivesLayer,
@@ -385,6 +386,7 @@ export function Board() {
         <RangeLayer />
         <UnitsLayer />
         <OvergrowthLayer onUnits />
+        <VenomiteTokensLayer />
         <FlaggedTerrainLayer />
         <GhostLayer rot={rot} />
         <LabelsLayer rot={rot} />

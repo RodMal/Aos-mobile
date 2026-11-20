@@ -37,6 +37,7 @@ export {
   RHYTHM_OF_THE_CHASE_ID,
   WYLDWOOD_REVENANTS_ID,
 } from './abilities/sylvaneth.js';
+export { hasVenomites, venomiteTokenAt } from './venomites.js';
 export {
   ARK_OF_SOTEK_ID,
   ARMOUR_CRUNCHER_ID,

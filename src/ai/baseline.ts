@@ -44,6 +44,13 @@ import {
 import { diceMean } from '../data/profile.js';
 import { npcDeployPlacement } from '../engine/deployment.js';
 import { contestedObjective } from '../rules/core/objectives.js';
+import { scryCandidates } from '../engine/seraphonActive.js';
+import {
+  npcConduitHelps,
+  npcScryPicks,
+  npcScryWorthUsing,
+  npcStarVenomTarget,
+} from './seraphon.js';
 import { replacementAction, replacementPlacement } from './replacement.js';
 import {
   relocatePlacement,
@@ -94,9 +101,13 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       }
       const pain = d.options.find((o) => o.ability === 'fightThroughThePain');
       if (pain) return painAction(engine, state, pain);
-      // Celestial Conduit and Coatl Familiar cost nothing and only help the spell: always used.
+      // Coatl Familiar costs nothing and only helps the spell: always used. Celestial Conduit only
+      // when a unit it helps is within reach of an objective the army does not hold (R12).
       const boost = d.options.find(
-        (o) => o.ability === 'celestialConduit' || o.ability === 'coatlFamiliar',
+        (o) =>
+          o.ability === 'coatlFamiliar' ||
+          (o.ability === 'celestialConduit' &&
+            npcConduitHelps(engine.scenario, state, state.units[o.unit]!)),
       );
       if (boost) {
         return {
@@ -114,6 +125,20 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       const unbindOpt = d.options.find((o) => o.ability === 'unbind');
       if (unbindOpt) {
         return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };
+      }
+      // Star-venom, after Covering Fire: against the target worth the most that can fight a unit.
+      for (const o of d.options) {
+        if (o.ability !== 'starVenom') continue;
+        const target = npcStarVenomTarget(
+          engine.scenario,
+          state,
+          state.units[o.unit]!,
+          o.targets ?? [],
+        );
+        if (target) return { t: 'ability', unit: o.unit, abilityId: STAR_VENOM_ID, target };
+      }
+      if (d.options.every((o) => o.ability === 'starVenom' || o.ability === 'celestialConduit')) {
+        return { t: 'pass' };
       }
       const sylvaneth = sylvanethReaction(engine, state, d.options, planHelpers(engine));
       if (sylvaneth) return sylvaneth;
@@ -170,6 +195,14 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       const pick = npcSeason(engine.scenario, state, d.player);
       return { t: 'choose', value: d.seasons.includes(pick) ? pick : d.seasons[0]! };
     }
+    case 'scry':
+      return {
+        t: 'choose',
+        value: npcScryPicks(engine.scenario, state, d.player, d.units, d.max).join(','),
+      };
+    case 'venomites':
+      // Next to the unit, on the side towards the enemy (player 0 holds the small x, player 1 the large).
+      return { t: 'choose', value: d.player === 0 ? 'right' : 'left' };
     case 'creepingDread': {
       const ids = npcCreepingDreadTargets(engine.scenario, state, d.units, d.max);
       return ids.length > 0 ? { t: 'choose', value: ids.join(',') } : { t: 'pass' };
@@ -489,16 +522,16 @@ function chooseHeroAbilityAction(
     // Scry the Stars (once a battle): from round 2, when it rolls at least two dice. The
     // units it may protect, the most valuable first.
     const scry = abilOpts.find((o) => o.abilityId === SCRY_THE_STARS_ID);
-    if (scry && state.round >= 2 && scry.targets.length > 0) {
-      const ranked = [...scry.targets].sort(
-        (a, b) => points(engine, state, b) - points(engine, state, a),
-      );
-      return {
-        t: 'ability',
-        unit: unit.id,
-        abilityId: scry.abilityId,
-        targets: ranked.slice(0, scry.maxTargets ?? 1),
-      };
+    if (
+      scry &&
+      npcScryWorthUsing(
+        engine.scenario,
+        state,
+        unit.owner,
+        scryCandidates(engine.scenario, state, unit),
+      )
+    ) {
+      return { t: 'ability', unit: unit.id, abilityId: scry.abilityId };
     }
 
     // 1. Banish enemy manifestations first
@@ -615,13 +648,12 @@ function mainAction(
         const venom = engine
           .unitOptions(state, unit.id)
           .find((o) => o.t === 'ability' && o.abilityId === STAR_VENOM_ID);
-        if (venom && venom.t === 'ability' && venom.targets.length > 0) {
-          return {
-            t: 'ability',
-            unit: unit.id,
-            abilityId: STAR_VENOM_ID,
-            target: venom.targets[0],
-          };
+        const venomTarget =
+          venom && venom.t === 'ability'
+            ? npcStarVenomTarget(engine.scenario, state, unit, venom.targets)
+            : null;
+        if (venomTarget) {
+          return { t: 'ability', unit: unit.id, abilityId: STAR_VENOM_ID, target: venomTarget };
         }
         if (!engine.unitOptions(state, unit.id).some((o) => o.t === 'shoot')) continue;
         const { allocations, value } = bestAllocations(engine, state, unit, 'shoot');

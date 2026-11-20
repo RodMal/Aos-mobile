@@ -24,7 +24,7 @@ import { endTurn } from './turns.js';
 import { ARMOUR_CRUNCHER_ROLL_ID } from './seraphonActive.js';
 import { createEngine, createScenario, type GameState } from './index.js';
 import { profileOf } from './query.js';
-import type { Action, GameEvent, StepResult, UnitId } from './types.js';
+import type { Action, GameEvent, UnitId } from './types.js';
 import { applyUntil, editable, keepOnly, placeUnit, startGame } from './test-helpers.js';
 
 const scenario = createScenario([SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN]);
@@ -360,52 +360,65 @@ describe('Scry the Stars (b8a5-8e24-ad08-d213)', () => {
     s.round = round;
     return s;
   };
-  const scry = (targets: UnitId[]) => use(STARSEER, SCRY_THE_STARS_ID, { targets });
+  /** Rolls the dice from `s` until `ok(dice)` and returns the state waiting on the pick. */
+  const rolled = (s: GameState, ok: (dice: number[]) => boolean) =>
+    applyUntil(
+      engine,
+      s,
+      use(STARSEER, SCRY_THE_STARS_ID),
+      (x) => ok(rolls(x.events, 'Scry the Stars')) && engine.decision(x.state)?.kind === 'scry',
+    );
 
-  it('offers Seraphon units wholly within 18", and as many picks as the battle round', () => {
+  it('is used with no target: the dice come first, the units are picked afterwards', () => {
     const s = field(2);
     const opt = option(s, STARSEER, SCRY_THE_STARS_ID);
-    expect(opt).toMatchObject({ maxTargets: 2 });
-    expect(opt?.t === 'ability' ? [...opt.targets].sort() : []).toEqual(
+    expect(opt).toMatchObject({ targets: [] });
+    expect(opt && 'maxTargets' in opt ? opt.maxTargets : undefined).toBeUndefined();
+    const r = rolled(s, (d) => d.length === 2 && d.every((v) => v >= 3));
+    expect(rolls(r.events, 'Scry the Stars')).toHaveLength(2);
+    expect(effectsOf(r.state, SCRY_THE_STARS_ID)).toHaveLength(0);
+    const d = engine.decision(r.state);
+    expect(d).toMatchObject({ kind: 'scry', player: 0, unit: STARSEER, max: 2 });
+    expect(d?.kind === 'scry' ? [...d.units].sort() : []).toEqual(
       [STARSEER, WARRIORS, ASTROLITH].sort(),
     );
-    expect(option(field(1), STARSEER, SCRY_THE_STARS_ID)).toMatchObject({ maxTargets: 1 });
   });
 
-  it('rolls a dice per round and gives Ward (5+) for each 3+ to the units picked', () => {
-    const s = field(3);
-    const r: StepResult = applyUntil(engine, s, scry([WARRIORS, ASTROLITH, STARSEER]), (x) => {
-      const d = rolls(x.events, 'Scry the Stars');
-      return d.length === 3 && d.filter((v) => v >= 3).length === 2;
-    });
-    expect(rolls(r.events, 'Scry the Stars')).toHaveLength(3);
-    expect(effectiveWard(scenario, r.state, r.state.units[WARRIORS]!)).toBe(5);
-    expect(effectiveWard(scenario, r.state, r.state.units[ASTROLITH]!)).toBe(5);
-    // The Starseer keeps the Ward (6+) the Astrolith Bearer gives it.
-    expect(effectiveWard(scenario, r.state, r.state.units[STARSEER]!)).toBe(6);
+  it('asks which units get the Ward (5+) for each 3+, once per battle', () => {
+    const r = rolled(field(3), (d) => d.length === 3 && d.filter((v) => v >= 3).length === 2);
+    const d = engine.decision(r.state);
+    expect(d).toMatchObject({ kind: 'scry', max: 2 });
+    const done = engine.apply(r.state, { t: 'choose', value: `${WARRIORS},${ASTROLITH}` });
+    expect(effectiveWard(scenario, done.state, done.state.units[WARRIORS]!)).toBe(5);
+    expect(effectiveWard(scenario, done.state, done.state.units[ASTROLITH]!)).toBe(5);
+    // The Starseer was not picked: it keeps the Ward (6+) the Astrolith Bearer gives it.
+    expect(effectiveWard(scenario, done.state, done.state.units[STARSEER]!)).toBe(6);
     // Until the start of the player's next turn.
-    const next = editable(r.state);
+    const next = editable(done.state);
     clearExpiredEffects(next, 'startOfNextTurn', 1);
     expect(effectiveWard(scenario, next, next.units[WARRIORS]!)).toBe(5);
     clearExpiredEffects(next, 'startOfNextTurn', 0);
     expect(effectiveWard(scenario, next, next.units[WARRIORS]!)).toBeUndefined();
-    // Once per battle for the army.
-    expect(option(r.state, STARSEER, SCRY_THE_STARS_ID)).toBeUndefined();
+    expect(option(done.state, STARSEER, SCRY_THE_STARS_ID)).toBeUndefined();
+    expect(engine.decision(done.state)).toMatchObject({ kind: 'main', phase: 'hero' });
   });
 
-  it('gives nothing when no dice is a 3+', () => {
-    const r = applyUntil(engine, field(1), scry([WARRIORS]), (x) =>
+  it('gives nothing, and asks nothing, when no dice is a 3+', () => {
+    const r = applyUntil(engine, field(1), use(STARSEER, SCRY_THE_STARS_ID), (x) =>
       rolls(x.events, 'Scry the Stars').every((v) => v < 3),
     );
     expect(effectsOf(r.state, SCRY_THE_STARS_ID)).toHaveLength(0);
+    expect(engine.decision(r.state)).toMatchObject({ kind: 'main' });
     expect(option(r.state, STARSEER, SCRY_THE_STARS_ID)).toBeUndefined();
   });
 
-  it('refuses a unit beyond 18", an enemy unit and more picks than the round', () => {
-    const s = field(1);
-    expect(() => engine.apply(s, scry([HUNTERS]))).toThrow();
-    expect(() => engine.apply(s, scry([DRYADS]))).toThrow();
-    expect(() => engine.apply(s, scry([WARRIORS, ASTROLITH]))).toThrow();
+  it('refuses a unit beyond 18", an enemy unit, no unit and more picks than 3+ dice', () => {
+    const r = rolled(field(2), (d) => d.length === 2 && d.filter((v) => v >= 3).length === 1);
+    expect(engine.decision(r.state)).toMatchObject({ kind: 'scry', max: 1 });
+    for (const value of [HUNTERS, DRYADS, '', `${WARRIORS},${ASTROLITH}`]) {
+      expect(() => engine.apply(r.state, { t: 'choose', value })).toThrow();
+    }
+    expect(() => engine.apply(r.state, { t: 'pass' })).toThrow();
   });
 });
 

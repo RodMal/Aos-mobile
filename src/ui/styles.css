@@ -538,6 +538,20 @@ button {
 .overgrown-leaf {
   fill: #9fe08f;
 }
+.venomites-badge {
+  fill: rgba(40, 20, 60, 0.85);
+  stroke: #7ccf6e;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+.venomites.enemy .venomites-badge {
+  stroke: #c9a24a;
+}
+.venomites-glyph {
+  fill: #e8d8ff;
+  font-size: 0.9px;
+  font-weight: 700;
+}
 
 .objective-range {
   fill: rgba(216, 178, 90, 0.06);

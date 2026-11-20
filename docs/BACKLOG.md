@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R12 Seraphon activated rulings: Scry the Stars order, Star-venom in any shooting phase, Venomites set-up, Conduit on a failed cast
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ai, ui/prompts
-- **Ruling**: I104/I105 (owner, 2026-11-19), points 1, 3, 4, 5
-- **Read**: I104/I105 in `docs/RULES-DECISIONS.md`; `src/engine/seraphonActive.ts`, `src/rules/factions/conduit.ts`, `src/engine/abilities/magic.ts`, `src/engine/deployment.ts`, the Covering Fire reaction in `src/engine/reactions.ts`
-- **Done when**: (1) Scry the Stars rolls its dice, then asks which units get each success; the NPC picks too. The NPC uses each of these abilities only when it helps its plan to win (judged by its expected-damage and objective heuristics, not on every chance). (3) A test shows a failed casting roll gives no Conduit effect (fix it if it does). (4) The player places the Venomites token next to the Sunblood Pack when deploying it; the NPC places its own. (5) Star-venom is offered after the Dartpipe damages an enemy in any shooting phase, including Covering Fire in the enemy turn. One test per point; e2e full-game still passes on phone and desktop. Bump the rules version.
-
 ### M4j Reserve and ambush: Hidden Hunters, Chameleon Ambush
 
 - **Tier**: sonnet+review

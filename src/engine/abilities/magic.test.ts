@@ -1249,7 +1249,13 @@ describe('Six Remaining Commands', () => {
       target: DRYADS,
       mode: 'shoot',
     });
-    expect(fired.state.phase).toBe('charge');
+    // The Dartpipe may have damaged the Dryads: Star-venom is then offered before the phase ends.
+    const next = engine.decision(fired.state);
+    if (next?.kind === 'reaction') {
+      expect(next.options.every((o) => o.ability === 'starVenom')).toBe(true);
+    }
+    const done = next?.kind === 'reaction' ? engine.apply(fired.state, { t: 'pass' }) : fired;
+    expect(done.state.phase).toBe('charge');
 
     // Verify -1 to hit modifier from coveringFire
     const mods = weaponMods(

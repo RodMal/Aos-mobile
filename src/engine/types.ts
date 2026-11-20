@@ -97,6 +97,8 @@ export interface UnitState {
   abilitiesUsed?: string[];
   /** Sunblood Pack: its Venomites token was removed from the battlefield (Venomite Swarm rolled a 1). */
   venomitesGone?: boolean;
+  /** Sunblood Pack: where its Venomites token stands (placed next to the unit when deployed; unset in a quick start). */
+  venomitesAt?: { x: number; y: number };
   /** Set when a unit/manifestation was set up on the battlefield this turn (bars movement-phase moves). */
   setUpThisTurn?: boolean;
   /** True for summoned manifestation units. */
@@ -307,6 +309,17 @@ export type Frame =
   | { t: 'creepingDread'; player: PlayerId; units: UnitId[]; max: number }
   /** Seraphon: The Great Plan (round 1) or Further the Great Plan (later rounds). */
   | { t: 'asterism'; player: PlayerId; stage: 'great' | 'further' }
+  /** Scry the Stars: `successes` dice were 3+; the player picks the units that get Ward (5+) (R12). */
+  | {
+      t: 'scry';
+      player: PlayerId;
+      unit: UnitId;
+      dice: number[];
+      successes: number;
+      units: UnitId[];
+    }
+  /** A unit with a Venomites token was just deployed: its player places the token next to it (R12). */
+  | { t: 'venomites'; player: PlayerId; unit: UnitId }
   /**
    * End of a turn: the marker under the end-of-turn abilities (Vengeance of Azyr). Once they are
    * answered and the held mortal damage is allocated, the turn is scored and the next begins.
@@ -549,6 +562,18 @@ export type Decision =
    */
   | { kind: 'creepingDread'; player: PlayerId; units: UnitId[]; max: number }
   /**
+   * Scry the Stars, after its dice are rolled: answer `choose` with 1 to `max` of `units` joined
+   * by commas; each gets Ward (5+) until the start of the player's next turn.
+   */
+  | { kind: 'scry'; player: PlayerId; unit: UnitId; dice: number[]; units: UnitId[]; max: number }
+  /** Place the Venomites token next to `unit`: answer `choose` with one of `sides` (as seen on screen). */
+  | {
+      kind: 'venomites';
+      player: PlayerId;
+      unit: UnitId;
+      sides: ('top' | 'bottom' | 'left' | 'right')[];
+    }
+  /**
    * Seraphon Asterisms. The Great Plan: `choose` and the Asterism's ability ID. Further the
    * Great Plan: `choose` and `<key>,<Asterism>` (see `keys`). `pass` prophesies nothing (also how
    * a game saved before Asterisms existed replays).
@@ -632,10 +657,12 @@ export interface ReactionOption {
     | 'mercilessAmbush'
     | 'celestialConduit'
     | 'coatlFamiliar'
-    | 'wyldwoodRevenants';
+    | 'wyldwoodRevenants'
+    | 'starVenom';
   unit: UnitId;
   cost: number;
   /**
+   * `starVenom` (offered to the non-active player after Covering Fire) and
    * `rhythmOfTheChase`: the enemy units it may target (answer with `{ t: 'ability', unit, abilityId,
    * target }`). `mercilessAmbush`: confirm with `{ t: 'ability', unit, abilityId }` (the command is
    * paid and the dice rolled then) or pass to cancel; nothing has been paid yet.
