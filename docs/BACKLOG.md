@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R11 The NPC uses the Sylvaneth set-up and charge abilities
-
-- **Tier**: sonnet
-- **Touches**: ai
-- **Ruling**: I103.7 and the general NPC ruling (owner, 2026-11-19)
-- **Read**: I103 in `docs/RULES-DECISIONS.md`; `src/ai/baseline.ts` (`placeAction` passes on a `relocate` set-up today), `src/engine/relocate.ts`, `src/engine/relocating.ts`
-- **Done when**: the NPC uses Huntmaster's Strike, Rhythm of the Chase, Merciless Ambush, Shadowcreep, Realmroot Guide and Guardian Of The Glades each only when it helps its plan to win, judged by its existing expected-damage and objective heuristics, not on every chance. It picks legal set-up spots: toward objectives or into combat as the ability intends. It stays deterministic, with a test per ability. Do it after R10 if R10 is not yet merged.
-
 ### R12 Seraphon activated rulings: Scry the Stars order, Star-venom in any shooting phase, Venomites set-up, Conduit on a failed cast
 
 - **Tier**: sonnet+review
