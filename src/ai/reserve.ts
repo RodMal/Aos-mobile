@@ -17,7 +17,7 @@ import {
   type PlayerId,
   type UnitState,
 } from '../engine/index.js';
-import { AMBUSH_DESTROYED_ROUND, ambushUnits } from '../engine/reserve.js';
+import { AMBUSH_DESTROYED_ROUND, ambushUnits, chameleonFrame } from '../engine/reserve.js';
 import { replacementPlacement } from './replacement.js';
 
 /** Units the army keeps on the table before it holds one back in ambush. */
@@ -69,7 +69,14 @@ export function chameleonPlacement(
   );
 }
 
-/** Movement phase: bring a unit in from ambush when it has a spot where it helps. */
+/** Per engine: the phases in which a unit found no spot, so it is not searched for again. */
+const noSpot = new WeakMap<Engine, Set<string>>();
+
+/**
+ * Movement phase: bring a unit in from ambush when it has a spot where it helps. The spot is
+ * looked for on the state with the set-up frame pushed (no `apply`), once per unit per phase
+ * when there is none.
+ */
 export function npcChameleonAction(
   engine: Engine,
   state: GameState,
@@ -77,12 +84,16 @@ export function npcChameleonAction(
 ): Action | null {
   if (state.round < 2) return null;
   for (const unit of ambushUnits(state, player)) {
-    const action: Action = { t: 'ability', unit: unit.id, abilityId: CHAMELEON_AMBUSH_ID };
+    const key = `${state.seed}:${state.round}:${state.turnIndex}:${unit.id}`;
+    let failed = noSpot.get(engine);
+    if (failed?.has(key)) continue;
     if (!engine.unitOptions(state, unit.id).some((o) => o.t === 'ability')) continue;
-    const declared = engine.apply(state, action).state;
-    const d = engine.decision(declared);
-    if (d?.kind !== 'place' || d.reason !== 'relocate') continue;
-    if (chameleonPlacement(engine, declared, declared.units[d.unit]!)) return action;
+    const declared: GameState = { ...state, stack: [...state.stack, chameleonFrame(unit.id)] };
+    if (chameleonPlacement(engine, declared, unit)) {
+      return { t: 'ability', unit: unit.id, abilityId: CHAMELEON_AMBUSH_ID };
+    }
+    if (!failed) noSpot.set(engine, (failed = new Set()));
+    failed.add(key);
   }
   return null;
 }

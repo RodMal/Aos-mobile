@@ -10,7 +10,16 @@ import { illegal, type Ctx } from './ctx.js';
 import { destroyUnit } from './damage.js';
 import { CHAMELEON_GAP } from './relocate.js';
 import { isFactionTerrainUnit } from './query.js';
-import type { Action, GameState, PlayerId, Scenario, UnitOption, UnitState } from './types.js';
+import type {
+  Action,
+  Frame,
+  GameState,
+  UnitId,
+  PlayerId,
+  Scenario,
+  UnitOption,
+  UnitState,
+} from './types.js';
 
 /** Core 24.1: at the start of this battle round, units still in reserve in ambush are destroyed. */
 export const AMBUSH_DESTROYED_ROUND = 4;
@@ -75,15 +84,20 @@ export function chameleonAmbush(ctx: Ctx, action: Extract<Action, { t: 'ability'
   if (!unit || !canChameleon(ctx.scenario, ctx.s, unit)) {
     illegal('That unit cannot use Chameleon Ambush now.');
   }
-  ctx.s.stack.push({
+  ctx.s.stack.push(chameleonFrame(unit.id));
+}
+
+/** The `place` frame of a Chameleon Ambush set-up. */
+export function chameleonFrame(unit: UnitId): Extract<Frame, { t: 'place' }> {
+  return {
     t: 'place',
-    unit: unit.id,
+    unit,
     reason: 'relocate',
     allowance: 0,
     dice: [],
     minEnemyGap: CHAMELEON_GAP,
     relocate: { kind: 'chameleon' },
-  });
+  };
 }
 
 /** Core 24.1: at the start of the fourth battle round, units still in reserve in ambush are destroyed. */

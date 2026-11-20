@@ -188,6 +188,28 @@ describe('Chameleon Ambush', () => {
     expect(engine.unitOptions(after, HUNTERS).some((o) => o.t === 'move')).toBe(false);
   });
 
+  it('can still declare a charge in the turn it is set up (only MOVE abilities are barred)', () => {
+    const s = movementPhase();
+    const declared = engine.apply(s, {
+      t: 'ability',
+      unit: HUNTERS,
+      abilityId: CHAMELEON_AMBUSH_ID,
+    }).state;
+    const after = editable(
+      engine.apply(declared, {
+        t: 'place',
+        placement: legalSpot(declared, HUNTERS, { x: 30, y: 22 }),
+      }).state,
+    );
+    const hunters = after.units[HUNTERS]!;
+    const enemyId = Object.values(after.units).find(
+      (u) => u.owner === 1 && u.status === 'battlefield' && u.armyIndex >= 0,
+    )!.id;
+    placeUnit(scenario, after, enemyId, hunters.models[0]!.x + 10, hunters.models[0]!.y);
+    after.phase = 'charge';
+    expect(engine.unitOptions(after, HUNTERS).some((o) => o.t === 'charge')).toBe(true);
+  });
+
   it('can be cancelled: the unit stays in ambush', () => {
     const s = movementPhase();
     const declared = engine.apply(s, {
