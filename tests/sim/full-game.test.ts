@@ -206,6 +206,10 @@ describe('full games, baseline NPC against itself', () => {
   }
 
   it.runIf(SHARD === 1)('plays a game without invariant checks quickly', () => {
+    // Warm-up: one untimed game without invariant checks, so the timed game is not the cold
+    // first game (which is much slower on CI). Seed 0 is never one of the seeds above.
+    let warm = startGame(engine, 0);
+    while (engine.decision(warm)) warm = engine.apply(warm, chooseAction(engine, warm)).state;
     const t0 = performance.now();
     let state = startGame(engine, SEEDS + 1);
     while (engine.decision(state)) state = engine.apply(state, chooseAction(engine, state)).state;
