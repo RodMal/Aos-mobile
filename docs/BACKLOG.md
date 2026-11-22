@@ -79,7 +79,7 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 ## Waiting on the owner
 
 - The true size of the Awakened Wyldwood pieces: the traced outlines came out 6.6 to 8.5" long and 2.05 to 2.55" wide, below the owner's stated ranges. A real measurement of one piece fixes the scale (`src/data/wyldwood.ts`).
-- Whether a model may end a move on a ruin or outcrop (currently allowed under the 1" ruling: `LOW_TERRAIN_KINDS` in `src/data/battlefield.ts`). Owner only.
+- Whether a model may end a move on a ruin or outcrop: **Owner ruling (2026-11-22): keep for now** (allowed under the 1" ruling; `LOW_TERRAIN_KINDS` in `src/data/battlefield.ts`). Settled for now; see I53 and I57.
 
 ## Later
 
