@@ -60,10 +60,26 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 - **Read**: `docs/ABILITIES.md`; printed text in the manifestation warscrolls of `data/lores.json` (Chronomantic Cogs `1aba-bc38-e988-d79f`: Mechanisms of Time `ad92-932-6f56-1d97`; Quicksilver Swords `8cde-fafe-2b2a-ced5`: Dancing Blades `7b11-c623-fc14-4639`; Purple Sun: Pull of the Nadir `c99-9240-9da1-d029`; Malevolent Maelstrom `e699-49b7-d2b8-d5fc`: Morbid Detonation `b8a4-541-b62-cf62`, Necrotic Vortex `c711-ce6-1fb6-7abc`; Soulsnare Shackles `dee3-92a0-27e7-252a`: Bound for the Great Oubliette `6817-e507-443e-1ff4`, Multiple Parts `9e13-160b-4a87-da4e`); `src/engine/abilities/magic.ts`, `src/engine/abilities/effects.ts`, `src/engine/damage.ts`, `src/engine/turns.ts`, RULES-DECISIONS S13, I24
 - **Done when**: one test per ability: Mechanisms of Time (a Wizard within 3" picks re-roll charges or -1 to hit against Wizards, within 12", until your next turn), Dancing Blades (no ward rolls against its damage), Pull of the Nadir (-1 to save rolls for every unit within 3"), Morbid Detonation (mortal damage on 2+, then destroyed), Necrotic Vortex (maelstrom points from set-up, successful casts within 12" and slain models within 12", maximum 6; they drive Morbid Detonation's target count per the printed text), Bound for the Great Oubliette (D3 mortal damage and Move reduced by the roll), Multiple Parts (three parts within 3" of each other, destroyed together). Update S13 and `docs/ABILITIES.md`.
 
+### R21 NPC damage estimate counts Alarielle's Song
+
+- **Tier**: sonnet
+- **Touches**: ai
+- **Ruling**: I92 (owner, 2026-11-22)
+- **Read**: I92; the NPC's expected-damage helpers (`expectedWeaponDamage` and its callers in `src/engine/combat.ts` / `src/ai/`), and how Alarielle's Song's -1 to wards is applied in the dice (search for the Song's ability id in `src/engine/abilities/`).
+- **Done when**: when Alarielle's Song applies to a target, the NPC's expected damage against that target uses the target's ward worsened by 1, just as the dice do. A test shows the estimate changes with the Song active versus inactive, and that an NPC choice that depends on it flips accordingly. Keep it cheap, because of the sim speed check. Bump the rules version if replay changes.
+
+### R22 Pick which Wyldwood piece to place
+
+- **Tier**: sonnet
+- **Touches**: ui/prompts, ui/board, engine
+- **Ruling**: owner request (2026-11-22)
+- **Read**: `src/engine/wyldwood.ts` (how the three crescent pieces are set up and in what order), the Wyldwood set-up `place` decision in `src/engine/decisions.ts`, and `src/ui/sheet/PlacePanel.tsx`.
+- **Done when**: when an Awakened Wyldwood is set up, the player chooses which of the remaining pieces (1, 2 or 3, shown with their shape and size) to place next, instead of a fixed order. The NPC keeps a sensible automatic choice. Placement legality is unchanged. Unit tests and an e2e test cover choosing a piece, on phone and desktop. Bump the rules version if replay changes.
+
 ## Waiting on the owner
 
 - The true size of the Awakened Wyldwood pieces: the traced outlines came out 6.6 to 8.5" long and 2.05 to 2.55" wide, below the owner's stated ranges. A real measurement of one piece fixes the scale (`src/data/wyldwood.ts`).
-- Whether a model may end a move on a ruin or outcrop (currently allowed under the 1" ruling: `LOW_TERRAIN_KINDS` in `src/data/battlefield.ts`). Owner only.
+- Whether a model may end a move on a ruin or outcrop: **Owner ruling (2026-11-22): keep for now** (allowed under the 1" ruling; `LOW_TERRAIN_KINDS` in `src/data/battlefield.ts`). Settled for now; see I53 and I57.
 
 ## Later
 
