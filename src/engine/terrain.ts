@@ -137,10 +137,35 @@ export function climbCost(
   const r = footprintOuterRadius(modelFootprint(scenario, unit, modelIndex));
   let cost = 0;
   for (const t of tall) {
-    if (polygonSegmentDistance(t.polygon, a, b) <= r) cost += 2 * climbHeight(t);
+    if (polygonSegmentDistance(t.polygon, a, b) > r) continue;
+    // Near enough to matter: it climbs only if its base really overlaps the feature on the way.
+    const dist = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const steps = Math.max(1, Math.ceil(dist / PATH_STEP));
+    for (let k = 0; k <= steps; k++) {
+      const f = k / steps;
+      const at = { x: a[0] + (b[0] - a[0]) * f, y: a[1] + (b[1] - a[1]) * f, rot: from.rot };
+      if (footprintOverlapsPolygon(modelFootprint(scenario, unit, modelIndex, at), t.polygon)) {
+        cost += 2 * climbHeight(t);
+        break;
+      }
+    }
   }
   // FLY is the costlier lookup, so it is asked only once a climb is on the path.
   return cost > 0 && hasEffectiveKeyword(scenario, state, unit, 'FLY') ? 0 : cost;
+}
+
+/** What a model's straight move counts toward its allowance: flat distance plus climb. */
+export function moveCost(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  modelIndex: number,
+  to: { x: number; y: number },
+): { flat: number; climb: number; total: number } {
+  const from = unit.models[modelIndex]!;
+  const flat = Math.hypot(to.x - from.x, to.y - from.y);
+  const climb = climbCost(scenario, state, unit, modelIndex, to);
+  return { flat, climb, total: flat + climb };
 }
 
 function polygonSegmentDistance(poly: Polygon, a: ReadonlyPoint, b: ReadonlyPoint): number {

@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../data/lists.js';
 import { climbHeight } from '../data/battlefield.js';
-import { createEngine, createScenario, formPlacement, profileOf } from './index.js';
+import { footprintDistanceToPolygon } from '../geom/index.js';
+import { createEngine, createScenario, formPlacement, modelFootprint, profileOf } from './index.js';
 import { checkMovePlacement } from './movement.js';
 import { hasEffectiveKeyword } from './abilities/effects.js';
 import { editable, keepOnly, placeUnit, startGame } from './test-helpers.js';
@@ -83,5 +84,69 @@ describe('climbing terrain (Core 15.2)', () => {
       allowance: 8.01,
     });
     expect(v.map((x) => x.code)).not.toContain('TOO_FAR');
+  });
+
+  describe('next to a spire without crossing it', () => {
+    const BASTILADON = '1:7'; // oval base
+    const xMin = Math.min(...spire.polygon.map((q) => q[0]));
+
+    /** Centre x, west of the spire at y = 17, where the base is `gap` inches clear of it. */
+    function xAtGap(s: GameState, id: UnitId, gap: number): number {
+      let lo = xMin - 10;
+      let hi = xMin;
+      for (let k = 0; k < 40; k++) {
+        const mid = (lo + hi) / 2;
+        const fp = modelFootprint(scenario, s.units[id]!, 0, { x: mid, y: 17, rot: 0 });
+        if (footprintDistanceToPolygon(fp, spire.polygon) > gap) lo = mid;
+        else hi = mid;
+      }
+      return lo;
+    }
+
+    function arena(id: UnitId, gap: number): { s: GameState; x: number } {
+      const s = editable(startGame(engine, 1));
+      const enemy = s.unitOrder.find((u) => s.units[u]!.owner !== s.units[id]!.owner)!;
+      keepOnly(s, [id, enemy]);
+      placeUnit(scenario, s, enemy, 10, 40, 0);
+      placeUnit(scenario, s, id, 40, 17, 0);
+      const x = xAtGap(s, id, gap);
+      placeUnit(scenario, s, id, x, 17, 0);
+      return { s, x };
+    }
+
+    const to = (s: GameState, id: UnitId, x: number, y: number, allowance: number): string[] => {
+      const p = formPlacement(scenario, s.units[id]!, { x, y }, 0);
+      return checkMovePlacement(scenario, s, s.units[id]!, p, { reason: 'normal', allowance }).map(
+        (v) => v.code,
+      );
+    };
+
+    it('touching the spire and moving straight away is free', () => {
+      const { walker } = pick();
+      const { s, x } = arena(walker, 0.001);
+      expect(to(s, walker, x - 5, 17, 5.01)).not.toContain('TOO_FAR');
+    });
+
+    it('sliding along the face of the spire is free', () => {
+      const { walker } = pick();
+      const { s, x } = arena(walker, 0.001);
+      expect(to(s, walker, x, 11, 6.01)).not.toContain('TOO_FAR');
+    });
+
+    it('an oval base 0.5" clear of the spire, moving away or along it, is free', () => {
+      const { s, x } = arena(BASTILADON, 0.5);
+      expect(to(s, BASTILADON, x - 5, 17, 5.01)).not.toContain('TOO_FAR');
+      expect(to(s, BASTILADON, x, 11, 6.01)).not.toContain('TOO_FAR');
+    });
+
+    it('the message says how much of the cost is climbing', () => {
+      const { walker } = pick();
+      const c = crossing(walker);
+      const v = checkMovePlacement(scenario, c.s, c.s.units[walker]!, c.p, {
+        reason: 'normal',
+        allowance: c.flat + 1,
+      });
+      expect(v.find((x) => x.code === 'TOO_FAR')!.message).toContain('including 8" climbing');
+    });
   });
 });

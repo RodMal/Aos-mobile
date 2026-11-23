@@ -13,6 +13,7 @@ export {
   powerThroughTargets,
 } from './engine.js';
 export { formatInches, PILE_IN_DISTANCE } from './movement.js';
+export { moveCost } from './terrain.js';
 export {
   expectedWeaponDamage,
   npcGlamourweaveReroll,

@@ -27,7 +27,7 @@ import {
   unitsOf,
 } from './query.js';
 import { modelsOutsideOvergrowth } from './overgrowth.js';
-import { blockedTerrainViolations, climbCost, pathBlockedModels } from './terrain.js';
+import { blockedTerrainViolations, moveCost, pathBlockedModels } from './terrain.js';
 import type {
   GameState,
   Placement,
@@ -151,19 +151,21 @@ export function checkMovePlacement(
       }
     }
   } else {
+    let climbed = 0;
     const tooFar = placement.models
       .filter((m) => {
-        const from = unit.models[m.i]!;
-        const flat = Math.hypot(m.x - from.x, m.y - from.y);
-        if (flat > rules.allowance + DIST_EPS) return true;
-        // Core 15.2: climbing terrain taller than 1" counts its height up and down.
-        return flat + climbCost(scenario, state, unit, m.i, m) > rules.allowance + DIST_EPS;
+        const c = moveCost(scenario, state, unit, m.i, m);
+        if (c.total <= rules.allowance + DIST_EPS) return false;
+        climbed = Math.max(climbed, c.climb);
+        return true;
       })
       .map((m) => m.i);
     if (tooFar.length > 0) {
       violations.push({
         code: 'TOO_FAR',
-        message: `Models can move up to ${formatInches(rules.allowance)}.`,
+        message:
+          `Models can move up to ${formatInches(rules.allowance)}` +
+          (climbed > 0 ? `, including ${formatInches(climbed)} climbing the spire.` : '.'),
         models: tooFar,
       });
     }
