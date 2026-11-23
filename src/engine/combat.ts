@@ -150,7 +150,8 @@ export function expectedWeaponDamage(
     championsAmong(scenario, attacker, indices),
   );
   const mods = weaponMods(scenario, state, attacker, target, weapon, mode, extra);
-  return expectedDamage(weapon, attacks, { save: tp.save, ward }, mods).total;
+  const wardModifier = ward === null ? 0 : wardRollModifier(scenario, state, target);
+  return expectedDamage(weapon, attacks, { save: tp.save, ward, wardModifier }, mods).total;
 }
 
 /**

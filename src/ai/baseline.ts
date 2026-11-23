@@ -42,6 +42,7 @@ import {
   type UnitState,
 } from '../engine/index.js';
 import { diceMean } from '../data/profile.js';
+import { wardRollModifier } from '../engine/abilities/effects.js';
 import { npcDeployPlacement } from '../engine/deployment.js';
 import { contestedObjective } from '../rules/core/objectives.js';
 import { ARMOUR_CRUNCHER_ROLL_ID, scryCandidates } from '../engine/seraphonActive.js';
@@ -260,7 +261,10 @@ export function eruptionAction(
     const noCrit = { ...w, abilities: w.abilities.filter((a) => !a.t.startsWith('crit')) };
     for (const id of option.targets) {
       const tp = profileOf(engine.scenario, state.units[id]!);
-      const value = expectedDamage(noCrit, 1, { save: tp.save, ward: tp.ward ?? null }).total;
+      const ward = tp.ward ?? null;
+      const wardModifier =
+        ward === null ? 0 : wardRollModifier(engine.scenario, state, state.units[id]!);
+      const value = expectedDamage(noCrit, 1, { save: tp.save, ward, wardModifier }).total;
       if (!best || value > best.value) best = { target: id, weaponId: w.id, value };
     }
   }
