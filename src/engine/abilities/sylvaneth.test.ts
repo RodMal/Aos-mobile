@@ -8,7 +8,12 @@ import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../../da
 import { attackModifiers } from '../../rules/core/modifiers.js';
 import { moveOf } from '../../rules/factions/seraphon.js';
 import { rollAttackSequence, rollWard } from '../attack.js';
-import { npcGlamourweaveReroll, pendingAttackDamage, usedWeapon } from '../combat.js';
+import {
+  expectedWeaponDamage,
+  npcGlamourweaveReroll,
+  pendingAttackDamage,
+  usedWeapon,
+} from '../combat.js';
 import { moveOptions } from '../eligibility.js';
 import {
   createEngine,
@@ -92,6 +97,35 @@ describe("Alarielle's Song (3f73-3ee4-8f6b-b16b)", () => {
     // Ward 6+: an unmodified 6 saves, but with -1 it is a 5 and fails.
     expect(rollWard(new ScriptedDice([6]), 1, 6, 0).taken).toBe(0);
     expect(rollWard(new ScriptedDice([6]), 1, 6, -1).taken).toBe(1);
+  });
+});
+
+describe("Alarielle's Song in the expected damage (R21, I92)", () => {
+  const KROAK = '1:0'; // Ward (4+), save 4+
+  const BASTILADON = '1:7'; // no ward, save 2+
+  const hitter = weapon({ hit: 2, wound: 2, rend: 2 });
+  const est = (s: GameState, target: UnitId) =>
+    expectedWeaponDamage(scenario, s, unit(s, DRYADS), unit(s, target), hitter, 'fight', [0]);
+  const at = (kroakX: number) =>
+    arena({
+      [WARSONG]: [30, 22],
+      [DRYADS]: [30, 28],
+      [KROAK]: [kroakX, 22],
+      [BASTILADON]: [30, 40],
+    });
+
+  it('worsens the ward by 1 within 12" of the Warsong Revenant, as the dice do', () => {
+    const near = est(at(40), KROAK);
+    const far = est(at(60), KROAK);
+    // Ward 4+ fails on 1-3 (1/2); with -1 it fails on 1-4 (2/3).
+    expect(near / far).toBeCloseTo(4 / 3, 5);
+  });
+
+  it('flips which target the NPC prefers', () => {
+    const near = at(40);
+    const far = at(60);
+    expect(est(far, KROAK)).toBeLessThan(est(far, BASTILADON));
+    expect(est(near, KROAK)).toBeGreaterThan(est(near, BASTILADON));
   });
 });
 
