@@ -103,12 +103,21 @@ export function rhythmTargets(scenario: Scenario, state: GameState, unit: UnitSt
   return enemiesInCombat(scenario, state, unit).map((e) => e.id);
 }
 
+/**
+ * Whether the unit has already moved in the movement phase (owner, 2026-11-20, R20): a normal
+ * move, run or retreat, or being set up again (which counts as moving). Both abilities below are
+ * movement-phase only, so the per-turn flags are the per-phase ones.
+ */
+export const hasMovedThisPhase = (unit: UnitState): boolean =>
+  unit.moved !== null || unit.setUpThisTurn === true;
+
 /** Shadowcreep: "wholly within the creeping overgrowth", in your movement phase. */
 export function canShadowcreep(scenario: Scenario, state: GameState, unit: UnitState): boolean {
   return (
     state.phase === 'movement' &&
     state.active === unit.owner &&
     usable(scenario, unit) &&
+    !hasMovedThisPhase(unit) &&
     hasSylvanethAbility(scenario, unit, SHADOWCREEP_ID) &&
     !usedThisTurn(state, unit, SHADOWCREEP_ID) &&
     inCreepingOvergrowth(scenario, state, unit, unit.owner, true)
@@ -128,6 +137,7 @@ export function realmrootCompanions(
   if (state.phase !== 'movement' || state.active !== unit.owner || !usable(scenario, unit)) {
     return null;
   }
+  if (hasMovedThisPhase(unit)) return null;
   if (!hasSylvanethAbility(scenario, unit, REALMROOT_GUIDE_ID)) return null;
   if (usedThisBattle(state, unit, REALMROOT_GUIDE_ID)) return null;
   if (!inCreepingOvergrowth(scenario, state, unit, unit.owner, true)) return null;
@@ -136,6 +146,7 @@ export function realmrootCompanions(
       (o) =>
         o.id !== unit.id &&
         usable(scenario, o) &&
+        !hasMovedThisPhase(o) &&
         hasKeyword(scenario, o, 'SYLVANETH') &&
         unitsWithin(scenario, unit, o, COMBAT_RANGE),
     )
