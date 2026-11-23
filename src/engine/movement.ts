@@ -27,7 +27,7 @@ import {
   unitsOf,
 } from './query.js';
 import { modelsOutsideOvergrowth } from './overgrowth.js';
-import { blockedTerrainViolations, pathBlockedModels } from './terrain.js';
+import { blockedTerrainViolations, climbCost, pathBlockedModels } from './terrain.js';
 import type {
   GameState,
   Placement,
@@ -154,7 +154,10 @@ export function checkMovePlacement(
     const tooFar = placement.models
       .filter((m) => {
         const from = unit.models[m.i]!;
-        return Math.hypot(m.x - from.x, m.y - from.y) > rules.allowance + DIST_EPS;
+        const flat = Math.hypot(m.x - from.x, m.y - from.y);
+        if (flat > rules.allowance + DIST_EPS) return true;
+        // Core 15.2: climbing terrain taller than 1" counts its height up and down.
+        return flat + climbCost(scenario, state, unit, m.i, m) > rules.allowance + DIST_EPS;
       })
       .map((m) => m.i);
     if (tooFar.length > 0) {

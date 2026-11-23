@@ -61,6 +61,22 @@ export interface Battlefield {
  */
 export const LOW_TERRAIN_KINDS: readonly TerrainKind[] = ['ruin', 'outcrop'];
 
+/**
+ * Heights in inches. Core 15.2: terrain 1" high or less is ignored; a model climbing taller
+ * terrain counts the vertical distance up and down toward its move unless it has FLY. Ruins and
+ * outcrops are 1" or less (owner, 2026-11-22). The spire height is an assumption (I57).
+ */
+export const TERRAIN_HEIGHT: Record<TerrainKind, number> = { ruin: 1, outcrop: 1, spire: 4 };
+
+/** Terrain no taller than this is moved over as if it were not there (Core 15.2). */
+export const CLIMB_FREE_HEIGHT = 1;
+
+/** The height a model climbs to cross this feature, or 0 when it is 1" or less. */
+export function climbHeight(feature: TerrainFeature): number {
+  const h = TERRAIN_HEIGHT[feature.kind];
+  return h > CLIMB_FREE_HEIGHT ? h : 0;
+}
+
 /** True when models may stand on this feature (it is 1" high or less). */
 export function allowsSetUpOn(
   feature: TerrainFeature,
