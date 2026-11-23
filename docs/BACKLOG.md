@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R20 Shadowcreep and Realmroot Guide not after moving
-
-- **Tier**: sonnet
-- **Touches**: engine, ai
-- **Ruling**: I103 (owner, 2026-11-20): a unit that has already moved in that phase cannot use Shadowcreep or Realmroot Guide. Realmroot Guide cannot be used if the bearer or the target unit has already moved in that phase. The limit is that phase, not the whole turn.
-- **Read**: I103; `src/engine/relocate.ts` (who may use each ability), `src/engine/decisions.ts` (activated options), `src/ai/sylvaneth.ts`.
-- **Done when**: Shadowcreep is not offered for a unit that has moved in that phase (any move: normal, run, retreat, or a set-up counted as moving); Realmroot Guide is not offered when the bearer or the target unit has moved in that phase; applying either one anyway throws; the NPC respects this; tests cover moved in that phase versus not moved in that phase for each; bump the rules version if replay changes.
-
 ### R16 Climbing terrain costs movement
 
 - **Tier**: sonnet+review

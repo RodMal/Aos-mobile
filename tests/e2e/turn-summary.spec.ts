@@ -39,7 +39,14 @@ test('each turn ends with a scoring summary that can be dismissed and reviewed i
     await page.getByRole('button', { name: 'Log' }).click({ timeout: 1000 });
   }).toPass();
   const scores = page.getByTestId('turn-scores');
-  await scores.locator('summary').click();
+  // A reaction that falls due closes the log (R19): answer it and open the log again.
+  await expect(async () => {
+    await answerOpponentTurnPrompt(page);
+    if (!(await page.getByTestId('turn-scores').isVisible())) {
+      await page.getByRole('button', { name: 'Log' }).click({ timeout: 1000 });
+    }
+    await scores.locator('summary').click({ timeout: 1000 });
+  }).toPass();
   await expect(scores).toContainText(
     text
       .replace(/\+\d+$/, '')

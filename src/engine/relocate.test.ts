@@ -728,3 +728,67 @@ describe('Start of combat: both players', () => {
     expect(d?.kind === 'reaction' ? d.options : null).toEqual([]);
   });
 });
+
+describe('Shadowcreep and Realmroot Guide after moving (R20)', () => {
+  const SPITES = 'Spite-Revenants';
+  const GUIDE = 'Warsong Revenant';
+  const kinds = ['normal', 'run', 'retreat'] as const;
+
+  function shadow(): GameState {
+    const s = arranged([SPITES], 'movement');
+    placeUnit(scenario, s, named(s, 0, SPITES).id, 30, 27);
+    return s;
+  }
+  function realm(): GameState {
+    const s = arranged([GUIDE, 'Dryads'], 'movement');
+    placeUnit(scenario, s, named(s, 0, GUIDE).id, 30, 28);
+    placeUnit(scenario, s, named(s, 0, 'Dryads').id, 30, 31);
+    return s;
+  }
+
+  it('Shadowcreep: offered if the unit has not moved, refused after any move or set-up', () => {
+    const s = shadow();
+    const id = named(s, 0, SPITES).id;
+    expect(hasOption(s, id, SHADOWCREEP_ID)).toBe(true);
+    for (const k of kinds) {
+      const m = editable(s);
+      m.units[id]!.moved = k;
+      expect(hasOption(m, id, SHADOWCREEP_ID)).toBe(false);
+      expect(() =>
+        engine.apply(m, { t: 'ability', unit: id, abilityId: SHADOWCREEP_ID }),
+      ).toThrow();
+    }
+    const up = editable(s);
+    up.units[id]!.setUpThisTurn = true;
+    expect(hasOption(up, id, SHADOWCREEP_ID)).toBe(false);
+  });
+
+  it('Realmroot Guide: refused if the bearer has moved', () => {
+    const s = realm();
+    const g = named(s, 0, GUIDE).id;
+    expect(hasOption(s, g, REALMROOT_GUIDE_ID)).toBe(true);
+    for (const k of kinds) {
+      const m = editable(s);
+      m.units[g]!.moved = k;
+      expect(hasOption(m, g, REALMROOT_GUIDE_ID)).toBe(false);
+      expect(() =>
+        engine.apply(m, { t: 'ability', unit: g, abilityId: REALMROOT_GUIDE_ID }),
+      ).toThrow();
+    }
+  });
+
+  it('Realmroot Guide: a target that has moved is not offered, the bearer still is', () => {
+    const s = realm();
+    const g = named(s, 0, GUIDE).id;
+    const d = named(s, 0, 'Dryads').id;
+    const m = editable(s);
+    m.units[d]!.moved = 'normal';
+    const opts = engine
+      .unitOptions(m, g)
+      .filter((o) => o.t === 'ability' && o.abilityId === REALMROOT_GUIDE_ID);
+    expect(opts).toHaveLength(1);
+    expect(() =>
+      engine.apply(m, { t: 'ability', unit: g, abilityId: REALMROOT_GUIDE_ID, target: d }),
+    ).toThrow();
+  });
+});
