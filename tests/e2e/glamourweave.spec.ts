@@ -44,10 +44,13 @@ test('re-rolling is noted in the log', async ({ page }) => {
   const log = page.getByRole('button', { name: 'Log' });
   // Any other reaction the game offers meanwhile (Covering Fire, say) is skipped.
   const skip = page.getByTestId('reaction').getByRole('button', { name: 'Skip', exact: true });
+  // A reaction that falls due closes the log (R19), so open it again until it stays open.
   await expect(async () => {
     if (await keep.isVisible()) await keep.click();
     else if (await skip.isVisible()) await skip.click();
-    await log.click({ timeout: 500 });
+    if (!(await page.getByTestId('log-list').isVisible())) await log.click({ timeout: 500 });
+    await expect(page.getByTestId('log-list')).toContainText('Glamourweave: re-rolled a failed', {
+      timeout: 500,
+    });
   }).toPass({ timeout: 90_000, intervals: [150] });
-  await expect(page.getByTestId('log-list')).toContainText('Glamourweave: re-rolled a failed');
 });
