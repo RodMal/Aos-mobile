@@ -43,12 +43,13 @@ export function pSave(save: number | null, rend: number, saveModifier = 0): numb
 }
 
 /** Probability that a damage point gets past a ward roll; 1 with no ward. */
-export function pWardFail(ward: number | null): number {
+export function pWardFail(ward: number | null, modifier = 0): number {
   if (ward === null) return 1;
   if (!Number.isInteger(ward) || ward < 2 || ward > 6) {
     throw new RangeError(`invalid ward ${ward}: expected 2..6 or null`);
   }
-  return (ward - 1) / 6;
+  // A ward die passes when die + modifier >= ward (Alarielle's Song: -1), as `rollWard` does.
+  return Math.min(1, Math.max(0, (ward - modifier - 1) / 6));
 }
 
 export type CritAbility = 'crit2Hits' | 'critAutoWound' | 'critMortal';
@@ -79,6 +80,8 @@ export interface TargetDefence {
   /** Save target number; 7 means no save. */
   save: number;
   ward: number | null;
+  /** Modifier to every ward roll (negative worsens the ward); default 0. */
+  wardModifier?: number;
 }
 
 export interface ExpectedDamage {
@@ -100,7 +103,7 @@ function perAttack(
   const pc = crit !== null ? pCrit() : 6 + mods.hit >= weapon.hit ? 1 / 6 : 0;
   const pw = pWound(weapon.wound, mods.wound);
   const pUnsaved = 1 - pSave(target.save, Math.max(0, weapon.rend + mods.rend), mods.save);
-  const pwf = pWardFail(target.ward);
+  const pwf = pWardFail(target.ward, target.wardModifier ?? 0);
   const perWound = pUnsaved * dmg;
   let critNormal = 0;
   let critMortal = 0;
