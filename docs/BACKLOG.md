@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R19 Make a waiting reaction obvious
-
-- **Tier**: sonnet
-- **Touches**: ui/prompts
-- **Ruling**: owner request (2026-11-20). In a game, Alarielle's heal and the Huntmaster's Strike offer looked missing at end of turn. They were only queued behind an open Vengeance of Azyr reaction, and the owner had opened the battle log on top of it. The small "Reaction waiting / Back to reaction" banner was easy to miss.
-- **Read**: `src/ui/prompts/ReactionPrompt.tsx`, the "Back to reaction" banner and the battle log drawer (search `src/ui` for "Back to reaction"), `src/engine/turns.ts` (`endTurn` order).
-- **Done when**: a pending reaction for the human is clearly visible on phone and desktop, whichever panel or drawer is open (for example, the banner is larger and more prominent, or opening the log keeps the reaction prompt in view, or the log closes on its own when a reaction becomes due); at end of turn, a short note tells the player that end-of-turn abilities (heals, Huntmaster's Strike) come after the pending reactions; an e2e test opens the log while a reaction is waiting and asserts the reaction is still reachable and visible; it is checked on the pixel-7 and desktop projects.
-
 ### R20 Shadowcreep and Realmroot Guide not after moving
 
 - **Tier**: sonnet

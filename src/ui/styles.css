@@ -1958,16 +1958,39 @@ button {
   top: calc(env(safe-area-inset-top) + 92px);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 20;
+  z-index: 40; /* above the drawers (30): a waiting prompt is never covered */
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   max-width: 94vw;
-  padding: 6px 8px 6px 14px;
+  padding: 8px 10px 8px 16px;
   background: #13171b;
-  border: 1px solid var(--accent);
+  border: 2px solid var(--accent);
   border-radius: 999px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  animation: peek-pulse 1.6s ease-in-out infinite;
+}
+.peek-label {
+  font-size: 16px;
+  font-weight: 700;
+}
+.end-turn-note {
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-left: 3px solid var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+}
+@keyframes peek-pulse {
+  50% {
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.5),
+      0 0 0 6px rgba(240, 180, 60, 0.35);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .peek-bar {
+    animation: none;
+  }
 }
 .modal .row-chips {
   display: flex;
