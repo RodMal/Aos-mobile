@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { Decision } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
 import { useGameState } from '../game/hooks.js';
-import { Modal } from './Modal.js';
+import { EndOfTurnNote, Modal } from './Modal.js';
 
 /**
  * Vengeance of Azyr at the end of a turn: tick up to 3 units, then use it or skip. Each picked
@@ -42,6 +42,7 @@ export function VengeancePrompt({ d }: { d: Extract<Decision, { kind: 'vengeance
   }
   return (
     <Modal title="Vengeance of Azyr" testId="vengeance">
+      <EndOfTurnNote />
       <p>
         Pick up to {d.max} Saurus or Kroxigor units in combat. Each makes a pile-in move, then rolls
         a D3 against an enemy unit in combat with it: on a 2+ that unit takes that much mortal
