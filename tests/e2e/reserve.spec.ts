@@ -25,12 +25,9 @@ test('Hidden Hunters while deploying', async ({ page }, info) => {
   await startDeploy(page, 'seed=5&side=1&new=1&deploy=1&fast=1');
   const confirm = page.getByTestId('place-confirm');
   const hidden = page.getByTestId('hidden-hunters');
-  const venomites = page.getByTestId('venomites');
   // Deploy until the first Hunters unit is the one to place.
   for (let i = 0; i < 60 && !(await hidden.isVisible()); i++) {
-    if (await usable(venomites.locator('[data-testid="venomites-left"]'))) {
-      await page.getByTestId('venomites-left').click();
-    } else if (await usable(confirm)) {
+    if (await usable(confirm)) {
       await confirm.click();
     } else if (await confirm.isVisible()) {
       await page.getByRole('button', { name: 'Auto' }).click();

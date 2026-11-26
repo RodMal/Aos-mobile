@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  rotate,
-  tableSide,
   centreOn,
   clampScale,
   clampView,
@@ -155,26 +153,5 @@ describe('frameView', () => {
   it('never zooms in beyond the maximum scale, even for a single point', () => {
     const v = frameView({ scale: 5, tx: 0, ty: 0, rot: 0 }, [{ x: 10, y: 10 }], vp, 34);
     expect(v.scale).toBe(34);
-  });
-});
-
-describe('tableSide', () => {
-  it('keeps the sides on an unrotated board', () => {
-    for (const s of ['top', 'bottom', 'left', 'right'] as const) expect(tableSide(0, s)).toBe(s);
-  });
-
-  it('turns the screen side into the table side on a rotated board', () => {
-    // The side that is on top of the screen is the table side whose screen position is up.
-    for (const rot of [90, -90] as const) {
-      for (const s of ['top', 'bottom', 'left', 'right'] as const) {
-        const t = tableSide(rot, s);
-        const v = { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] }[t];
-        const screen = rotate(rot, { x: v[0]!, y: v[1]! });
-        const want = { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] }[s];
-        expect([screen.x + 0, screen.y + 0]).toEqual(want);
-      }
-    }
-    expect(tableSide(-90, 'top')).toBe('right');
-    expect(tableSide(90, 'top')).toBe('left');
   });
 });

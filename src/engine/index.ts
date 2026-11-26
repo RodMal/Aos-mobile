@@ -38,7 +38,6 @@ export {
   RHYTHM_OF_THE_CHASE_ID,
   WYLDWOOD_REVENANTS_ID,
 } from './abilities/sylvaneth.js';
-export { hasVenomites, venomiteTokenAt } from './venomites.js';
 export {
   FIERCE_GUARDIANS_ID,
   POWER_UNLEASHED_ID,

@@ -249,19 +249,3 @@ export function rotationFor(player: 0 | 1): Rot {
   // Player 0 holds the left of the table (small x), player 1 the right.
   return player === 0 ? -90 : 90;
 }
-
-export type Side = 'top' | 'bottom' | 'left' | 'right';
-const SIDE_VEC: Record<Side, Pt> = {
-  top: { x: 0, y: -1 },
-  bottom: { x: 0, y: 1 },
-  left: { x: -1, y: 0 },
-  right: { x: 1, y: 0 },
-};
-
-/** The table side (the engine's) that appears on `screenSide` of the screen when the board is turned by `rot`. */
-export function tableSide(rot: Rot, screenSide: Side): Side {
-  const t = unrotate(rot, SIDE_VEC[screenSide]);
-  return (Object.keys(SIDE_VEC) as Side[]).find(
-    (k) => SIDE_VEC[k].x === Math.round(t.x) && SIDE_VEC[k].y === Math.round(t.y),
-  )!;
-}

@@ -13,7 +13,6 @@ import { ReactionPrompt } from './ReactionPrompt.js';
 import { EndlessGrowthPrompt } from './EndlessGrowthPrompt.js';
 import { ScryPrompt } from './ScryPrompt.js';
 import { SeasonPrompt } from './SeasonPrompt.js';
-import { VenomitesPrompt } from './VenomitesPrompt.js';
 
 export { ConfirmDialog } from './ConfirmDialog.js';
 export { Chooser } from './Chooser.js';
@@ -58,7 +57,6 @@ export function DecisionPrompts() {
   if (d.kind === 'endlessGrowth') {
     return <EndlessGrowthPrompt key={`${d.unit}:${d.stage}`} d={d} />;
   }
-  if (d.kind === 'venomites') return <VenomitesPrompt key={d.unit} d={d} />;
   if (d.kind === 'creepingDread') {
     return <CreepingDreadPrompt key={state.round * 10 + state.turnIndex} d={d} />;
   }

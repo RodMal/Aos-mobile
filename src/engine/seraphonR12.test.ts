@@ -103,51 +103,18 @@ describe('Star-venom in the enemy shooting phase, after Covering Fire (I104, R12
   });
 });
 
-describe('the Venomites token is placed when the Sunblood Pack is deployed (I104, R12)', () => {
-  /** A new game in deployment, advanced with the default answers until the token is asked for. */
-  const toToken = (): GameState => {
+describe('the Venomites token is a tag, not a model (I104, R17)', () => {
+  it('asks for no placement and puts nothing on the board when the Sunblood Pack is deployed', () => {
     let s = engine.newGame(3, { deploy: true });
-    for (let i = 0; i < 200; i++) {
-      if (engine.decision(s)?.kind === 'venomites') return s;
-      s = engine.apply(s, engine.defaultAction(s)).state;
+    for (let i = 0; i < 400 && engine.decision(s)?.kind !== 'priority'; i++) {
+      expect(engine.decision(s)?.kind).not.toBe('venomites');
+      s = engine.apply(s, chooseAction(engine, s)).state;
     }
-    throw new Error('no Venomites token was asked for');
-  };
-
-  it('asks the unit’s player for a side, and the token stands next to the unit', () => {
-    const s = toToken();
-    const d = engine.decision(s);
-    if (d?.kind !== 'venomites') throw new Error('expected the token');
-    expect(d.unit).toBe(SUNBLOOD);
-    expect(d.player).toBe(0);
-    expect(s.units[SUNBLOOD]!.venomitesAt).toBeUndefined();
-    const left = engine.apply(s, { t: 'choose', value: 'left' }).state.units[SUNBLOOD]!;
-    expect(left.venomitesAt!.x).toBeLessThan(Math.min(...left.models.map((m) => m.x)));
-    const right = engine.apply(s, { t: 'choose', value: 'right' }).state.units[SUNBLOOD]!;
-    expect(right.venomitesAt!.x).toBeGreaterThan(Math.max(...right.models.map((m) => m.x)));
-    expect(engine.decision(engine.apply(s, { t: 'choose', value: 'left' }).state)?.kind).not.toBe(
-      'venomites',
-    );
-    expect(() => engine.apply(s, { t: 'choose', value: 'inside' })).toThrow();
-    expect(() => engine.apply(s, { t: 'pass' })).toThrow();
-  });
-
-  it('the NPC places its own token, and the battle starts once every token is down', () => {
-    const swapped = createScenario([SYLVANETH_LORDS_OF_THE_CLAN, SERAPHON_SUNCLAW_STARHOST]);
-    const e = createEngine(swapped);
-    let s = e.newGame(4, { deploy: true });
-    let asked = 0;
-    for (let i = 0; i < 400 && e.decision(s)?.kind !== 'priority'; i++) {
-      const d = e.decision(s);
-      if (d?.kind === 'venomites') {
-        asked++;
-        expect(d.player).toBe(1);
-      }
-      s = e.apply(s, chooseAction(e, s)).state;
-    }
-    expect(asked).toBe(1);
-    expect(s.units['1:2']!.venomitesAt).toBeDefined();
-    expect(e.decision(s)?.kind).toBe('priority');
+    expect(engine.decision(s)?.kind).toBe('priority');
+    const pack = s.units[SUNBLOOD]!;
+    expect(pack.status).toBe('battlefield');
+    expect(pack.venomitesGone).toBeUndefined();
+    expect('venomitesAt' in pack).toBe(false);
   });
 });
 

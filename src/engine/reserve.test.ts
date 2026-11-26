@@ -26,10 +26,6 @@ function deploy(ambush: string[]): GameState {
   let s = engine.newGame(3, { deploy: true });
   for (let i = 0; i < 200; i++) {
     const d = engine.decision(s);
-    if (d?.kind === 'venomites') {
-      s = engine.apply(s, engine.defaultAction(s)).state;
-      continue;
-    }
     if (!d || d.kind !== 'place' || d.reason !== 'deploy') break;
     const unit = s.units[d.unit]!;
     const action: Action = ambush.includes(d.unit)
@@ -75,10 +71,6 @@ describe('Hidden Hunters', () => {
     const seen = new Map<string, boolean>();
     for (let i = 0; i < 200; i++) {
       const d = engine.decision(s);
-      if (d?.kind === 'venomites') {
-        s = engine.apply(s, engine.defaultAction(s)).state;
-        continue;
-      }
       if (!d || d.kind !== 'place' || d.reason !== 'deploy') break;
       seen.set(d.unit, d.canAmbush === true);
       s = engine.apply(s, {

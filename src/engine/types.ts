@@ -95,10 +95,11 @@ export interface UnitState {
   ritualPoints?: number;
   /** Ability IDs used by this unit in the current turn (Rule of One per unit). */
   abilitiesUsed?: string[];
-  /** Sunblood Pack: its Venomites token was removed from the battlefield (Venomite Swarm rolled a 1). */
+  /**
+   * Sunblood Pack: its Venomites tag was removed (Venomite Swarm rolled a 1). The tag is not a
+   * model on the board: a Sunblood Pack carries it from the start, and this marks it gone (I104, R17).
+   */
   venomitesGone?: boolean;
-  /** Sunblood Pack: where its Venomites token stands (placed next to the unit when deployed; unset in a quick start). */
-  venomitesAt?: { x: number; y: number };
   /**
    * The unit was brought back by a replacement command (The Land Awakens, The Goddess Of
    * Life). A unit is replaced once only, and a replacement unit cannot be replaced (Core 24.2).
@@ -345,8 +346,6 @@ export type Frame =
       successes: number;
       units: UnitId[];
     }
-  /** A unit with a Venomites token was just deployed: its player places the token next to it (R12). */
-  | { t: 'venomites'; player: PlayerId; unit: UnitId }
   /**
    * End of a turn: the marker under the end-of-turn abilities (Vengeance of Azyr). Once they are
    * answered and the held mortal damage is allocated, the turn is scored and the next begins.
@@ -646,13 +645,6 @@ export type Decision =
       roll?: number;
       heal?: number;
       models?: number;
-    }
-  /** Place the Venomites token next to `unit`: answer `choose` with one of `sides` (as seen on screen). */
-  | {
-      kind: 'venomites';
-      player: PlayerId;
-      unit: UnitId;
-      sides: ('top' | 'bottom' | 'left' | 'right')[];
     }
   /**
    * Seraphon Asterisms. The Great Plan: `choose` and the Asterism's ability ID. Further the
