@@ -73,10 +73,6 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
                 : 'Heal the unit, or return slain models.',
           }
         : { title: `${who} Endless Growth`, hint: 'The opponent is choosing…' };
-    case 'venomites':
-      return mine
-        ? { title: 'Venomites token', hint: 'Place the token next to the unit.' }
-        : { title: `${who} places a token`, hint: 'The opponent is placing the Venomites token…' };
     case 'creepingDread':
       return mine
         ? { title: 'Creeping Dread', hint: 'Pick enemy units in the overgrowth, or pass.' }

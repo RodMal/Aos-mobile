@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R17 Venomites token as a tag
-
-- **Tier**: sonnet
-- **Touches**: engine, ui/prompts, ui/board, ai
-- **Read**: RULES-DECISIONS I104 (point 4 and the Venomite Swarm entry) and the owner ruling (2026-11-20) that the token is not physical; `src/engine/` (the Venomites token and `tableSide`), `src/ui/prompts`, `src/ui/board`, `src/ai/`; the seraphon-r12 e2e test
-- **Ruling**: Owner ruling (2026-11-20): the Venomites token is not physical. It is a tag on the Sunblood Pack unit, not a model placed on the board. There is no side choice and no board placement.
-- **Done when**: the placed token, the side prompt from R12 and the board drawing are removed; `tableSide` is removed if nothing else uses it; the Sunblood Pack carries the tag; Venomite Swarm uses the tag (a roll of 1 removes it for good, then the ability is not offered); tests and the seraphon-r12 e2e are updated; the rules version is bumped. Update I104.
-
 ### M4k Manifestation movement abilities: Scything Blade, The Pendulum Swings, End Given Form, Pulled to the Grave
 
 - **Tier**: sonnet+review

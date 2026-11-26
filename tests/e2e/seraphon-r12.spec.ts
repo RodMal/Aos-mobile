@@ -1,7 +1,7 @@
 /**
  * R12 through the touch UI: Scry the Stars asks which units get the Ward after the dice are
  * rolled, Star-venom is offered after Covering Fire in the enemy turn, and the Venomites token is
- * placed when the Sunblood Pack is deployed.
+ * a tag (no placement prompt, no token on the board).
  */
 import { expect, test, type Page } from '@playwright/test';
 import { RULES_VERSION } from '../../src/ui/game/rulesVersion.js';
@@ -110,23 +110,22 @@ test('Scry the Stars rolls first, then asks which units get the Ward', async ({ 
   await expect(page.getByTestId('log-list')).toContainText('Ward (5+)');
 });
 
-test('the Venomites token is placed when the Sunblood Pack is deployed', async ({ page }, info) => {
+test('the Venomites token is a tag: no placement prompt and no token on the board', async ({
+  page,
+}, info) => {
   test.setTimeout(240_000);
   await startDeploy(page, 'seed=5&side=1&new=1&deploy=1&fast=1');
-  const prompt = page.getByTestId('venomites');
   const confirm = page.getByTestId('place-confirm');
-  for (let i = 0; i < 40 && !(await prompt.isVisible()); i++) {
+  for (let i = 0; i < 60; i++) {
+    await expect(page.getByTestId('venomites')).toHaveCount(0);
     if (await confirm.isVisible()) {
       if (await confirm.isDisabled()) await page.getByRole('button', { name: 'Auto' }).click();
       await confirm.click();
     }
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(300);
   }
-  await expect(prompt).toBeVisible();
+  await expect(page.getByTestId('venomites-token')).toHaveCount(0);
   await page.screenshot({ path: info.outputPath(`venomites-${info.project.name}.png`) });
-  await page.getByTestId('venomites-left').click();
-  await expect(prompt).toBeHidden();
-  await expect(page.getByTestId('venomites-token').first()).toBeAttached();
 });
 
 test('Star-venom is offered after Covering Fire in the enemy turn', async ({ page }, info) => {

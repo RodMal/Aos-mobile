@@ -11,7 +11,6 @@ import {
 } from '../rules/core/fury.js';
 import { VENGEANCE_MAX, vengeanceCandidates, vengeanceFoes } from '../rules/factions/kroak.js';
 import { asterismOptions } from '../rules/factions/seraphon.js';
-import { VENOMITE_SIDES } from './venomites.js';
 import { scryOptions, starVenomOptions } from './seraphonActive.js';
 import { batteringRamOptions, lifebloomOptions } from './sylvanethActive.js';
 import { powerUnleashedOptions } from './factionTerrainActive.js';
@@ -159,13 +158,6 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
           dice: top.dice,
           units: top.units,
           max: Math.min(top.successes, top.units.length),
-        };
-      case 'venomites':
-        return {
-          kind: 'venomites',
-          player: top.player,
-          unit: top.unit,
-          sides: [...VENOMITE_SIDES],
         };
       case 'asterism':
         return {
