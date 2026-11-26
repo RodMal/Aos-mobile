@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R16 Climbing terrain costs movement
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ui/board
-- **Read**: RULES-DECISIONS I53, I57 and the owner ruling (2026-11-20) on Core 15.2; `src/engine/movement.ts`; terrain heights in `src/data/battlefield.ts`
-- **Ruling**: Owner ruling (2026-11-20), Core 15.2: terrain 1" high or less is ignored. A model climbing taller terrain counts the vertical distance up and down toward its move, unless it has FLY.
-- **Done when**: a model crossing a spire without FLY has the vertical climb (up and down) counted toward its move, and with FLY it does not; tests for both; other tall terrain is handled the same way; ruins and outcrops (1" or less) cost nothing. Update I57 and the terrain notes in `docs/ABILITIES.md` if present.
-
 ### R17 Venomites token as a tag
 
 - **Tier**: sonnet

@@ -2,7 +2,7 @@
  * Terrain, Line of Sight (Obscuring), Cover, Unstable, Guarded Hero, Terrain Control,
  * and Place of Power (GHB 2026-27 Terrain 1.1-1.4 & Core Rules 25.0).
  */
-import { canStandOn, type TerrainFeature } from '../data/battlefield.js';
+import { canStandOn, climbHeight, type TerrainFeature } from '../data/battlefield.js';
 import {
   distancePointToSegment,
   footprintDistanceToPolygon,
@@ -114,6 +114,76 @@ export function blockedTerrainViolations(
     if (blocking.some((t) => footprintOverlapsPolygon(fp, t.polygon))) out.push(m.i);
   }
   return out.sort((a, b) => a - b);
+}
+
+/**
+ * Core 15.2: extra inches a model's straight move counts for climbing terrain taller than 1"
+ * (up and down, so twice the height per feature). Zero with `FLY`. A feature is crossed when
+ * the centre line comes within the base's outer radius of it. Cheap: skips when no feature on
+ * the table is that tall.
+ */
+export function climbCost(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  modelIndex: number,
+  to: { x: number; y: number },
+): number {
+  const tall = scenario.battlefield.terrain.filter((t) => climbHeight(t) > 0);
+  if (tall.length === 0) return 0;
+  const from = unit.models[modelIndex]!;
+  const a: ReadonlyPoint = [from.x, from.y];
+  const b: ReadonlyPoint = [to.x, to.y];
+  const r = footprintOuterRadius(modelFootprint(scenario, unit, modelIndex));
+  let cost = 0;
+  for (const t of tall) {
+    if (polygonSegmentDistance(t.polygon, a, b) > r) continue;
+    // Near enough to matter: it climbs only if its base really overlaps the feature on the way.
+    const dist = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const steps = Math.max(1, Math.ceil(dist / PATH_STEP));
+    for (let k = 0; k <= steps; k++) {
+      const f = k / steps;
+      const at = { x: a[0] + (b[0] - a[0]) * f, y: a[1] + (b[1] - a[1]) * f, rot: from.rot };
+      if (footprintOverlapsPolygon(modelFootprint(scenario, unit, modelIndex, at), t.polygon)) {
+        cost += 2 * climbHeight(t);
+        break;
+      }
+    }
+  }
+  // FLY is the costlier lookup, so it is asked only once a climb is on the path.
+  return cost > 0 && hasEffectiveKeyword(scenario, state, unit, 'FLY') ? 0 : cost;
+}
+
+/** What a model's straight move counts toward its allowance: flat distance plus climb. */
+export function moveCost(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  modelIndex: number,
+  to: { x: number; y: number },
+): { flat: number; climb: number; total: number } {
+  const from = unit.models[modelIndex]!;
+  const flat = Math.hypot(to.x - from.x, to.y - from.y);
+  const climb = climbCost(scenario, state, unit, modelIndex, to);
+  return { flat, climb, total: flat + climb };
+}
+
+function polygonSegmentDistance(poly: Polygon, a: ReadonlyPoint, b: ReadonlyPoint): number {
+  if (pointInPolygon(a, poly) || pointInPolygon(b, poly)) return 0;
+  let best = Infinity;
+  for (let i = 0; i < poly.length; i++) {
+    const c = poly[i]!;
+    const d = poly[(i + 1) % poly.length]!;
+    if (segmentsIntersect(a, b, c, d)) return 0;
+    best = Math.min(
+      best,
+      distancePointToSegment(a, c, d),
+      distancePointToSegment(b, c, d),
+      distancePointToSegment(c, a, b),
+      distancePointToSegment(d, a, b),
+    );
+  }
+  return best;
 }
 
 // ─── 3. Fly & Path-blocking ────────────────────────────────────────────────────

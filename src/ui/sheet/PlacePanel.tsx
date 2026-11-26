@@ -66,7 +66,9 @@ export function PlacePanel() {
   const unit = state.units[draft.unit]!;
   // A set-up has no move distance (the models stand where the unit was slain).
   const dist =
-    d.reason === 'replacement' || d.reason === 'relocate' ? 0 : maxDistance(unit, draft.placement);
+    d.reason === 'replacement' || d.reason === 'relocate'
+      ? 0
+      : maxDistance(scenario, state, unit, draft.placement);
   const first = draft.violations[0];
   // A summoned manifestation is measured from its caster, not from where it was suggested.
   const reach = setUpReach(scenario, state, draft.placement);

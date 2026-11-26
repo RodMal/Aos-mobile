@@ -35,7 +35,7 @@ export function GhostLayer({ rot }: { rot: Rot }) {
     decision.reason === 'replacement' ||
     decision.reason === 'relocate'
       ? 0
-      : maxDistance(unit, draft.placement);
+      : maxDistance(scenario, state, unit, draft.placement);
   const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
   const tooFar = dist > allowance + 1e-6;
   const active = draft.adjust ? draft.activeModel : null;

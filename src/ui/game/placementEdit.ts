@@ -7,6 +7,7 @@ import {
   defaultFrontage,
   facingTowards,
   formPlacement,
+  moveCost,
   isFactionTerrainUnit,
   shiftPlacement,
   unitCentre,
@@ -149,20 +150,29 @@ export function moveModel(d: PlacementDraft, i: number, dx: number, dy: number):
   };
 }
 
-/** How far each model moves from where it stands, by model index. */
-export function modelDistances(unit: UnitState, p: Placement): Map<number, number> {
+/** How far each model moves from where it stands, climbing included, by model index. */
+export function modelDistances(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  p: Placement,
+): Map<number, number> {
   const out = new Map<number, number>();
   for (const m of p.models) {
-    const from = unit.models[m.i]!;
-    out.set(m.i, Math.hypot(m.x - from.x, m.y - from.y));
+    out.set(m.i, moveCost(scenario, state, unit, m.i, m).total);
   }
   return out;
 }
 
 /** The furthest any model moves. */
-export function maxDistance(unit: UnitState, p: Placement): number {
+export function maxDistance(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  p: Placement,
+): number {
   let best = 0;
-  for (const d of modelDistances(unit, p).values()) best = Math.max(best, d);
+  for (const d of modelDistances(scenario, state, unit, p).values()) best = Math.max(best, d);
   return best;
 }
 
