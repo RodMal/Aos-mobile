@@ -1,5 +1,6 @@
 /** Shared prompt chrome: the modal frame, a die face and the collapsed peek bar. */
 import { type ReactNode } from 'react';
+import { useUi } from '../game/uiStore.js';
 
 export function Modal({
   title,
@@ -18,6 +19,16 @@ export function Modal({
         {children}
       </section>
     </div>
+  );
+}
+
+/** Shown on the end-of-turn prompts: what waits behind them. */
+export function EndOfTurnNote() {
+  return (
+    <p className="small end-turn-note" data-testid="end-turn-note">
+      The turn is ending. End-of-turn abilities (heals, Huntmaster&apos;s Strike) come after the
+      pending reactions, so deal with these first.
+    </p>
   );
 }
 
@@ -40,8 +51,15 @@ export function PeekBar({
 }) {
   return (
     <div className="peek-bar" data-testid="reaction-bar" role="region" aria-label={label}>
-      <span className="small">{label} waiting</span>
-      <button className="btn primary" data-testid="reaction-reopen" onClick={onReopen}>
+      <span className="peek-label">{label} waiting</span>
+      <button
+        className="btn primary"
+        data-testid="reaction-reopen"
+        onClick={() => {
+          useUi.getState().openDrawer(null);
+          onReopen();
+        }}
+      >
         Back to {label.toLowerCase()}
       </button>
     </div>

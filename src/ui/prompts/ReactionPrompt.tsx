@@ -23,7 +23,7 @@ import { COMMAND_NAMES, reactionText, triggerUnit } from '../game/eventText.js';
 import { logContext } from '../game/engine.js';
 import { useGameState, useHuman } from '../game/hooks.js';
 import { useUi } from '../game/uiStore.js';
-import { Modal, PeekBar } from './Modal.js';
+import { EndOfTurnNote, Modal, PeekBar } from './Modal.js';
 
 /** A reaction: the choices, plus a way to look at the board (and the units named) first. */
 export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' }> }) {
@@ -41,6 +41,10 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
     setFlagged([trigger, picked, hot].filter((x): x is string => !!x && !!state.units[x]));
     return () => setFlagged([]);
   }, [trigger, picked, hot, state, setFlagged]);
+  // A reaction is due: whatever drawer is open (the log, say) closes so it cannot hide it.
+  useEffect(() => {
+    useUi.getState().openDrawer(null);
+  }, []);
   const show = (id: string) => {
     setPicked(id);
     useUi.getState().moveCamera({ kind: 'unit', unit: id, zoom: false, onlyIfHidden: true });
@@ -51,6 +55,7 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
   return (
     <Modal title="Reaction" testId="reaction">
       <p data-testid="reaction-text">{reactionText(d.trigger, logContext(state.units))}</p>
+      {d.trigger === 'end:turn' && <EndOfTurnNote />}
       <div className="row-chips" role="group" aria-label="Units">
         {[...(trigger ? [trigger] : []), ...listed.filter((id) => id !== trigger)].map((id) => (
           <button
