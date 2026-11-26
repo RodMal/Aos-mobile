@@ -21,6 +21,7 @@ import {
   type UnitId,
 } from '../engine/index.js';
 import { footprintGap } from '../geom/index.js';
+import { mustMoveAlongBlade, passedAcross, SCYTHING_REACH, sweepKind } from '../engine/sweep.js';
 
 interface PlaceInfo {
   unit: UnitId;
@@ -75,6 +76,50 @@ export function moveTowards(
     }
   }
   return null;
+}
+
+/**
+ * A move for a manifestation with a movement ability (Scything Blade, End Given Form, Pulled
+ * to the Grave): the legal straight move that crosses the most enemy units (up to what the
+ * ability can hit), the longest among equals; null when none crosses any. The Pendulum only
+ * moves along its blade, so it only tries that axis.
+ */
+export function sweepPlacement(engine: Engine, state: GameState, unitId: UnitId): Placement | null {
+  const info = placeInfo(engine, state, unitId);
+  const unit = state.units[unitId];
+  if (!info || !unit) return null;
+  const kind = sweepKind(engine.scenario, unit);
+  if (!kind) return null;
+  const cap = kind === 'pulled' ? 1 : 3;
+  const c = unitCentre(unit);
+  const dirs: { x: number; y: number }[] = [];
+  if (mustMoveAlongBlade(engine.scenario, unit)) {
+    const t = ((unit.models[0]?.rot ?? 0) * Math.PI) / 180;
+    dirs.push({ x: Math.cos(t), y: Math.sin(t) }, { x: -Math.cos(t), y: -Math.sin(t) });
+  } else {
+    for (const e of unitsOf(state, opponent(unit.owner))) {
+      const ec = unitCentre(e);
+      const len = Math.hypot(ec.x - c.x, ec.y - c.y);
+      if (len > 0.1 && len <= info.allowance + 6) {
+        dirs.push({ x: (ec.x - c.x) / len, y: (ec.y - c.y) / len });
+      }
+    }
+  }
+  const base = currentPlacement(unit);
+  let best: { p: Placement; hits: number } | null = null;
+  for (const d of dirs) {
+    for (let step = info.allowance; step >= 1; step -= 0.5) {
+      const p = shiftPlacement(base, d.x * step, d.y * step);
+      const hits = Math.min(
+        cap,
+        passedAcross(engine.scenario, state, unit, p, kind === 'scything' ? SCYTHING_REACH : 0)
+          .length,
+      );
+      if (hits === 0 || (best && hits <= best.hits)) continue;
+      if (legal(engine, state, p)) best = { p, hits };
+    }
+  }
+  return best?.p ?? null;
 }
 
 /** Closest pairs (own model, enemy model) by edge-to-edge gap, nearest first. */

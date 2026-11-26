@@ -63,7 +63,8 @@ import {
   sylvanethReaction,
   type PlanHelpers,
 } from './sylvaneth.js';
-import { chargePlacement, moveTowards, pileInPlacement } from './placement.js';
+import { chargePlacement, moveTowards, pileInPlacement, sweepPlacement } from './placement.js';
+import { sweepKind } from '../engine/sweep.js';
 import {
   GROUNDSHAKER_ID,
   LIFEBLOOM_ID,
@@ -537,6 +538,9 @@ function placeAction(
       const away = { x: c.x + ((c.x - e.x) / len) * 20, y: c.y + ((c.y - e.y) / len) * 20 };
       placement = moveTowards(engine, state, d.unit, away);
     }
+  } else if (d.reason === 'normal' && sweepKind(engine.scenario, unit)) {
+    // Scything Blade, End Given Form, Pulled to the Grave: move across enemy units.
+    placement = sweepPlacement(engine, state, d.unit);
   } else {
     const goal = destination(engine, state, unit);
     if (goal) placement = moveTowards(engine, state, d.unit, goal, goal.distance);
@@ -784,6 +788,12 @@ function movementAction(engine: Engine, state: GameState, unit: UnitState): Acti
     return d?.kind === 'place' && placeAction(engine, declared, d) ? retreat : null;
   }
   if (!options.some((o) => o.t === 'move' && o.kind === 'normal')) return null;
+  if (sweepKind(engine.scenario, unit)) {
+    const declared = engine.apply(state, { t: 'move', unit: unit.id, kind: 'normal' }).state;
+    return sweepPlacement(engine, declared, unit.id)
+      ? { t: 'move', unit: unit.id, kind: 'normal' }
+      : null;
+  }
   const goal = destination(engine, state, unit);
   if (!goal) return null;
   const move = profileOf(engine.scenario, unit).move;
