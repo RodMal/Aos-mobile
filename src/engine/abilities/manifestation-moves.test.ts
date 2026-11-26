@@ -435,6 +435,49 @@ describe('Scything Blade in the enemy movement phase (M4o)', () => {
     expect(isOffer(done.state)).toBe(false);
   });
 
+  describe('together with Redeploy in one window', () => {
+    const both = (): GameState => {
+      const s = enemyTurn();
+      s.players[0].cp = 3;
+      return phaseOver(s);
+    };
+    const kinds = (s: GameState): string[] => {
+      const d = w.engine.decision(s);
+      return d?.kind === 'reaction' && d.trigger === 'phase:movement'
+        ? d.options.map((o) => `${o.command ?? o.ability}:${o.unit}`)
+        : [];
+    };
+    const redeploy: Action = { t: 'command', command: 'redeploy', unit: ALARIELLE };
+    const blade: Action = { t: 'ability', unit: PENDULUM, abilityId: SCYTHING };
+    const finishMove = (s: GameState): GameState => {
+      const d = w.engine.decision(s);
+      expect(d).toMatchObject({ kind: 'place' });
+      const from = s.units[(d as { unit: UnitId }).unit]!;
+      const placement = shiftPlacement(currentPlacement(from), 0.5, 0);
+      return w.engine.apply(s, { t: 'place', placement }).state;
+    };
+
+    it('(a) both are offered together', () => {
+      expect(kinds(both())).toEqual([`redeploy:${ALARIELLE}`, `scythingBlade:${PENDULUM}`]);
+    });
+
+    it('(b) after Redeploy, Scything Blade is still offered', () => {
+      const s = finishMove(w.engine.apply(both(), redeploy).state);
+      expect(kinds(s)).toEqual([`scythingBlade:${PENDULUM}`]);
+    });
+
+    it('(c) after Scything Blade, Redeploy is still offered', () => {
+      const s = finishMove(w.engine.apply(both(), blade).state);
+      expect(kinds(s)).toEqual([`redeploy:${ALARIELLE}`]);
+    });
+
+    it('(d) passing ends both', () => {
+      const s = phaseOver(both());
+      expect(kinds(s)).toEqual([]);
+      expect(w.engine.decision(s)).not.toMatchObject({ kind: 'reaction' });
+    });
+  });
+
   it('the NPC uses it when the move crosses an enemy unit, and not otherwise', () => {
     expect(chooseAction(w.engine, phaseOver(enemyTurn()))).toMatchObject({
       t: 'ability',

@@ -237,6 +237,8 @@ export function executeReactionCommand(
       break;
     case 'redeploy':
       redeploy(ctx, unitId);
+      // Once per phase: the window comes back without it (Scything Blade may be left).
+      ctx.s.reactionsOffered = [...(ctx.s.reactionsOffered ?? []), 'redeploy'];
       break;
     case 'coveringFire':
       coveringFire(ctx, unitId);
@@ -301,32 +303,21 @@ export function offerEndOfPhaseReaction(ctx: Ctx): boolean {
     }
   }
 
-  if (s.phase === 'movement' && !offered.includes('redeploy')) {
-    // Once, after the active player has finished all movement-phase activations.
-    const units = unitsOf(s, nonActive).filter((u) => canRedeploy(ctx.scenario, s, u));
-    if (units.length > 0) {
-      s.reactionsOffered = [...offered, 'redeploy'];
-      s.stack.push({ t: 'endPhase' });
-      s.stack.push({
-        t: 'reaction',
-        player: nonActive,
-        options: units.map((u) => ({
-          command: 'redeploy',
-          unit: u.id,
-          cost: COMMANDS.redeploy.cost,
-        })),
-        trigger: 'phase:movement',
-      });
-      return true;
+  if (s.phase === 'movement') {
+    // After the active player has finished all movement-phase activations: Redeploy (once per
+    // phase) and Scything Blade (M4o) in one window, offered again with what is left after
+    // one is used; passing ends both.
+    const options: ReactionOption[] = [];
+    if (!offered.includes('redeploy')) {
+      for (const u of unitsOf(s, nonActive)) {
+        if (canRedeploy(ctx.scenario, s, u)) {
+          options.push({ command: 'redeploy', unit: u.id, cost: COMMANDS.redeploy.cost });
+        }
+      }
     }
-  }
-
-  if (s.phase === 'movement' && !offered.includes('scythingBlade')) {
-    // Any Movement Phase: once, after Redeploy has been offered (M4o).
-    const options = endOfMovementAbilities(ctx.scenario, s, nonActive);
+    options.push(...endOfMovementAbilities(ctx.scenario, s, nonActive));
     if (options.length > 0) {
-      s.reactionsOffered = [...offered, 'scythingBlade'];
-      s.stack.push({ t: 'endPhase' });
+      if (s.stack[s.stack.length - 1]?.t !== 'endPhase') s.stack.push({ t: 'endPhase' });
       s.stack.push({ t: 'reaction', player: nonActive, options, trigger: 'phase:movement' });
       return true;
     }
