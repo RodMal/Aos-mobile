@@ -64,7 +64,7 @@ import {
   type PlanHelpers,
 } from './sylvaneth.js';
 import { chargePlacement, moveTowards, pileInPlacement, sweepPlacement } from './placement.js';
-import { SCYTHING_BLADE_ID, sweepKind } from '../engine/sweep.js';
+import { autoSweepPicks, SCYTHING_BLADE_ID, sweepKind } from '../engine/sweep.js';
 import {
   GROUNDSHAKER_ID,
   LIFEBLOOM_ID,
@@ -217,6 +217,9 @@ export function chooseAction(engine: Engine, state: GameState): Action {
         t: 'choose',
         value: npcScryPicks(engine.scenario, state, d.player, d.units, d.max).join(','),
       };
+    case 'sweep':
+      // The NPC keeps the automatic pick: the units with the most models (I115).
+      return { t: 'choose', value: autoSweepPicks(state, d.units, d.max).join(',') };
     case 'creepingDread': {
       const ids = npcCreepingDreadTargets(engine.scenario, state, d.units, d.max);
       return ids.length > 0 ? { t: 'choose', value: ids.join(',') } : { t: 'pass' };

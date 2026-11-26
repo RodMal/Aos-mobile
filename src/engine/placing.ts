@@ -5,7 +5,13 @@ import { d6, d6s, illegal, rollD3, type Ctx } from './ctx.js';
 import { allocateDamage, doomedByQueuedDamage, inflictMortalDamage } from './damage.js';
 import { placementDistance } from './movement.js';
 import { aliveIndices, isFactionTerrainUnit, opponent, profileOf } from './query.js';
-import { passedAcross, SCYTHING_REACH, sweepKind } from './sweep.js';
+import {
+  autoSweepPicks,
+  passedAcross,
+  SCYTHING_REACH,
+  sweepKind,
+  type SweepKind,
+} from './sweep.js';
 import { dwindling } from '../rules/factions/seasons.js';
 import {
   type Allocation,
@@ -127,7 +133,7 @@ export function place(ctx: Ctx, placement: Placement): void {
   if (frame.reason === 'deploy' && s.stack.length === 0) {
     startRound(ctx);
   }
-  if (sweep) resolveSweep(ctx, unit, sweep, swept);
+  if (sweep) startSweep(ctx, unit, sweep, swept);
   if (frame.reason === 'retreat' && dwindling(ctx.scenario, s, unit)) {
     ctx.events.push({ t: 'note', text: `The Dwindling: ${unit.name} retreats unharmed.` });
   } else if (frame.reason === 'retreat') {
@@ -165,18 +171,78 @@ export function place(ctx: Ctx, placement: Placement): void {
 
 /**
  * Scything Blade, End Given Form and Pulled to the Grave, after the move: mortal damage to the
- * enemy units it passed across. The targets are picked for the player (the units with the
- * most models first, up to the ability's limit): mortal damage only helps its owner.
+ * enemy units it passed across, up to the ability's limit (3, or 1 for Pulled to the Grave).
+ * When more were passed across than it may pick, the owner picks (`chooseSweep`, I115); with
+ * no choice to make, every one is hit. The NPC and `defaultAction` take the units with the most
+ * models.
  */
+function startSweep(
+  ctx: Ctx,
+  unit: UnitState,
+  kind: SweepKind,
+  passed: readonly UnitState[],
+): void {
+  const max = kind === 'pulled' ? 1 : 3;
+  if (passed.length > max) {
+    ctx.s.stack.push({
+      t: 'sweep',
+      player: unit.owner,
+      unit: unit.id,
+      kind,
+      units: passed.map((u) => u.id),
+      max,
+    });
+  } else {
+    const ids = autoSweepPicks(
+      ctx.s,
+      passed.map((u) => u.id),
+      max,
+    );
+    resolveSweep(
+      ctx,
+      unit,
+      kind,
+      ids.map((id) => ctx.s.units[id]!),
+    );
+  }
+}
+
+/** Answers the sweep pick: `value` is 1 to `max` unit ids joined by commas. */
+export function chooseSweep(ctx: Ctx, value: string): void {
+  const { s } = ctx;
+  const frame = s.stack[s.stack.length - 1];
+  if (frame?.t !== 'sweep') illegal('There is no manifestation move to pick targets for.');
+  const picks = [
+    ...new Set(
+      value
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (picks.length < 1 || picks.length > frame.max) {
+    illegal(`Pick ${frame.max === 1 ? 'one unit' : `1 to ${frame.max} units`}.`);
+  }
+  if (picks.some((id) => !frame.units.includes(id))) {
+    illegal('Pick a unit the manifestation passed across.');
+  }
+  s.stack.pop();
+  // Resolved most models first, whatever the order they were picked in.
+  const ordered = autoSweepPicks(s, picks, picks.length);
+  resolveSweep(
+    ctx,
+    s.units[frame.unit]!,
+    frame.kind,
+    ordered.map((id) => s.units[id]!),
+  );
+}
+
 function resolveSweep(
   ctx: Ctx,
   unit: UnitState,
-  kind: NonNullable<ReturnType<typeof sweepKind>>,
-  passed: readonly UnitState[],
+  kind: SweepKind,
+  targets: readonly UnitState[],
 ): void {
-  const targets = [...passed]
-    .sort((a, b) => aliveIndices(b).length - aliveIndices(a).length || (a.id < b.id ? -1 : 1))
-    .slice(0, kind === 'pulled' ? 1 : 3);
   const source =
     kind === 'scything'
       ? 'Scything Blade'

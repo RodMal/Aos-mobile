@@ -13,7 +13,7 @@ import {
   profileOf,
   unitFootprints,
 } from './query.js';
-import type { GameState, Placement, Scenario, UnitState, Violation } from './types.js';
+import type { GameState, Placement, Scenario, UnitId, UnitState, Violation } from './types.js';
 
 export const SCYTHING_BLADE_ID = '54d0-e6a1-c6e8-46a7';
 export const PENDULUM_SWINGS_ID = '9ec5-1011-c05e-5045';
@@ -44,6 +44,17 @@ export function mustMoveAlongBlade(scenario: Scenario, unit: UnitState): boolean
     !!unit.isManifestation &&
     profileOf(scenario, unit).abilities.some((a) => a.id === PENDULUM_SWINGS_ID)
   );
+}
+
+/** The automatic pick: up to `max` of the units, most models first (ties by id). */
+export function autoSweepPicks(state: GameState, units: readonly UnitId[], max: number): UnitId[] {
+  return [...units]
+    .sort(
+      (a, b) =>
+        aliveIndices(state.units[b]!).length - aliveIndices(state.units[a]!).length ||
+        (a < b ? -1 : 1),
+    )
+    .slice(0, max);
 }
 
 /** Scything Blade may end the move in combat; the other three may not. */

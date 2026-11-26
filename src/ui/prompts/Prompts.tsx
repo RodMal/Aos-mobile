@@ -12,6 +12,7 @@ import { RerollPrompt } from './RerollPrompt.js';
 import { ReactionPrompt } from './ReactionPrompt.js';
 import { EndlessGrowthPrompt } from './EndlessGrowthPrompt.js';
 import { ScryPrompt } from './ScryPrompt.js';
+import { SweepPrompt } from './SweepPrompt.js';
 import { SeasonPrompt } from './SeasonPrompt.js';
 
 export { ConfirmDialog } from './ConfirmDialog.js';
@@ -57,6 +58,7 @@ export function DecisionPrompts() {
   if (d.kind === 'endlessGrowth') {
     return <EndlessGrowthPrompt key={`${d.unit}:${d.stage}`} d={d} />;
   }
+  if (d.kind === 'sweep') return <SweepPrompt key={d.unit} d={d} />;
   if (d.kind === 'creepingDread') {
     return <CreepingDreadPrompt key={state.round * 10 + state.turnIndex} d={d} />;
   }

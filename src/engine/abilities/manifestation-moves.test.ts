@@ -215,8 +215,43 @@ describe('Aethervoid Pendulum (M4k)', () => {
     const to = shifted(s, PENDULUM, 24, 0);
     expect(passedAcross(big.scenario, s, s.units[PENDULUM]!, to)).toHaveLength(4);
     expect(check(big, s, PENDULUM, to)).toEqual([]);
+    // More units than it may hit: the player picks (M4p, I115).
     const r = move(big, s, PENDULUM, to, 5);
+    expect(rolls(r.events, 'Scything Blade')).toHaveLength(0);
+    const d = big.engine.decision(r.state);
+    expect(d).toMatchObject({ kind: 'sweep', sweep: 'scything', player: 0, max: 3 });
+    expect(d && d.kind === 'sweep' ? [...d.units].sort() : []).toEqual([...four].sort());
+    // Not four, none outside the list, and at least one.
+    for (const bad of [four.join(','), ALARIELLE, '']) {
+      expect(() => big.engine.apply(r.state, { t: 'choose', value: bad })).toThrow();
+    }
+    // The player picks the last two, which the automatic pick would not take first.
+    const picked = big.engine.apply(r.state, { t: 'choose', value: `${four[3]},${four[1]}` });
+    expect(rolls(picked.events, 'Scything Blade')).toHaveLength(2);
+    expect(big.engine.decision(picked.state)?.kind).not.toBe('sweep');
+    const hit = new Set(
+      [four[0], four[1], four[2], four[3]].filter(
+        (u) =>
+          picked.state.units[u!]!.damage > r.state.units[u!]!.damage ||
+          picked.state.units[u!]!.models.some(
+            (m, i) => !m.alive && r.state.units[u!]!.models[i]!.alive,
+          ),
+      ),
+    );
+    expect([...hit].every((u) => u === four[1] || u === four[3])).toBe(true);
+    // The default (engine-driven) answer is the automatic pick: three units.
+    const auto = big.engine.apply(r.state, big.engine.defaultAction(r.state));
+    expect(rolls(auto.events, 'Scything Blade')).toHaveLength(3);
+  });
+
+  it('Scything Blade: up to 3 units passed across are all hit, with no question', () => {
+    const big = world(40);
+    const three = [SAURUS_GUARD, KROXIGOR, STARSEER];
+    const s = inPlay(big, three, ALARIELLE, SUMMON_PENDULUM, PENDULUM, { x: 4, y: 22 });
+    three.forEach((u, k) => lone(big, s, u, 9 + k * 5, 22));
+    const r = move(big, s, PENDULUM, shifted(s, PENDULUM, 24, 0), 5);
     expect(rolls(r.events, 'Scything Blade')).toHaveLength(3);
+    expect(big.engine.decision(r.state)?.kind).not.toBe('sweep');
   });
 
   it('Scything Blade: also targets an enemy unit within 1/2" of the end of the move', () => {
@@ -291,7 +326,14 @@ describe('Purple Sun of Shyish (M4k)', () => {
     const to = shifted(s, SUN, 34, 0);
     expect(passedAcross(big.scenario, s, s.units[SUN]!, to)).toHaveLength(4);
     expect(check(big, s, SUN, to)).toEqual([]);
-    expect(rolls(move(big, s, SUN, to, 5).events, 'End Given Form')).toHaveLength(3);
+    const r = move(big, s, SUN, to, 5);
+    expect(big.engine.decision(r.state)).toMatchObject({
+      kind: 'sweep',
+      sweep: 'endGivenForm',
+      max: 3,
+    });
+    const done = big.engine.apply(r.state, big.engine.defaultAction(r.state));
+    expect(rolls(done.events, 'End Given Form')).toHaveLength(3);
   });
 
   it('End Given Form: cannot end the move in combat, but can pass through models', () => {
@@ -352,7 +394,22 @@ describe('Suffocating Gravetide (M4k)', () => {
     const to = shifted(s, GRAVETIDE, 34, 0);
     expect(check(big, s, GRAVETIDE, to)).toEqual([]);
     expect(passedAcross(big.scenario, s, s.units[GRAVETIDE]!, to)).toHaveLength(2);
-    expect(rolls(move(big, s, GRAVETIDE, to, 3).events, 'Pulled to the Grave')).toHaveLength(1);
+    const r = move(big, s, GRAVETIDE, to, 3);
+    expect(rolls(r.events, 'Pulled to the Grave')).toHaveLength(0);
+    expect(big.engine.decision(r.state)).toMatchObject({
+      kind: 'sweep',
+      sweep: 'pulled',
+      max: 1,
+      units: expect.arrayContaining([DRYADS, DRYADS_2]),
+    });
+    // The player picks the second unit; two are refused.
+    expect(() =>
+      big.engine.apply(r.state, { t: 'choose', value: `${DRYADS},${DRYADS_2}` }),
+    ).toThrow();
+    const picked = big.engine.apply(r.state, { t: 'choose', value: DRYADS_2 });
+    const dice = rolls(picked.events, 'Pulled to the Grave');
+    expect(dice).toHaveLength(1);
+    expect(dice[0]).toHaveLength(s.units[DRYADS_2]!.models.filter((m) => m.alive).length);
   });
 
   it('Pulled to the Grave: cannot end the move in combat', () => {

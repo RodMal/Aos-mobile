@@ -335,6 +335,19 @@ export type Frame =
     }
   /** Start of any turn: the Sylvaneth player may use Creeping Dread on up to `max` targets. */
   | { t: 'creepingDread'; player: PlayerId; units: UnitId[]; max: number }
+  /**
+   * A manifestation's movement ability (Scything Blade, End Given Form, Pulled to the Grave)
+   * has more units passed across than it may pick (`units`, more than `max`): `player` picks
+   * up to `max` of them (I115). `unit` is the manifestation.
+   */
+  | {
+      t: 'sweep';
+      player: PlayerId;
+      unit: UnitId;
+      kind: 'scything' | 'endGivenForm' | 'pulled';
+      units: UnitId[];
+      max: number;
+    }
   /** Seraphon: The Great Plan (round 1) or Further the Great Plan (later rounds). */
   | { t: 'asterism'; player: PlayerId; stage: 'great' | 'further' }
   /** Scry the Stars: `successes` dice were 3+; the player picks the units that get Ward (5+) (R12). */
@@ -624,6 +637,19 @@ export type Decision =
    * separated by commas, or `pass`.
    */
   | { kind: 'creepingDread'; player: PlayerId; units: UnitId[]; max: number }
+  /**
+   * After a manifestation's movement ability (`sweep`: Scything Blade, End Given Form or Pulled
+   * to the Grave) passed across more than `max` enemy units: answer `choose` with 1 to `max` of
+   * `units` joined by commas.
+   */
+  | {
+      kind: 'sweep';
+      player: PlayerId;
+      unit: UnitId;
+      sweep: 'scything' | 'endGivenForm' | 'pulled';
+      units: UnitId[];
+      max: number;
+    }
   /**
    * Scry the Stars, after its dice are rolled: answer `choose` with 1 to `max` of `units` joined
    * by commas; each gets Ward (5+) until the start of the player's next turn.
