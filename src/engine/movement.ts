@@ -27,6 +27,7 @@ import {
   unitsOf,
 } from './query.js';
 import { modelsOutsideOvergrowth } from './overgrowth.js';
+import { bladeViolations, mayEndMoveInCombat, mustMoveAlongBlade } from './sweep.js';
 import { blockedTerrainViolations, moveCost, pathBlockedModels } from './terrain.js';
 import type {
   GameState,
@@ -269,11 +270,18 @@ export function checkMovePlacement(
     }
   }
 
+  // The Pendulum Swings: a straight line along the blade.
+  if (rules.reason === 'normal' && mustMoveAlongBlade(scenario, unit)) {
+    violations.push(...bladeViolations(unit, placement));
+  }
+
   if (
-    rules.reason === 'normal' ||
-    rules.reason === 'run' ||
-    rules.reason === 'retreat' ||
-    rules.reason === 'powerThrough'
+    (rules.reason === 'normal' ||
+      rules.reason === 'run' ||
+      rules.reason === 'retreat' ||
+      rules.reason === 'powerThrough') &&
+    // Scything Blade: the move can end in combat.
+    !(rules.reason === 'normal' && mayEndMoveInCombat(scenario, unit))
   ) {
     const enemies = nearbyEnemyFootprints(
       scenario,

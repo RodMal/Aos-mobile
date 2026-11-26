@@ -20,6 +20,7 @@ import {
   unitsOf,
 } from './query.js';
 import { inCreepingOvergrowth } from './overgrowth.js';
+import { sweepKind } from './sweep.js';
 import { moveOf } from '../rules/factions/seraphon.js';
 import { creepingDreadSurcharge, dwindling } from '../rules/factions/seasons.js';
 import {
@@ -82,6 +83,11 @@ export function moveOptions(scenario: Scenario, state: GameState, unit: UnitStat
   if (profile.move <= 0 && !profile.moveDice) return [];
   const grants = unitGrants(scenario, state, unit);
   if (inCombat(scenario, state, unit)) {
+    // The movement abilities of manifestations can be used from combat: they say nothing against
+    // it, and their move could not otherwise pass across the unit it is in combat with (S13).
+    if (sweepKind(scenario, unit)) {
+      return [{ t: 'move', kind: 'normal', allowance: moveOf(scenario, state, unit) }];
+    }
     if (unit.isManifestation || grants.cannotRetreat) return [];
     return [{ t: 'move', kind: 'retreat', allowance: moveOf(scenario, state, unit) }];
   }

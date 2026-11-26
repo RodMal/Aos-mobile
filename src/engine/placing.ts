@@ -1,10 +1,11 @@
 import { addEffect, fireTriggers } from './abilities/effects.js';
 import { SHADOWCREEP_ID } from './abilities/sylvaneth.js';
 import { resolveAttacks } from './combat.js';
-import { illegal, type Ctx } from './ctx.js';
+import { d6, d6s, illegal, rollD3, type Ctx } from './ctx.js';
 import { allocateDamage, doomedByQueuedDamage, inflictMortalDamage } from './damage.js';
 import { placementDistance } from './movement.js';
-import { isFactionTerrainUnit, opponent, profileOf } from './query.js';
+import { aliveIndices, isFactionTerrainUnit, opponent, profileOf } from './query.js';
+import { passedAcross, SCYTHING_REACH, sweepKind } from './sweep.js';
 import { dwindling } from '../rules/factions/seasons.js';
 import {
   type Allocation,
@@ -36,6 +37,11 @@ export function place(ctx: Ctx, placement: Placement): void {
     frame.reason === 'relocate'
       ? 0
       : placementDistance(unit, placement);
+  // A manifestation's movement ability: the units it passes across, found before it moves.
+  const sweep = frame.reason === 'normal' ? sweepKind(ctx.scenario, unit) : null;
+  const swept = sweep
+    ? passedAcross(ctx.scenario, s, unit, placement, sweep === 'scything' ? SCYTHING_REACH : 0)
+    : [];
   for (const m of placement.models) {
     const model = unit.models[m.i]!;
     model.x = m.x;
@@ -121,6 +127,7 @@ export function place(ctx: Ctx, placement: Placement): void {
   if (frame.reason === 'deploy' && s.stack.length === 0) {
     startRound(ctx);
   }
+  if (sweep) resolveSweep(ctx, unit, sweep, swept);
   if (frame.reason === 'retreat' && dwindling(ctx.scenario, s, unit)) {
     ctx.events.push({ t: 'note', text: `The Dwindling: ${unit.name} retreats unharmed.` });
   } else if (frame.reason === 'retreat') {
@@ -153,6 +160,41 @@ export function place(ctx: Ctx, placement: Placement): void {
           ? frame.reason
           : undefined,
     });
+  }
+}
+
+/**
+ * Scything Blade, End Given Form and Pulled to the Grave, after the move: mortal damage to the
+ * enemy units it passed across. The targets are picked for the player (the units with the
+ * most models first, up to the ability's limit): mortal damage only helps its owner.
+ */
+function resolveSweep(
+  ctx: Ctx,
+  unit: UnitState,
+  kind: NonNullable<ReturnType<typeof sweepKind>>,
+  passed: readonly UnitState[],
+): void {
+  const targets = [...passed]
+    .sort((a, b) => aliveIndices(b).length - aliveIndices(a).length || (a.id < b.id ? -1 : 1))
+    .slice(0, kind === 'pulled' ? 1 : 3);
+  const source =
+    kind === 'scything'
+      ? 'Scything Blade'
+      : kind === 'endGivenForm'
+        ? 'End Given Form'
+        : 'Pulled to the Grave';
+  for (const target of targets) {
+    if (target.status !== 'battlefield') continue;
+    if (kind === 'pulled') {
+      const dice = d6s(ctx, aliveIndices(target).length);
+      ctx.events.push({ t: 'roll', player: unit.owner, label: source, dice });
+      const hits = dice.filter((d) => d >= 5).length;
+      if (hits > 0) inflictMortalDamage(ctx, target, hits, source);
+    } else {
+      const roll = kind === 'scything' ? d6(ctx) : rollD3(ctx, unit.owner);
+      ctx.events.push({ t: 'roll', player: unit.owner, label: source, dice: [roll] });
+      if (roll >= 2) inflictMortalDamage(ctx, target, roll, source);
+    }
   }
 }
 

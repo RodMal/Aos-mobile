@@ -131,21 +131,21 @@ The four Asterism abilities (Itzl, Quetzl, Sotek, Tepok) can be used only once p
 
 ## Summoned manifestations
 
-Summoning is tested (above). The warscroll abilities of the manifestations are not implemented (S13: "warscroll passive/activated abilities on manifestations come in M4"). Their statlines and weapons are used; I24 covers movement, no objective control and no commands.
+Summoning is tested (above). The movement abilities of the Pendulum, the Purple Sun and the Gravetide are implemented (I115, `manifestation-moves.test.ts`); the other manifestation abilities are not (S13, M4l). Their statlines and weapons are used; I24 covers movement, no objective control and no commands.
 
-| Ability                       | Manifestation         | BSData id           | Status  | Gap                                                                                        | Task |
-| ----------------------------- | --------------------- | ------------------- | ------- | ------------------------------------------------------------------------------------------ | ---- |
-| Scything Blade                | Aethervoid Pendulum   | 54d0-e6a1-c6e8-46a7 | Missing | Move through units, D6 mortal damage on 2+ to up to 3 enemy units passed across            | M4k  |
-| The Pendulum Swings           | Aethervoid Pendulum   | 9ec5-1011-c05e-5045 | Partly  | Cannot charge or fight (I24, `magic.test.ts`); the straight-line move is not enforced      | M4k  |
-| Mechanisms of Time            | Chronomantic Cogs     | ad92-932-6f56-1d97  | Missing | Re-roll charges, or -1 to hit against Wizards, within 12"                                  | M4l  |
-| Dancing Blades                | Quicksilver Swords    | 7b11-c623-fc14-4639 | Missing | No ward rolls against its damage                                                           | M4l  |
-| End Given Form                | Purple Sun of Shyish  | 42b5-c322-7e12-371c | Missing | Move through units, D3 mortal damage on 2+ to up to 3 passed across                        | M4k  |
-| Pull of the Nadir             | Purple Sun of Shyish  | c99-9240-9da1-d029  | Missing | -1 to save rolls for every unit within 3"                                                  | M4l  |
-| Morbid Detonation             | Malevolent Maelstrom  | b8a4-541-b62-cf62   | Missing | Dice per target, mortal damage on 2+, then destroyed                                       | M4l  |
-| Necrotic Vortex               | Malevolent Maelstrom  | c711-ce6-1fb6-7abc  | Missing | Maelstrom points from set-up, casts and slain models, up to 6                              | M4l  |
-| Bound for the Great Oubliette | Soulsnare Shackles    | 6817-e507-443e-1ff4 | Missing | D3 mortal damage on 2+ and -Move                                                           | M4l  |
-| Multiple Parts                | Soulsnare Shackles    | 9e13-160b-4a87-da4e | Partly  | One footprint instead of three parts (S13); destroyed on its Health in damage, which works | M4l  |
-| Pulled to the Grave           | Suffocating Gravetide | 1fa3-5209-8869-8d58 | Missing | Move through units, 5+ per model in the target for mortal damage                           | M4k  |
+| Ability                       | Manifestation         | BSData id           | Status      | Gap                                                                                                       | Task |
+| ----------------------------- | --------------------- | ------------------- | ----------- | --------------------------------------------------------------------------------------------------------- | ---- |
+| Scything Blade                | Aethervoid Pendulum   | 54d0-e6a1-c6e8-46a7 | Implemented | `manifestation-moves.test.ts`; I115. Targets are picked for the player                                    |      |
+| The Pendulum Swings           | Aethervoid Pendulum   | 9ec5-1011-c05e-5045 | Implemented | `manifestation-moves.test.ts` (straight line along the blade), `magic.test.ts` (no charge or fight); I115 |      |
+| Mechanisms of Time            | Chronomantic Cogs     | ad92-932-6f56-1d97  | Missing     | Re-roll charges, or -1 to hit against Wizards, within 12"                                                 | M4l  |
+| Dancing Blades                | Quicksilver Swords    | 7b11-c623-fc14-4639 | Missing     | No ward rolls against its damage                                                                          | M4l  |
+| End Given Form                | Purple Sun of Shyish  | 42b5-c322-7e12-371c | Implemented | `manifestation-moves.test.ts`; I115. Targets are picked for the player                                    |      |
+| Pull of the Nadir             | Purple Sun of Shyish  | c99-9240-9da1-d029  | Missing     | -1 to save rolls for every unit within 3"                                                                 | M4l  |
+| Morbid Detonation             | Malevolent Maelstrom  | b8a4-541-b62-cf62   | Missing     | Dice per target, mortal damage on 2+, then destroyed                                                      | M4l  |
+| Necrotic Vortex               | Malevolent Maelstrom  | c711-ce6-1fb6-7abc  | Missing     | Maelstrom points from set-up, casts and slain models, up to 6                                             | M4l  |
+| Bound for the Great Oubliette | Soulsnare Shackles    | 6817-e507-443e-1ff4 | Missing     | D3 mortal damage on 2+ and -Move                                                                          | M4l  |
+| Multiple Parts                | Soulsnare Shackles    | 9e13-160b-4a87-da4e | Partly      | One footprint instead of three parts (S13); destroyed on its Health in damage, which works                | M4l  |
+| Pulled to the Grave           | Suffocating Gravetide | 1fa3-5209-8869-8d58 | Implemented | `manifestation-moves.test.ts`; I115. The target is picked for the player                                  |      |
 
 ## Battle tactic cards
 

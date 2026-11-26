@@ -14,12 +14,20 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4k Manifestation movement abilities: Scything Blade, The Pendulum Swings, End Given Form, Pulled to the Grave
+### M4o Scything Blade in the enemy's movement phase
 
 - **Tier**: sonnet+review
-- **Touches**: engine, ai, ui/board
-- **Read**: `docs/ABILITIES.md`; printed text in the manifestation warscrolls of `data/lores.json` and `data/factions/*.json` (warscroll ids `fcb6-ae80-2e58-aadb` Aethervoid Pendulum: Scything Blade `54d0-e6a1-c6e8-46a7`, The Pendulum Swings `9ec5-1011-c05e-5045`; `e7a5-e611-4c13-22d0` Purple Sun of Shyish: End Given Form `42b5-c322-7e12-371c`; `1885-a1aa-bf5d-6d0d` Suffocating Gravetide: Pulled to the Grave `1fa3-5209-8869-8d58`); `src/engine/abilities/magic.ts` (summons, `manifestationUnitId`), `src/engine/movement.ts`, `src/engine/eligibility.ts`, `src/engine/damage.ts` (`applyMortalDamage`), RULES-DECISIONS S13, I24, I60
-- **Done when**: one test per ability: moving through models, the units passed across found along the path, then Scything Blade (up to 3 enemy units passed across or within 1/2", D6 on 2+), End Given Form (up to 3 units passed across, D3 on 2+, cannot end in combat), Pulled to the Grave (a die per model in one passed-across unit, 5+ is 1 mortal damage, cannot end in combat), The Pendulum Swings (the move is a straight line along or against the blade; cannot charge or fight). The manifestation's own turn flow in the movement phase is offered on screen and to the NPC. Update S13 and `docs/ABILITIES.md`.
+- **Touches**: engine, ai, ui/prompts
+- **Read**: `docs/ABILITIES.md`; Scything Blade `54d0-e6a1-c6e8-46a7` (timing "Any Movement Phase") in `data/factions/universal.json`; `src/engine/sweep.ts`, `src/engine/placing.ts` (`resolveSweep`), `src/engine/eligibility.ts` (`moveOptions`), `src/engine/reactions.ts` (how Redeploy is offered to the non-active player), RULES-DECISIONS I64, I115
+- **Done when**: the Aethervoid Pendulum's owner may also use Scything Blade in the opponent's movement phase (once per phase, offered like Redeploy, on screen and to the NPC), with the same straight-line move and damage as on their own turn. Unit tests for the offer, the move and the damage, and an e2e check on phone and desktop. Bump the rules version. Update I115 and `docs/ABILITIES.md`.
+
+### M4p Pick the targets of the manifestation movement abilities
+
+- **Tier**: sonnet+review
+- **Touches**: engine, ai, ui/prompts
+- **Ruling**: I112 and I113 ("can" means the controlling player chooses)
+- **Read**: `src/engine/placing.ts` (`resolveSweep`, which now picks the targets), `src/engine/sweep.ts` (`passedAcross`), `src/engine/decisions.ts` and `src/ui/prompts` (how a pick decision is asked and answered, e.g. Endless Growth), RULES-DECISIONS I112, I115
+- **Done when**: after a Scything Blade, End Given Form or Pulled to the Grave move, the player picks the targets (up to 3 of the units passed across, or one for Pulled to the Grave) in a prompt; the NPC keeps the automatic pick. Unit tests for the prompt and the pick, and an e2e check on phone and desktop. Bump the rules version. Update I115 and the S7 row.
 
 ### M4l Other manifestation abilities
 
