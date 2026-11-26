@@ -23,14 +23,14 @@ describe('placement drafts', () => {
   it('starts where the unit stands, facing the enemy (towards +x for player 0)', () => {
     const d = startDraft(state, dryads);
     expect(d.placement.models).toHaveLength(10);
-    expect(maxDistance(dryads, d.placement)).toBe(0);
+    expect(maxDistance(scenario, state, dryads, d.placement)).toBe(0);
     expect(d.facing).toBeGreaterThan(45);
     expect(d.facing).toBeLessThan(135);
   });
 
   it('translates every model by the same amount', () => {
     const d = translateDraft(startDraft(state, dryads), 3, -1);
-    expect(maxDistance(dryads, d.placement)).toBeCloseTo(Math.hypot(3, 1));
+    expect(maxDistance(scenario, state, dryads, d.placement)).toBeCloseTo(Math.hypot(3, 1));
     const c = placementCentre(moveDraftTo(d, { x: 20, y: 20 }).placement);
     expect(c.x).toBeCloseTo(20);
     expect(c.y).toBeCloseTo(20);

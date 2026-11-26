@@ -149,4 +149,24 @@ describe('climbing terrain (Core 15.2)', () => {
       expect(v.find((x) => x.code === 'TOO_FAR')!.message).toContain('including 8" climbing');
     });
   });
+
+  it('the base counts, not the centre: an oval clipping the spire climbs it', () => {
+    // The spire spans x 50.5..55.5; the centre line at x 57 misses it, the Bastiladon's base does not.
+    const make = (x: number) => {
+      const s = editable(startGame(engine, 1));
+      const enemy = s.unitOrder.find((u) => s.units[u]!.owner === 0)!;
+      keepOnly(s, ['1:7', enemy]);
+      placeUnit(scenario, s, enemy, 10, 40, 0);
+      placeUnit(scenario, s, '1:7', x, 25, 0);
+      const p = formPlacement(scenario, s.units['1:7']!, { x, y: 10 }, 0);
+      return { s, p };
+    };
+    const climb = 2 * climbHeight(spire);
+    const clip = make(57);
+    expect(codes(clip, '1:7', 15 + climb - 0.1)).toContain('TOO_FAR');
+    expect(codes(clip, '1:7', 15 + climb + 0.01)).not.toContain('TOO_FAR');
+    // Far enough east that the base clears the spire: no climb.
+    const clear = make(59.5);
+    expect(codes(clear, '1:7', 15.01)).not.toContain('TOO_FAR');
+  });
 });

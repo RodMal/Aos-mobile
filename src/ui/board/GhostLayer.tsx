@@ -1,9 +1,9 @@
 /** The placement being edited: allowance rings, a measuring line and ghost bases. */
-import { modelFootprint, moveCost, unitCentre, unitFootprints } from '../../engine/index.js';
+import { modelFootprint, unitCentre, unitFootprints } from '../../engine/index.js';
 import { scenario } from '../game/engine.js';
 import { useDecision, useGameState } from '../game/hooks.js';
 import { inches } from '../game/eventText.js';
-import { placementCentre, setUpLimits, setUpReach } from '../game/placementEdit.js';
+import { maxDistance, placementCentre, setUpLimits, setUpReach } from '../game/placementEdit.js';
 import { useUi } from '../game/uiStore.js';
 import { Shape } from './Shape.js';
 import type { Rot } from './view.js';
@@ -35,10 +35,7 @@ export function GhostLayer({ rot }: { rot: Rot }) {
     decision.reason === 'replacement' ||
     decision.reason === 'relocate'
       ? 0
-      : Math.max(
-          0,
-          ...draft.placement.models.map((m) => moveCost(scenario, state, unit, m.i, m).total),
-        );
+      : maxDistance(scenario, state, unit, draft.placement);
   const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
   const tooFar = dist > allowance + 1e-6;
   const active = draft.adjust ? draft.activeModel : null;
