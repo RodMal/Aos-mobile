@@ -42,6 +42,8 @@ import {
   useLifebloom,
 } from './sylvanethActive.js';
 import { unitsOf } from './query.js';
+import { canScythingBlade, moveOptions } from './eligibility.js';
+import { SCYTHING_BLADE_ID } from './sweep.js';
 import type {
   Action,
   GameState,
@@ -64,6 +66,7 @@ const KIND_OF: Readonly<Record<string, Kind>> = {
   [ARMOUR_CRUNCHER_ID]: 'armourCruncher',
   [ARMOUR_CRUNCHER_ROLL_ID]: 'armourCruncherRoll',
   [VENGEFUL_FOREST_SPIRITS_ID]: 'vengefulForestSpirits',
+  [SCYTHING_BLADE_ID]: 'scythingBlade',
 };
 
 /** The reaction kind of an `ability` action's id (Rhythm of the Chase included), if it has one. */
@@ -109,6 +112,8 @@ function current(
       const targets = vengefulTargets(scenario, state, unit);
       return targets.length > 0 ? { ...base, targets } : null;
     }
+    case 'scythingBlade':
+      return canScythingBlade(scenario, state, unit) ? base : null;
     case 'rhythmOfTheChase': {
       const targets = rhythmTargets(scenario, state, unit);
       return targets.length > 0 ? { ...base, targets } : null;
@@ -172,6 +177,21 @@ export function endOfPhaseAbilities(
   });
 }
 
+/**
+ * "Any Movement Phase" abilities of the player who is not active (Scything Blade), offered once
+ * after the active player has finished the phase, as Redeploy is (M4o).
+ */
+export function endOfMovementAbilities(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+): ReactionOption[] {
+  return unitsOf(state, player).flatMap((u) => {
+    const o = current(scenario, state, 'scythingBlade', u);
+    return o ? [o] : [];
+  });
+}
+
 /** An offered option, checked again against the state (an earlier ability may have changed it). */
 export function refreshOption(
   scenario: Scenario,
@@ -213,6 +233,16 @@ export function useReactionAbility(
   switch (kind) {
     case 'lifebloom':
       useLifebloom(ctx, unit);
+      break;
+    case 'scythingBlade':
+      // A normal move, placed (and its mortal damage rolled) like one in the player's own turn.
+      s.stack.push({
+        t: 'place',
+        unit: unit.id,
+        reason: 'normal',
+        allowance: moveOptions(scenario, s, unit).find((o) => o.t === 'move')!.allowance,
+        dice: [],
+      });
       break;
     case 'livingBatteringRam':
       useBatteringRam(ctx, unit, one());

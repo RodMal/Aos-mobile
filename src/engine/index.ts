@@ -43,6 +43,7 @@ export {
   POWER_UNLEASHED_ID,
   VENGEFUL_FOREST_SPIRITS_ID,
 } from './factionTerrainActive.js';
+export { SCYTHING_BLADE_ID } from './sweep.js';
 export { ARMOUR_CRUNCHER_ROLL_ID } from './seraphonActive.js';
 export {
   ARK_OF_SOTEK_ID,

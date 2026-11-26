@@ -64,7 +64,7 @@ import {
   type PlanHelpers,
 } from './sylvaneth.js';
 import { chargePlacement, moveTowards, pileInPlacement, sweepPlacement } from './placement.js';
-import { sweepKind } from '../engine/sweep.js';
+import { SCYTHING_BLADE_ID, sweepKind } from '../engine/sweep.js';
 import {
   GROUNDSHAKER_ID,
   LIFEBLOOM_ID,
@@ -132,6 +132,13 @@ export function chooseAction(engine: Engine, state: GameState): Action {
       // and helps when it has a target, so the NPC takes them; Lifebloom only when hurt.
       const anyPhase = anyPhaseReaction(engine, state, d.options);
       if (anyPhase) return anyPhase;
+      // Scything Blade in the enemy's movement phase (M4o): only when a move crosses an enemy unit.
+      for (const o of d.options) {
+        if (o.ability !== 'scythingBlade') continue;
+        const use: Action = { t: 'ability', unit: o.unit, abilityId: SCYTHING_BLADE_ID };
+        const declared = engine.apply(state, use).state;
+        if (sweepPlacement(engine, declared, o.unit)) return use;
+      }
       const unbindOpt = d.options.find((o) => o.ability === 'unbind');
       if (unbindOpt) {
         return { t: 'ability', unit: unbindOpt.unit, abilityId: 'unbind' };

@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4o Scything Blade in the enemy's movement phase
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ai, ui/prompts
-- **Read**: `docs/ABILITIES.md`; Scything Blade `54d0-e6a1-c6e8-46a7` (timing "Any Movement Phase") in `data/factions/universal.json`; `src/engine/sweep.ts`, `src/engine/placing.ts` (`resolveSweep`), `src/engine/eligibility.ts` (`moveOptions`), `src/engine/reactions.ts` (how Redeploy is offered to the non-active player), RULES-DECISIONS I64, I115
-- **Done when**: the Aethervoid Pendulum's owner may also use Scything Blade in the opponent's movement phase (once per phase, offered like Redeploy, on screen and to the NPC), with the same straight-line move and damage as on their own turn. Unit tests for the offer, the move and the damage, and an e2e check on phone and desktop. Bump the rules version. Update I115 and `docs/ABILITIES.md`.
-
 ### M4p Pick the targets of the manifestation movement abilities
 
 - **Tier**: sonnet+review

@@ -205,6 +205,18 @@ export function canRedeploy(scenario: Scenario, state: GameState, unit: UnitStat
   return profileOf(scenario, unit).move > 0;
 }
 
+/**
+ * Scything Blade ("Any Movement Phase") in the enemy's movement phase (M4o): the unit has not
+ * moved this turn (so once per phase) and may make a normal move, from combat too (I115).
+ */
+export function canScythingBlade(scenario: Scenario, state: GameState, unit: UnitState): boolean {
+  return (
+    unit.status === 'battlefield' &&
+    sweepKind(scenario, unit) === 'scything' &&
+    moveOptions(scenario, state, unit).some((o) => o.t === 'move' && o.kind === 'normal')
+  );
+}
+
 export function canCounterCharge(scenario: Scenario, state: GameState, unit: UnitState): boolean {
   if (commandBlocker(scenario, state, unit.owner, 'counterCharge', unit)) return false;
   return canCharge(scenario, state, unit);

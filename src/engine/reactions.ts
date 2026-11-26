@@ -19,7 +19,12 @@ import {
   rhythmOfTheChase,
 } from './relocating.js';
 import { illegal, type Ctx } from './ctx.js';
-import { endOfPhaseAbilities, kindOfAbilityId, useReactionAbility } from './anyPhase.js';
+import {
+  endOfMovementAbilities,
+  endOfPhaseAbilities,
+  kindOfAbilityId,
+  useReactionAbility,
+} from './anyPhase.js';
 import { STAR_VENOM_ID } from './abilities/seraphon.js';
 import { starVenomReactions, useStarVenomReaction } from './seraphonActive.js';
 import { opponent, unitsOf } from './query.js';
@@ -312,6 +317,17 @@ export function offerEndOfPhaseReaction(ctx: Ctx): boolean {
         })),
         trigger: 'phase:movement',
       });
+      return true;
+    }
+  }
+
+  if (s.phase === 'movement' && !offered.includes('scythingBlade')) {
+    // Any Movement Phase: once, after Redeploy has been offered (M4o).
+    const options = endOfMovementAbilities(ctx.scenario, s, nonActive);
+    if (options.length > 0) {
+      s.reactionsOffered = [...offered, 'scythingBlade'];
+      s.stack.push({ t: 'endPhase' });
+      s.stack.push({ t: 'reaction', player: nonActive, options, trigger: 'phase:movement' });
       return true;
     }
   }

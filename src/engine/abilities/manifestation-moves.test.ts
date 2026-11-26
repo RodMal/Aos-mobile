@@ -368,3 +368,81 @@ describe('Suffocating Gravetide (M4k)', () => {
     expect(a).toMatchObject({ t: 'move', unit: GRAVETIDE, kind: 'normal' });
   });
 });
+
+describe('Scything Blade in the enemy movement phase (M4o)', () => {
+  const w = world();
+  const SCYTHING = '54d0-e6a1-c6e8-46a7';
+  const phaseOver = (s: GameState): GameState => w.engine.apply(s, { t: 'pass' }).state;
+  const isOffer = (s: GameState): boolean => {
+    const d = w.engine.decision(s);
+    return d?.kind === 'reaction' && d.trigger === 'phase:movement';
+  };
+
+  /** The Pendulum's owner (player 0) waits while player 1 ends its movement phase. */
+  const enemyTurn = (): GameState => {
+    const s = inPlay(w, [SAURUS_GUARD], ALARIELLE, SUMMON_PENDULUM, PENDULUM, { x: 4, y: 22 });
+    lone(w, s, SAURUS_GUARD, 8, 22);
+    s.active = 1;
+    s.units[ALARIELLE]!.moved = null;
+    s.reactionsOffered = [];
+    return s;
+  };
+
+  it('is offered to the Pendulum owner when the enemy ends its movement phase, once', () => {
+    const s = phaseOver(enemyTurn());
+    expect(w.engine.decision(s)).toMatchObject({
+      kind: 'reaction',
+      player: 0,
+      trigger: 'phase:movement',
+      options: [{ ability: 'scythingBlade', unit: PENDULUM, cost: 0 }],
+    });
+    // Passing it does not offer it again.
+    expect(isOffer(phaseOver(s))).toBe(false);
+  });
+
+  it('is not offered when the Pendulum has moved this turn, or on its owner own turn', () => {
+    const moved = enemyTurn();
+    moved.units[PENDULUM]!.moved = 'normal';
+    expect(isOffer(phaseOver(moved))).toBe(false);
+    const own = enemyTurn();
+    own.active = 0;
+    expect(isOffer(phaseOver(own))).toBe(false);
+  });
+
+  it('moves in a straight line along the blade, with the same damage as on its own turn', () => {
+    const offer = phaseOver(enemyTurn());
+    const used = w.engine.apply(
+      { ...offer, rng: 2 },
+      { t: 'ability', unit: PENDULUM, abilityId: SCYTHING },
+    );
+    expect(w.engine.decision(used.state)).toMatchObject({
+      kind: 'place',
+      unit: PENDULUM,
+      allowance: 8,
+    });
+    expect(
+      w.engine.checkPlacement(used.state, shifted(used.state, PENDULUM, 4, 4)).length,
+    ).toBeGreaterThan(0);
+    const to = shifted(used.state, PENDULUM, 8, 0);
+    expect(w.engine.checkPlacement(used.state, to)).toEqual([]);
+    const done = w.engine.apply(used.state, { t: 'place', placement: to });
+    const dice = rolls(done.events, 'Scything Blade');
+    expect(dice).toHaveLength(1);
+    const roll = dice[0]![0]!;
+    expect(damage(done.events, 'Scything Blade')).toEqual(roll >= 2 ? [roll] : []);
+    expect(done.state.units[PENDULUM]!.moved).toBe('normal');
+    // Not offered a second time in the same phase.
+    expect(isOffer(done.state)).toBe(false);
+  });
+
+  it('the NPC uses it when the move crosses an enemy unit, and not otherwise', () => {
+    expect(chooseAction(w.engine, phaseOver(enemyTurn()))).toMatchObject({
+      t: 'ability',
+      unit: PENDULUM,
+      abilityId: SCYTHING,
+    });
+    const far = enemyTurn();
+    lone(w, far, SAURUS_GUARD, 40, 5);
+    expect(chooseAction(w.engine, phaseOver(far))).toEqual({ t: 'pass' });
+  });
+});
