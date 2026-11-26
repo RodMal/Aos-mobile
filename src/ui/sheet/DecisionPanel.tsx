@@ -73,6 +73,10 @@ function describe(d: Decision, human: 0 | 1): { title: string; hint: string } {
                 : 'Heal the unit, or return slain models.',
           }
         : { title: `${who} Endless Growth`, hint: 'The opponent is choosing…' };
+    case 'sweep':
+      return mine
+        ? { title: 'Pick the targets', hint: 'Pick the units that take mortal damage.' }
+        : { title: `${who} picks targets`, hint: 'The opponent is choosing…' };
     case 'creepingDread':
       return mine
         ? { title: 'Creeping Dread', hint: 'Pick enemy units in the overgrowth, or pass.' }

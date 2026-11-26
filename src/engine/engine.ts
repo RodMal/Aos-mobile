@@ -5,6 +5,7 @@ import { GLAMOURWEAVE_REROLL_ID } from './abilities/sylvaneth.js';
 import { declareAbility } from './abilities/magic.js';
 import { illegal, type Ctx } from './ctx.js';
 import { attackerOf, isFactionTerrainUnit, profileOf, unitById } from './query.js';
+import { autoSweepPicks } from './sweep.js';
 import { RngCursor, rngFromSeed } from './rng.js';
 import { deployArmies } from './setup.js';
 import {
@@ -70,7 +71,7 @@ import {
   setUpWyldwood,
 } from './commands.js';
 import { flushMortalDamage, npcGlamourweaveReroll } from './combat.js';
-import { declareCharge, hiddenHunters, place, skipPlace } from './placing.js';
+import { chooseSweep, declareCharge, hiddenHunters, place, skipPlace } from './placing.js';
 import { chameleonAmbush } from './reserve.js';
 import { CHAMELEON_AMBUSH_ID, HIDDEN_HUNTERS_ID } from './abilities/seraphon.js';
 import { answerReaction, offerEndOfPhaseReaction } from './reactions.js';
@@ -377,6 +378,10 @@ export function createEngine(scenario: Scenario): Engine {
         if (action.t === 'choose') chooseScry(ctx, action.value);
         else illegal('Pick the units that get Ward (5+).');
         break;
+      case 'sweep':
+        if (action.t === 'choose') chooseSweep(ctx, action.value);
+        else illegal('Pick the units the move passed across.');
+        break;
       case 'creepingDread':
         if (action.t === 'pass') s.stack.pop();
         else if (action.t === 'choose') chooseCreepingDread(ctx, action.value);
@@ -470,6 +475,8 @@ export function createEngine(scenario: Scenario): Engine {
         return { t: 'choose', value: autoGrowthAnswer(d.stage, d.options) };
       case 'scry':
         return { t: 'choose', value: d.units.slice(0, d.max).join(',') };
+      case 'sweep':
+        return { t: 'choose', value: autoSweepPicks(state, d.units, d.max).join(',') };
       case 'creepingDread':
         return { t: 'pass' };
       case 'reaction': {

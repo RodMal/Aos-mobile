@@ -150,6 +150,15 @@ export function decision(scenario: Scenario, state: GameState): Decision | null 
         };
       case 'creepingDread':
         return { kind: 'creepingDread', player: top.player, units: top.units, max: top.max };
+      case 'sweep':
+        return {
+          kind: 'sweep',
+          player: top.player,
+          unit: top.unit,
+          sweep: top.kind,
+          units: top.units,
+          max: top.max,
+        };
       case 'scry':
         return {
           kind: 'scry',

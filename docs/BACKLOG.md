@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M4p Pick the targets of the manifestation movement abilities
-
-- **Tier**: sonnet+review
-- **Touches**: engine, ai, ui/prompts
-- **Ruling**: I112 and I113 ("can" means the controlling player chooses)
-- **Read**: `src/engine/placing.ts` (`resolveSweep`, which now picks the targets), `src/engine/sweep.ts` (`passedAcross`), `src/engine/decisions.ts` and `src/ui/prompts` (how a pick decision is asked and answered, e.g. Endless Growth), RULES-DECISIONS I112, I115
-- **Done when**: after a Scything Blade, End Given Form or Pulled to the Grave move, the player picks the targets (up to 3 of the units passed across, or one for Pulled to the Grave) in a prompt; the NPC keeps the automatic pick. Unit tests for the prompt and the pick, and an e2e check on phone and desktop. Bump the rules version. Update I115 and the S7 row.
-
 ### M4l Other manifestation abilities
 
 - **Tier**: sonnet+review
