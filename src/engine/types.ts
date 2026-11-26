@@ -739,7 +739,8 @@ export interface ReactionOption {
     | 'arkOfSotek'
     | 'vengefulForestSpirits'
     | 'armourCruncher'
-    | 'armourCruncherRoll';
+    | 'armourCruncherRoll'
+    | 'scythingBlade';
   unit: UnitId;
   cost: number;
   /**
@@ -750,7 +751,8 @@ export interface ReactionOption {
    */
   targets?: UnitId[];
   /**
-   * `lifebloom`, `livingBatteringRam`, `groundshaker`, `venomiteSwarm`, `arkOfSotek` (R13, R14), `vengefulForestSpirits` (M4m; all
+   * `scythingBlade` (M4o: the Aethervoid Pendulum's move in the enemy's movement phase; answer with
+   * `{ t: 'ability', unit, abilityId }`, then place the unit like any move), `lifebloom`, `livingBatteringRam`, `groundshaker`, `venomiteSwarm`, `arkOfSotek` (R13, R14), `vengefulForestSpirits` (M4m; all
    * the targets are hit, answer without any):
    * answer with `{ t: 'ability', unit, abilityId, target }` (Ark of Sotek: `targets`, 1 to
    * `maxTargets` of `targets`; Lifebloom: neither) or pass.

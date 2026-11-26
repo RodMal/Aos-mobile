@@ -19,7 +19,12 @@ import {
   rhythmOfTheChase,
 } from './relocating.js';
 import { illegal, type Ctx } from './ctx.js';
-import { endOfPhaseAbilities, kindOfAbilityId, useReactionAbility } from './anyPhase.js';
+import {
+  endOfMovementAbilities,
+  endOfPhaseAbilities,
+  kindOfAbilityId,
+  useReactionAbility,
+} from './anyPhase.js';
 import { STAR_VENOM_ID } from './abilities/seraphon.js';
 import { starVenomReactions, useStarVenomReaction } from './seraphonActive.js';
 import { opponent, unitsOf } from './query.js';
@@ -232,6 +237,8 @@ export function executeReactionCommand(
       break;
     case 'redeploy':
       redeploy(ctx, unitId);
+      // Once per phase: the window comes back without it (Scything Blade may be left).
+      ctx.s.reactionsOffered = [...(ctx.s.reactionsOffered ?? []), 'redeploy'];
       break;
     case 'coveringFire':
       coveringFire(ctx, unitId);
@@ -296,22 +303,22 @@ export function offerEndOfPhaseReaction(ctx: Ctx): boolean {
     }
   }
 
-  if (s.phase === 'movement' && !offered.includes('redeploy')) {
-    // Once, after the active player has finished all movement-phase activations.
-    const units = unitsOf(s, nonActive).filter((u) => canRedeploy(ctx.scenario, s, u));
-    if (units.length > 0) {
-      s.reactionsOffered = [...offered, 'redeploy'];
-      s.stack.push({ t: 'endPhase' });
-      s.stack.push({
-        t: 'reaction',
-        player: nonActive,
-        options: units.map((u) => ({
-          command: 'redeploy',
-          unit: u.id,
-          cost: COMMANDS.redeploy.cost,
-        })),
-        trigger: 'phase:movement',
-      });
+  if (s.phase === 'movement') {
+    // After the active player has finished all movement-phase activations: Redeploy (once per
+    // phase) and Scything Blade (M4o) in one window, offered again with what is left after
+    // one is used; passing ends both.
+    const options: ReactionOption[] = [];
+    if (!offered.includes('redeploy')) {
+      for (const u of unitsOf(s, nonActive)) {
+        if (canRedeploy(ctx.scenario, s, u)) {
+          options.push({ command: 'redeploy', unit: u.id, cost: COMMANDS.redeploy.cost });
+        }
+      }
+    }
+    options.push(...endOfMovementAbilities(ctx.scenario, s, nonActive));
+    if (options.length > 0) {
+      if (s.stack[s.stack.length - 1]?.t !== 'endPhase') s.stack.push({ t: 'endPhase' });
+      s.stack.push({ t: 'reaction', player: nonActive, options, trigger: 'phase:movement' });
       return true;
     }
   }

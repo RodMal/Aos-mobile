@@ -13,6 +13,7 @@ import {
   LIVING_BATTERING_RAM_ID,
   MERCILESS_AMBUSH_ID,
   RHYTHM_OF_THE_CHASE_ID,
+  SCYTHING_BLADE_ID,
   STAR_VENOM_ID,
   VENOMITE_SWARM_ID,
   VENGEFUL_FOREST_SPIRITS_ID,
@@ -131,6 +132,21 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
                 Rhythm of the Chase · {unitName} on {state.units[target]?.name ?? target} · Free
               </button>
             ));
+          }
+          if (o.ability === 'scythingBlade') {
+            return (
+              <button
+                key={i}
+                className="btn wide"
+                data-testid="scything-blade"
+                {...hover}
+                onClick={() =>
+                  dispatch({ t: 'ability', unit: o.unit, abilityId: SCYTHING_BLADE_ID })
+                }
+              >
+                Scything Blade (move in a straight line, D6 mortal damage on 2+) · {unitName} · Free
+              </button>
+            );
           }
           if (o.ability === 'lifebloom') {
             return (
