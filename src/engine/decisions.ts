@@ -25,7 +25,12 @@ import {
 } from './relocate.js';
 import { canHiddenHunters, chameleonOptions } from './reserve.js';
 import { friendlyWyldwoods, isAwakenedWyldwood } from './overgrowth.js';
-import { WYLDWOOD_SETUP_ID, canSetUpWyldwood, checkWyldwoodSetUp } from './wyldwood.js';
+import {
+  WYLDWOOD_SETUP_ID,
+  canSetUpWyldwood,
+  checkWyldwoodSetUp,
+  remainingWyldwoodPieces,
+} from './wyldwood.js';
 import {
   type AttackMode,
   type Decision,
@@ -267,18 +272,20 @@ export function unitOptions(scenario: Scenario, state: GameState, unitId: UnitId
     wyldwoodHandle(scenario, state, unit) &&
     canSetUpWyldwood(scenario, state, unit.owner)
   ) {
-    // Not the terrain acting: the player sets up a further piece (owner, 2026-11-11).
-    const setUp: UnitOption = {
+    // Not the terrain acting: the player sets up a further piece (owner, 2026-11-11) and
+    // chooses which of the remaining pieces (owner, 2026-11-22).
+    const setUps: UnitOption[] = remainingWyldwoodPieces(scenario, state, unit.owner).map((p) => ({
       t: 'ability',
       abilityId: WYLDWOOD_SETUP_ID,
-      name: 'Set up an Awakened Wyldwood',
+      name: `Set up Wyldwood piece ${p.piece} (${p.length}" × ${p.width}")`,
       kind: 'activated',
+      choice: String(p.piece),
       targets: [],
-    };
+    }));
     if (isFactionTerrainUnit(scenario, unit)) {
-      return [setUp, ...powerUnleashedOptions(scenario, state, unit)];
+      return [...setUps, ...powerUnleashedOptions(scenario, state, unit)];
     }
-    return [...unitOptionsInner(scenario, state, unit, d), setUp];
+    return [...unitOptionsInner(scenario, state, unit, d), ...setUps];
   }
   if (isFactionTerrainUnit(scenario, unit)) {
     return d.kind === 'main' ? powerUnleashedOptions(scenario, state, unit) : [];

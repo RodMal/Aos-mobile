@@ -59,6 +59,41 @@ describe('further Awakened Wyldwood pieces (owner, 2026-11-11)', () => {
     expect(hasOption(passTo(engine, editable(s), 'movement'))).toBe(false);
   });
 
+  it('lets the player choose which remaining piece to set up', () => {
+    const s = startGame(engine, 1);
+    const opts = engine
+      .unitOptions(s, WYLDWOOD)
+      .filter((o) => o.t === 'ability' && o.abilityId === WYLDWOOD_SETUP_ID);
+    expect(opts.map((o) => (o.t === 'ability' ? o.choice : null))).toEqual(['2', '3']);
+    expect(opts[0]).toMatchObject({
+      name: expect.stringMatching(/piece 2 \(\d+\.\d" × \d+\.\d"\)/),
+    });
+    const after = engine.apply(s, { ...setUp, choice: '3' }).state;
+    const d = engine.decision(after)!;
+    if (d.kind !== 'place') throw new Error('expected a placement');
+    expect(after.units[d.unit]!.profileId).toMatch(/:piece3$/);
+    // Piece 3 is in play once placed: only piece 2 is offered, and piece 3 is refused.
+    const placed = engine.apply(after, {
+      t: 'place',
+      placement: {
+        unit: d.unit,
+        models: after.units[d.unit]!.models.map((m, i) => ({ i, x: m.x, y: m.y, rot: m.rot })),
+      },
+    }).state;
+    const next = editable(placed);
+    delete next.players[0].wyldwoodSetUpTurn;
+    expect(
+      engine
+        .unitOptions(next, WYLDWOOD)
+        .filter((o) => o.t === 'ability' && o.abilityId === WYLDWOOD_SETUP_ID)
+        .map((o) => (o.t === 'ability' ? o.choice : null)),
+    ).toEqual(['2']);
+    expect(() => engine.apply(next, { ...setUp, choice: '3' })).toThrow(IllegalActionError);
+    expect(() => engine.apply(startGame(engine, 1), { ...setUp, choice: '1' })).toThrow(
+      IllegalActionError,
+    );
+  });
+
   it('stops at three pieces on the battlefield', () => {
     let s = setUpOne(startGame(engine, 1));
     s = editable(s);

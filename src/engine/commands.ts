@@ -12,7 +12,12 @@ import {
   unitsOf,
   unitsWithin,
 } from './query.js';
-import { WYLDWOOD_SETUP_ID, nextWyldwoodPiece, suggestWyldwoodSetUp } from './wyldwood.js';
+import {
+  WYLDWOOD_SETUP_ID,
+  nextWyldwoodPiece,
+  remainingWyldwoodPieces,
+  suggestWyldwoodSetUp,
+} from './wyldwood.js';
 import { addEffect } from './abilities/effects.js';
 import { FURY_OF_THE_FOREST_ID } from './abilities/commands.js';
 import {
@@ -211,8 +216,8 @@ export function rollAndPushCharge(ctx: Ctx, unit: UnitState): void {
   }
 }
 
-/** Hero phase: sets up a further Awakened Wyldwood at a suggested legal spot, then places it. */
-export function setUpWyldwood(ctx: Ctx, handleId: UnitId): void {
+/** Hero phase: sets up a further Awakened Wyldwood (the piece in `choice`, else the next) at a suggested legal spot, then places it. */
+export function setUpWyldwood(ctx: Ctx, handleId: UnitId, choice?: string): void {
   const { s } = ctx;
   const handle = s.units[handleId]!;
   if (
@@ -222,7 +227,14 @@ export function setUpWyldwood(ctx: Ctx, handleId: UnitId): void {
   ) {
     illegal('No further Awakened Wyldwood can be set up now.');
   }
-  const piece = nextWyldwoodPiece(ctx.scenario, s, handle.owner);
+  const number = choice === undefined ? undefined : Number(choice);
+  if (
+    number !== undefined &&
+    !remainingWyldwoodPieces(ctx.scenario, s, handle.owner).some((p) => p.piece === number)
+  ) {
+    illegal('That Wyldwood piece is already on the battlefield.');
+  }
+  const piece = nextWyldwoodPiece(ctx.scenario, s, handle.owner, number);
   const spot = suggestWyldwoodSetUp(ctx.scenario, s, piece);
   if (!spot) illegal('There is no room to set up another Awakened Wyldwood.');
   const m = spot.models[0]!;

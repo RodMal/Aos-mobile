@@ -168,7 +168,7 @@ export function createEngine(scenario: Scenario): Engine {
         } else if (action.t === 'move') {
           declareMove(ctx, action.unit, action.kind, action.atTheDouble);
         } else if (action.t === 'ability' && action.abilityId === WYLDWOOD_SETUP_ID) {
-          setUpWyldwood(ctx, action.unit);
+          setUpWyldwood(ctx, action.unit, action.choice);
         } else if (action.t === 'ability' && action.abilityId === CHAMELEON_AMBUSH_ID) {
           chameleonAmbush(ctx, action);
         } else if (action.t === 'ability' && SET_UP_ABILITY_IDS.includes(action.abilityId)) {

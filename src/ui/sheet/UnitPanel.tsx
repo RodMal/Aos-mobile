@@ -5,9 +5,36 @@ import { endPhase, optionLabel, phaseName, runOption } from '../game/actions.js'
 import { useGameState, useHuman, useHumanDecision } from '../game/hooks.js';
 import { useUi } from '../game/uiStore.js';
 import { fightWord } from '../game/fightStatus.js';
+import { WYLDWOOD_OUTLINES } from '../../data/wyldwood.js';
 import { Icon } from '../components/Icon.js';
 import { FullCard, StatLine } from '../components/UnitCard.js';
 import { ReadyUnits } from './DecisionPanel.js';
+
+/** A small silhouette of a Wyldwood crescent piece, for choosing which to set up. */
+function PieceShape({ piece }: { piece: number }) {
+  const pts = WYLDWOOD_OUTLINES[piece - 1];
+  if (!pts) return null;
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  const w = Math.max(...xs) - x0;
+  const h = Math.max(...ys) - y0;
+  return (
+    <svg
+      className="piece-shape"
+      data-testid="piece-shape"
+      width={24}
+      height={24}
+      viewBox={`${x0} ${y0} ${w} ${h}`}
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+      style={{ marginRight: 8, verticalAlign: 'middle' }}
+    >
+      <polygon points={pts.map((p) => p.join(',')).join(' ')} fill="currentColor" />
+    </svg>
+  );
+}
 
 export function UnitPanel({ unitId }: { unitId: string }) {
   const state = useGameState();
@@ -94,6 +121,9 @@ export function UnitPanel({ unitId }: { unitId: string }) {
               data-action={o.t === 'move' ? o.kind : o.t}
               data-ability={o.t === 'ability' ? o.abilityId : undefined}
             >
+              {o.t === 'ability' && o.abilityId === 'awakened-wyldwood-setup' && o.choice && (
+                <PieceShape piece={Number(o.choice)} />
+              )}
               {optionLabel(unitId, o)}
             </button>
           ))}
