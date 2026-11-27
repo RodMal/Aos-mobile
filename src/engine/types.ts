@@ -797,6 +797,11 @@ export interface ReactionOption {
    * `maxTargets` of `targets`; Lifebloom: neither) or pass.
    */
   maxTargets?: number;
+  /**
+   * Bound for the Great Oubliette: for each living part, the enemy units within 3" of it. A pick is
+   * legal when every target can be given a part of its own that is within 3" of it (I118).
+   */
+  partTargets?: UnitId[][];
   /** Fight Through the Pain: the damage points about to be allocated to `unit`. */
   damage?: number;
   /** Fight Through the Pain: the most rage dice that may be spent. */
@@ -896,6 +901,8 @@ export type UnitOption =
       targets: UnitId[];
       /** Abilities that take several targets: the most that may be picked (`Action.targets`). */
       maxTargets?: number;
+      /** Bound for the Great Oubliette: the enemy units within 3" of each living part (I118). */
+      partTargets?: UnitId[][];
       /** Eruption of Fury: the most rage dice that may be spent now. */
       maxRageDice?: number;
       /** Eruption of Fury: the melee weapons the unit may attack with. */

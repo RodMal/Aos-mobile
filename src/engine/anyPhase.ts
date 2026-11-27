@@ -119,7 +119,9 @@ function current(
       return canScythingBlade(scenario, state, unit) ? base : null;
     case 'oubliette': {
       const found = oublietteReaction(scenario, state, unit);
-      return found ? { ...base, targets: found.targets, maxTargets: found.max } : null;
+      return found
+        ? { ...base, targets: found.targets, maxTargets: found.max, partTargets: found.parts }
+        : null;
     }
     case 'rhythmOfTheChase': {
       const targets = rhythmTargets(scenario, state, unit);

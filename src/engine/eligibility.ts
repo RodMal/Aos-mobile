@@ -83,11 +83,7 @@ export function moveOptions(scenario: Scenario, state: GameState, unit: UnitStat
   if (profile.move <= 0 && !profile.moveDice) return [];
   const grants = unitGrants(scenario, state, unit);
   if (inCombat(scenario, state, unit)) {
-    // The movement abilities of manifestations can be used from combat: they say nothing against
-    // it, and their move could not otherwise pass across the unit it is in combat with (S13).
-    if (sweepKind(scenario, unit)) {
-      return [{ t: 'move', kind: 'normal', allowance: moveOf(scenario, state, unit) }];
-    }
+    // Manifestations cannot use their move from combat (owner, 2026-11-27, I115).
     if (unit.isManifestation || grants.cannotRetreat) return [];
     return [{ t: 'move', kind: 'retreat', allowance: moveOf(scenario, state, unit) }];
   }
@@ -207,7 +203,7 @@ export function canRedeploy(scenario: Scenario, state: GameState, unit: UnitStat
 
 /**
  * Scything Blade ("Any Movement Phase") in the enemy's movement phase (M4o): the unit has not
- * moved this turn (so once per phase) and may make a normal move, from combat too (I115).
+ * moved this turn (so once per phase) and may make a normal move (not from combat, I115).
  */
 export function canScythingBlade(scenario: Scenario, state: GameState, unit: UnitState): boolean {
   return (
