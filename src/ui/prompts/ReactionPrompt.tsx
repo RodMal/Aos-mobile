@@ -24,7 +24,7 @@ import { dispatch } from '../game/actions.js';
 import { COMMAND_NAMES, reactionText, triggerUnit } from '../game/eventText.js';
 import { logContext } from '../game/engine.js';
 import { useGameState, useHuman } from '../game/hooks.js';
-import { useUi } from '../game/uiStore.js';
+import { canAddAbilityTarget, useUi } from '../game/uiStore.js';
 import { EndOfTurnNote, Modal, PeekBar } from './Modal.js';
 
 /** A reaction: the choices, plus a way to look at the board (and the units named) first. */
@@ -198,7 +198,11 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
                       key={t}
                       className={`chip enemy ${mine.includes(t) ? 'chosen' : ''}`}
                       aria-pressed={mine.includes(t)}
-                      disabled={!mine.includes(t) && mine.length >= max}
+                      disabled={
+                        !mine.includes(t) &&
+                        (mine.length >= max ||
+                          !canAddAbilityTarget({ option: o, targets: mine }, t))
+                      }
                       onClick={() =>
                         setArk(mine.includes(t) ? mine.filter((x) => x !== t) : [...mine, t])
                       }

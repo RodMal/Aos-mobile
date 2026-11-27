@@ -287,6 +287,7 @@ export function oublietteOptions(
       kind: 'activated',
       targets,
       maxTargets: oublietteMax(scenario, state, unit),
+      partTargets: oubliettePartTargets(scenario, state, unit),
     },
   ];
 }
@@ -300,11 +301,17 @@ export function oublietteReaction(
   scenario: Scenario,
   state: GameState,
   unit: UnitState,
-): { targets: UnitId[]; max: number } | null {
+): { targets: UnitId[]; max: number; parts: UnitId[][] } | null {
   if (!usableManifestation(scenario, unit, BOUND_FOR_THE_GREAT_OUBLIETTE_ID)) return null;
   if (oublietteUsed(unit)) return null;
   const targets = oublietteTargets(scenario, state, unit);
-  return targets.length === 0 ? null : { targets, max: oublietteMax(scenario, state, unit) };
+  return targets.length === 0
+    ? null
+    : {
+        targets,
+        max: oublietteMax(scenario, state, unit),
+        parts: oubliettePartTargets(scenario, state, unit),
+      };
 }
 
 /** Bound for the Great Oubliette: each target gets a D3; on a 2+ mortal damage and -Move. */

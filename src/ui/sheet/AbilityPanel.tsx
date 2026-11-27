@@ -8,7 +8,7 @@ import { dispatch, optionLabel, runOption } from '../game/actions.js';
 import { findAbility } from '../game/engine.js';
 import { COMMAND_NAMES } from '../game/eventText.js';
 import { useGameState, useHumanDecision } from '../game/hooks.js';
-import { toggleAbilityTarget, useUi } from '../game/uiStore.js';
+import { canAddAbilityTarget, toggleAbilityTarget, useUi } from '../game/uiStore.js';
 import { AbilityView } from '../components/AbilityView.js';
 import { tapWord } from '../components/pointer.js';
 
@@ -158,7 +158,9 @@ export function AbilityPanel() {
                   key={id}
                   role={multi ? 'checkbox' : 'radio'}
                   aria-checked={on}
-                  disabled={multi && !on && chosen.length >= maxTargets}
+                  disabled={
+                    multi && !on && (chosen.length >= maxTargets || !canAddAbilityTarget(pick, id))
+                  }
                   className={`chip ${on ? 'chosen' : ''} ${
                     state.units[id]?.owner === unit.owner ? '' : 'enemy'
                   }`}

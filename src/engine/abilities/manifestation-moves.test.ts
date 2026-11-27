@@ -155,14 +155,14 @@ function seedWhere(
 }
 
 describe('Aethervoid Pendulum (M4k)', () => {
-  const w = world();
+  const w = world(14);
   const arena = (others: UnitId[] = [SAURUS_GUARD]): GameState =>
-    inPlay(w, others, ALARIELLE, SUMMON_PENDULUM, PENDULUM, { x: 4, y: 22 });
+    inPlay(w, others, ALARIELLE, SUMMON_PENDULUM, PENDULUM, { x: 1, y: 22 });
 
   it('The Pendulum Swings (9ec5-1011-c05e-5045): moves in a straight line along its blade, either way, and keeps its blade', () => {
     const s = arena();
     expect(w.engine.unitOptions(s, PENDULUM)).toEqual([
-      { t: 'move', kind: 'normal', allowance: 8 },
+      { t: 'move', kind: 'normal', allowance: 14 },
     ]);
     expect(check(w, s, PENDULUM, shifted(s, PENDULUM, 6, 0))).toEqual([]);
     expect(check(w, s, PENDULUM, shifted(s, PENDULUM, 4, 4)).join()).toContain('straight line');
@@ -193,7 +193,7 @@ describe('Aethervoid Pendulum (M4k)', () => {
   it('Scything Blade (54d0-e6a1-c6e8-46a7): passes through models, then D6 mortal damage on 2+', () => {
     const s = arena();
     lone(w, s, SAURUS_GUARD, 8, 22);
-    const to = shifted(s, PENDULUM, 8, 0);
+    const to = shifted(s, PENDULUM, 11, 0);
     expect(check(w, s, PENDULUM, to)).toEqual([]);
     expect(passedAcross(w.scenario, s, s.units[PENDULUM]!, to).map((u) => u.id)).toEqual([
       SAURUS_GUARD,
@@ -210,9 +210,9 @@ describe('Aethervoid Pendulum (M4k)', () => {
   it('Scything Blade: up to 3 enemy units passed across', () => {
     const big = world(40);
     const four = [SAURUS_GUARD, KROXIGOR, STARSEER, HUNTERS];
-    const s = inPlay(big, four, ALARIELLE, SUMMON_PENDULUM, PENDULUM, { x: 4, y: 22 });
+    const s = inPlay(big, four, ALARIELLE, SUMMON_PENDULUM, PENDULUM, { x: 1, y: 22 });
     four.forEach((u, k) => lone(big, s, u, 9 + k * 5, 22));
-    const to = shifted(s, PENDULUM, 24, 0);
+    const to = shifted(s, PENDULUM, 27, 0);
     expect(passedAcross(big.scenario, s, s.units[PENDULUM]!, to)).toHaveLength(4);
     expect(check(big, s, PENDULUM, to)).toEqual([]);
     // More units than it may hit: the player picks (M4p, I115).
@@ -247,9 +247,9 @@ describe('Aethervoid Pendulum (M4k)', () => {
   it('Scything Blade: up to 3 units passed across are all hit, with no question', () => {
     const big = world(40);
     const three = [SAURUS_GUARD, KROXIGOR, STARSEER];
-    const s = inPlay(big, three, ALARIELLE, SUMMON_PENDULUM, PENDULUM, { x: 4, y: 22 });
+    const s = inPlay(big, three, ALARIELLE, SUMMON_PENDULUM, PENDULUM, { x: 1, y: 22 });
     three.forEach((u, k) => lone(big, s, u, 9 + k * 5, 22));
-    const r = move(big, s, PENDULUM, shifted(s, PENDULUM, 24, 0), 5);
+    const r = move(big, s, PENDULUM, shifted(s, PENDULUM, 27, 0), 5);
     expect(rolls(r.events, 'Scything Blade')).toHaveLength(3);
     expect(big.engine.decision(r.state)?.kind).not.toBe('sweep');
   });
@@ -258,7 +258,7 @@ describe('Aethervoid Pendulum (M4k)', () => {
     const s = arena();
     // Beside the end of the move (12, 22), clear of the path.
     lone(w, s, SAURUS_GUARD, 12, 23.95);
-    const to = shifted(s, PENDULUM, 8, 0);
+    const to = shifted(s, PENDULUM, 11, 0);
     const unit = s.units[PENDULUM]!;
     expect(passedAcross(w.scenario, s, unit, to)).toEqual([]);
     expect(passedAcross(w.scenario, s, unit, to, 0.5).map((u) => u.id)).toEqual([SAURUS_GUARD]);
@@ -268,15 +268,13 @@ describe('Aethervoid Pendulum (M4k)', () => {
     expect(rolls(move(w, s, PENDULUM, to, 2).events, 'Scything Blade')).toHaveLength(0);
   });
 
-  it('Scything Blade: can end the move in combat, and can be used from combat', () => {
+  it('Scything Blade: can end the move in combat, but cannot be used from combat (I115)', () => {
     const s = arena();
     lone(w, s, SAURUS_GUARD, 14.2, 22);
-    expect(check(w, s, PENDULUM, shifted(s, PENDULUM, 8, 0))).toEqual([]);
+    expect(check(w, s, PENDULUM, shifted(s, PENDULUM, 11, 0))).toEqual([]);
     const fighting = arena();
-    lone(w, fighting, SAURUS_GUARD, 6.5, 22.5);
-    expect(w.engine.unitOptions(fighting, PENDULUM)).toEqual([
-      { t: 'move', kind: 'normal', allowance: 8 },
-    ]);
+    lone(w, fighting, SAURUS_GUARD, 4, 22);
+    expect(w.engine.unitOptions(fighting, PENDULUM)).toEqual([]);
   });
 
   it('the NPC moves the Pendulum along its blade across an enemy unit', () => {
@@ -295,12 +293,12 @@ describe('Aethervoid Pendulum (M4k)', () => {
 describe('Purple Sun of Shyish (M4k)', () => {
   const w = world(30);
   const arena = (others: UnitId[]): GameState =>
-    inPlay(w, others, KROAK, SUMMON_PURPLE_SUN, SUN, { x: 4, y: 22 });
+    inPlay(w, others, KROAK, SUMMON_PURPLE_SUN, SUN, { x: 1, y: 22 });
 
   it('End Given Form (42b5-c322-7e12-371c): passes through models, D3 mortal damage on 2+ to a unit passed across', () => {
     const s = arena([DRYADS]);
     lone(w, s, DRYADS, 8, 22);
-    const to = shifted(s, SUN, 16, 0);
+    const to = shifted(s, SUN, 19, 0);
     expect(check(w, s, SUN, to)).toEqual([]);
     expect(passedAcross(w.scenario, s, s.units[SUN]!, to).map((u) => u.id)).toEqual([DRYADS]);
     const hit = seedWhere(w, s, SUN, to, (ev) => damage(ev, 'End Given Form').length > 0);
@@ -316,14 +314,14 @@ describe('Purple Sun of Shyish (M4k)', () => {
   it('End Given Form: up to 3 enemy units passed across', () => {
     const big = world(40);
     const s = inPlay(big, [DRYADS, DRYADS_2, DURTHU, ALARIELLE], KROAK, SUMMON_PURPLE_SUN, SUN, {
-      x: 4,
+      x: 1,
       y: 22,
     });
     lone(big, s, DRYADS, 10, 22);
     lone(big, s, DRYADS_2, 15, 22);
     placeUnit(big.scenario, s, DURTHU, 21, 22);
     placeUnit(big.scenario, s, ALARIELLE, 29, 22);
-    const to = shifted(s, SUN, 34, 0);
+    const to = shifted(s, SUN, 37, 0);
     expect(passedAcross(big.scenario, s, s.units[SUN]!, to)).toHaveLength(4);
     expect(check(big, s, SUN, to)).toEqual([]);
     const r = move(big, s, SUN, to, 5);
@@ -340,8 +338,8 @@ describe('Purple Sun of Shyish (M4k)', () => {
     const s = arena([DRYADS]);
     // Used from combat (3" or less from the enemy), it must end more than 3" away.
     lone(w, s, DRYADS, 8, 22);
-    expect(check(w, s, SUN, shifted(s, SUN, 8, 0)).join()).toContain('ENEMY_COMBAT_RANGE');
-    expect(check(w, s, SUN, shifted(s, SUN, 16, 0))).toEqual([]);
+    expect(check(w, s, SUN, shifted(s, SUN, 11, 0)).join()).toContain('ENEMY_COMBAT_RANGE');
+    expect(check(w, s, SUN, shifted(s, SUN, 19, 0))).toEqual([]);
   });
 
   it('the NPC sweeps the Purple Sun across an enemy unit', () => {
@@ -359,7 +357,7 @@ describe('Suffocating Gravetide (M4k)', () => {
   const big = world(40);
   const arena = (): GameState => {
     const s = inPlay(big, [DRYADS, DRYADS_2], KROAK, SUMMON_GRAVETIDE, GRAVETIDE, {
-      x: 4,
+      x: 1,
       y: 22,
     });
     placeUnit(big.scenario, s, DRYADS, 14, 22);
@@ -369,7 +367,7 @@ describe('Suffocating Gravetide (M4k)', () => {
 
   it('Pulled to the Grave (1fa3-5209-8869-8d58): a die per model in one passed-across unit, 5+ is 1 mortal damage', () => {
     const s = arena();
-    const to = shifted(s, GRAVETIDE, 21, 0);
+    const to = shifted(s, GRAVETIDE, 24, 0);
     expect(check(big, s, GRAVETIDE, to)).toEqual([]);
     expect(passedAcross(big.scenario, s, s.units[GRAVETIDE]!, to).map((u) => u.id)).toEqual([
       DRYADS,
@@ -391,7 +389,7 @@ describe('Suffocating Gravetide (M4k)', () => {
   it('Pulled to the Grave: only one unit is picked, even when several were passed across', () => {
     const s = arena();
     placeUnit(big.scenario, s, DRYADS_2, 28, 22);
-    const to = shifted(s, GRAVETIDE, 34, 0);
+    const to = shifted(s, GRAVETIDE, 37, 0);
     expect(check(big, s, GRAVETIDE, to)).toEqual([]);
     expect(passedAcross(big.scenario, s, s.units[GRAVETIDE]!, to)).toHaveLength(2);
     const r = move(big, s, GRAVETIDE, to, 3);
@@ -412,9 +410,18 @@ describe('Suffocating Gravetide (M4k)', () => {
     expect(dice[0]).toHaveLength(s.units[DRYADS_2]!.models.filter((m) => m.alive).length);
   });
 
+  it('Purple Sun and Gravetide are not offered a move from combat (I115)', () => {
+    const sun = inPlay(w2, [DRYADS], KROAK, SUMMON_PURPLE_SUN, SUN, { x: 1, y: 22 });
+    lone(w2, sun, DRYADS, 4, 22);
+    expect(w2.engine.unitOptions(sun, SUN)).toEqual([]);
+    const s = arena();
+    placeUnit(big.scenario, s, DRYADS, 4, 22);
+    expect(big.engine.unitOptions(s, GRAVETIDE)).toEqual([]);
+  });
+
   it('Pulled to the Grave: cannot end the move in combat', () => {
     const s = arena();
-    expect(check(big, s, GRAVETIDE, shifted(s, GRAVETIDE, 6, 0)).join()).toContain(
+    expect(check(big, s, GRAVETIDE, shifted(s, GRAVETIDE, 9, 0)).join()).toContain(
       'ENEMY_COMBAT_RANGE',
     );
   });
@@ -426,8 +433,10 @@ describe('Suffocating Gravetide (M4k)', () => {
   });
 });
 
+const w2 = world(30);
+
 describe('Scything Blade in the enemy movement phase (M4o)', () => {
-  const w = world();
+  const w = world(14);
   const SCYTHING = '54d0-e6a1-c6e8-46a7';
   const phaseOver = (s: GameState): GameState => w.engine.apply(s, { t: 'pass' }).state;
   const isOffer = (s: GameState): boolean => {
@@ -437,7 +446,7 @@ describe('Scything Blade in the enemy movement phase (M4o)', () => {
 
   /** The Pendulum's owner (player 0) waits while player 1 ends its movement phase. */
   const enemyTurn = (): GameState => {
-    const s = inPlay(w, [SAURUS_GUARD], ALARIELLE, SUMMON_PENDULUM, PENDULUM, { x: 4, y: 22 });
+    const s = inPlay(w, [SAURUS_GUARD], ALARIELLE, SUMMON_PENDULUM, PENDULUM, { x: 1, y: 22 });
     lone(w, s, SAURUS_GUARD, 8, 22);
     s.active = 1;
     s.units[ALARIELLE]!.moved = null;
@@ -466,6 +475,12 @@ describe('Scything Blade in the enemy movement phase (M4o)', () => {
     expect(isOffer(phaseOver(own))).toBe(false);
   });
 
+  it('is not offered when the Pendulum is in combat (I115)', () => {
+    const s = enemyTurn();
+    lone(w, s, SAURUS_GUARD, 4, 22);
+    expect(isOffer(phaseOver(s))).toBe(false);
+  });
+
   it('moves in a straight line along the blade, with the same damage as on its own turn', () => {
     const offer = phaseOver(enemyTurn());
     const used = w.engine.apply(
@@ -475,12 +490,12 @@ describe('Scything Blade in the enemy movement phase (M4o)', () => {
     expect(w.engine.decision(used.state)).toMatchObject({
       kind: 'place',
       unit: PENDULUM,
-      allowance: 8,
+      allowance: 14,
     });
     expect(
       w.engine.checkPlacement(used.state, shifted(used.state, PENDULUM, 4, 4)).length,
     ).toBeGreaterThan(0);
-    const to = shifted(used.state, PENDULUM, 8, 0);
+    const to = shifted(used.state, PENDULUM, 11, 0);
     expect(w.engine.checkPlacement(used.state, to)).toEqual([]);
     const done = w.engine.apply(used.state, { t: 'place', placement: to });
     const dice = rolls(done.events, 'Scything Blade');

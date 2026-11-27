@@ -7,6 +7,7 @@ import type {
   Violation,
   WeaponTargets,
 } from '../../engine/index.js';
+import { oublietteAssignable } from '../../engine/index.js';
 import type { AttackPlan } from './attackPlan.js';
 import type { PlacementDraft } from './placementEdit.js';
 
@@ -44,12 +45,27 @@ export interface AbilityPick {
   targets?: UnitId[];
 }
 
+/**
+ * True when `id` may be added to the targets picked so far. Bound for the Great Oubliette gives
+ * each target a part of its own that is within 3" of it (I118), so two units near only one part
+ * cannot both be picked.
+ */
+export function canAddAbilityTarget(
+  pick: { option: { partTargets?: UnitId[][] } | object; targets?: UnitId[] },
+  id: UnitId,
+): boolean {
+  const parts = 'partTargets' in pick.option ? pick.option.partTargets : undefined;
+  if (!parts) return true;
+  return oublietteAssignable(parts, [...(pick.targets ?? []), id]);
+}
+
 /** Picks or unpicks `id` on a multi-target ability, up to its `maxTargets`. */
 export function toggleAbilityTarget(pick: AbilityPick, id: UnitId): AbilityPick {
   const max = pick.option.t === 'ability' ? (pick.option.maxTargets ?? 1) : 1;
   const now = pick.targets ?? [];
   if (now.includes(id)) return { ...pick, targets: now.filter((t) => t !== id) };
   if (now.length >= max) return pick;
+  if (!canAddAbilityTarget(pick, id)) return pick;
   return { ...pick, targets: [...now, id] };
 }
 

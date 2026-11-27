@@ -180,6 +180,40 @@ test.describe('Soulsnare Shackles: Bound for the Great Oubliette', () => {
     }
   };
 
+  test('two units near only the same part cannot both be picked (one target for each part)', async ({
+    page,
+  }) => {
+    await startGame(page, E2E);
+    await editState(page, setShackles);
+    await editState(page, (state: any) => {
+      // Both enemy units by the first part only (the others are 6" away or more).
+      const enemies = Object.values(state.units).filter(
+        (u: any) => u.owner === 1 && u.status === 'battlefield' && u.armyIndex !== 99,
+      ) as any[];
+      const [a, b] = enemies.filter((u: any) => !u.isManifestation && !u.id.endsWith(':terrain'));
+      a.models.forEach((m: any, i: number) => {
+        m.x = 9 + (i % 2) * 1.4;
+        m.y = 13 + Math.floor(i / 2) * 1.4;
+      });
+      b.models.forEach((m: any, i: number) => {
+        m.x = 9 + (i % 2) * 1.4;
+        m.y = 17.5 + Math.floor(i / 2) * 1.4;
+      });
+    });
+    await selectFromRoster(page, SHACKLES);
+    await page.locator('[data-ability="6817-e507-443e-1ff4"]').click();
+    const chips = page
+      .getByTestId('ability-panel')
+      .getByTestId('ability-targets')
+      .getByRole('radio');
+    // Only one part reaches either unit: a single target to pick, not two.
+    await expect(chips).toHaveCount(2);
+    await expect(page.getByTestId('ability-panel').getByRole('checkbox')).toHaveCount(0);
+    await chips.first().click();
+    await page.getByTestId('ability-confirm').click();
+    await expect(page.getByTestId('ability-panel')).toHaveCount(0);
+  });
+
   test('in your hero phase the targets are picked on the ability panel, up to one for each part', async ({
     page,
   }, info) => {

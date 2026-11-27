@@ -18,7 +18,12 @@ import {
   type UnitId,
   type UnitOption,
 } from '../index.js';
-import { oublietteAssignable, oublietteTargets, TIME_FLOW_REROLL_ID } from '../manifestations.js';
+import {
+  npcOubliettePicks,
+  oublietteAssignable,
+  oublietteTargets,
+  TIME_FLOW_REROLL_ID,
+} from '../manifestations.js';
 import { BOUND_FOR_THE_GREAT_OUBLIETTE_ID, MECHANISMS_OF_TIME_ID } from './manifestations.js';
 import { RngCursor } from '../rng.js';
 import { applyUntil, editable, keepOnly, passTo, placeUnit, startGame } from '../test-helpers.js';
@@ -631,6 +636,30 @@ describe('Soulsnare Shackles: Bound for the Great Oubliette (6817-e507-443e-1ff4
     const d = w.engine.decision(used);
     expect(d?.kind === 'reaction' && d.options.some((o) => o.ability === 'oubliette')).toBe(false);
     expect(() => w.engine.apply(used, use(used, [DURTHU]))).toThrow();
+  });
+
+  it('two units that are both near only the same part cannot both be picked (owner, 2026-11-27)', () => {
+    const s = setup();
+    // Both within 3" of the first part only: the second part is more than 3" from each.
+    placeUnit(w.scenario, s, DRYADS, 15.5, 17.5);
+    placeUnit(w.scenario, s, DURTHU, 15.5, 22.5);
+    const opt = w.engine
+      .unitOptions(s, SHACKLES)
+      .find((o) => o.t === 'ability' && o.abilityId === BOUND_FOR_THE_GREAT_OUBLIETTE_ID);
+    expect(opt).toMatchObject({ maxTargets: 1 });
+    expect(opt?.t === 'ability' && [...opt.targets].sort()).toEqual([DRYADS, DURTHU].sort());
+    // The option carries the units near each part, which the pick prompt checks.
+    const parts = opt?.t === 'ability' ? opt.partTargets : undefined;
+    expect(parts).toHaveLength(3);
+    expect(parts!.map((p) => p.length)).toEqual([2, 0, 0]);
+    expect(oublietteAssignable(parts!, [DRYADS])).toBe(true);
+    expect(oublietteAssignable(parts!, [DRYADS, DURTHU])).toBe(false);
+    expect(() => w.engine.apply(s, use(s, [DRYADS, DURTHU]))).toThrow();
+    expect(() => w.engine.apply(s, use(s, [DURTHU]))).not.toThrow();
+    // The NPC picks one unit only.
+    expect(npcOubliettePicks(w.scenario, s, s.units[SHACKLES]!, [DRYADS, DURTHU])).toEqual([
+      DRYADS,
+    ]);
   });
 
   it('cannot pick a unit that is not within 3" of a part, or more units than parts can reach', () => {
