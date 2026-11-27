@@ -71,9 +71,10 @@ export function allocateDamage(
     unit.damage -= health;
     if (parts) {
       for (const i of aliveIndices(unit)) {
-        removeModel(ctx.scenario, ctx.s, unit, i);
-        slain++;
+        // The parts are removed together, not slain one by one (I118): no maelstrom points.
+        removeModel(ctx.scenario, ctx.s, unit, i, false);
       }
+      slain++;
     } else {
       removeModel(ctx.scenario, ctx.s, unit, pickCasualty(ctx.scenario, ctx.s, unit));
       slain++;
@@ -221,9 +222,15 @@ function destroySummoned(ctx: Ctx, caster: UnitState): void {
   }
 }
 
-function removeModel(scenario: Scenario, state: GameState, unit: UnitState, i: number): void {
+function removeModel(
+  scenario: Scenario,
+  state: GameState,
+  unit: UnitState,
+  i: number,
+  slain = true,
+): void {
   // Necrotic Vortex: a model is slain within 12" of a Malevolent Maelstrom (measured before it goes).
-  vortexSlain(scenario, state, unit, i);
+  if (slain) vortexSlain(scenario, state, unit, i);
   unit.models[i]!.alive = false;
   if (aliveIndices(unit).length === 0) {
     unit.status = 'destroyed';

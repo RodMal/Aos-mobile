@@ -116,6 +116,7 @@ export function PlacePanel() {
                           : 'Drag anywhere to move the unit. Two fingers pan and zoom.';
   const canForwardToVictory =
     d.reason === 'charge' &&
+    !unit.chargeRerolled &&
     !commandBlocker(state, d.player, 'forwardToVictory', unit) &&
     !state.players[d.player].commandsUsed?.includes('forwardToVictory');
 

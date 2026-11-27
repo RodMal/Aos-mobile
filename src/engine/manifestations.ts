@@ -182,6 +182,10 @@ export function rerollCharge(ctx: Ctx, unitId: UnitId): void {
 
 // ─── Bound for the Great Oubliette ──────────────────────────────────────────────
 
+/** Used once per phase: the hero phases of two turns never share the per-turn record. */
+const oublietteUsed = (unit: UnitState): boolean =>
+  (unit.abilitiesUsed ?? []).includes(BOUND_FOR_THE_GREAT_OUBLIETTE_ID);
+
 /** Enemy units within 3" of each living part of the manifestation, not yet picked this turn. */
 export function oubliettePartTargets(
   scenario: Scenario,
@@ -272,6 +276,7 @@ export function oublietteOptions(
 ): UnitOption[] {
   if (!usableManifestation(scenario, unit, BOUND_FOR_THE_GREAT_OUBLIETTE_ID)) return [];
   if (!inOwnHeroPhase(state, unit)) return [];
+  if (oublietteUsed(unit)) return [];
   const targets = oublietteTargets(scenario, state, unit);
   if (targets.length === 0) return [];
   return [
@@ -297,6 +302,7 @@ export function oublietteReaction(
   unit: UnitState,
 ): { targets: UnitId[]; max: number } | null {
   if (!usableManifestation(scenario, unit, BOUND_FOR_THE_GREAT_OUBLIETTE_ID)) return null;
+  if (oublietteUsed(unit)) return null;
   const targets = oublietteTargets(scenario, state, unit);
   return targets.length === 0 ? null : { targets, max: oublietteMax(scenario, state, unit) };
 }
@@ -307,6 +313,7 @@ export function useOubliette(ctx: Ctx, unit: UnitState, ids: readonly UnitId[]):
   if (!usableManifestation(scenario, unit, BOUND_FOR_THE_GREAT_OUBLIETTE_ID)) {
     illegal('That unit cannot use Bound for the Great Oubliette.');
   }
+  if (oublietteUsed(unit)) illegal('Bound for the Great Oubliette is used once per phase.');
   if (ids.length === 0) illegal('Pick at least one enemy unit.');
   if (!oublietteAssignable(oubliettePartTargets(scenario, s, unit), ids)) {
     illegal(
@@ -314,6 +321,7 @@ export function useOubliette(ctx: Ctx, unit: UnitState, ids: readonly UnitId[]):
     );
   }
   unit.oublietteTargets = [...(unit.oublietteTargets ?? []), ...ids];
+  unit.abilitiesUsed = [...(unit.abilitiesUsed ?? []), BOUND_FOR_THE_GREAT_OUBLIETTE_ID];
   for (const id of ids) {
     const target = s.units[id]!;
     if (target.status !== 'battlefield') continue;

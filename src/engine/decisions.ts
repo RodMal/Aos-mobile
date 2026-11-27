@@ -363,6 +363,7 @@ export function unitOptionsInner(
       if (
         unit.chargeDeclared &&
         !unit.charged &&
+        !unit.chargeRerolled &&
         !commandBlocker(scenario, state, unit.owner, 'forwardToVictory', unit)
       ) {
         opts.push({ t: 'command', command: 'forwardToVictory', cost: 1 });

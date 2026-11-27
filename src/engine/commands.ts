@@ -182,7 +182,10 @@ export function forwardToVictory(ctx: Ctx, unitId: UnitId): void {
   if (!unit || !unit.chargeDeclared || unit.charged) {
     illegal('Forward to Victory can only be used after a charge roll.');
   }
+  // A roll is re-rolled once only (Increase Time Flow is the other re-roll).
+  if (unit.chargeRerolled) illegal('That charge roll has already been re-rolled.');
   useCommandOn(ctx, 'forwardToVictory', unit);
+  unit.chargeRerolled = true;
   const top = s.stack[s.stack.length - 1];
   if (top?.t === 'place' && top.unit === unitId && top.reason === 'charge') {
     s.stack.pop();

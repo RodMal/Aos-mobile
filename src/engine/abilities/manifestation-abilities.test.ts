@@ -16,8 +16,9 @@ import {
   type GameState,
   type Scenario,
   type UnitId,
+  type UnitOption,
 } from '../index.js';
-import { oublietteAssignable, TIME_FLOW_REROLL_ID } from '../manifestations.js';
+import { oublietteAssignable, oublietteTargets, TIME_FLOW_REROLL_ID } from '../manifestations.js';
 import { BOUND_FOR_THE_GREAT_OUBLIETTE_ID, MECHANISMS_OF_TIME_ID } from './manifestations.js';
 import { RngCursor } from '../rng.js';
 import { applyUntil, editable, keepOnly, passTo, placeUnit, startGame } from '../test-helpers.js';
@@ -227,6 +228,62 @@ describe('Chronomantic Cogs: Mechanisms of Time (ad92-932-6f56-1d97)', () => {
     dec.phase = 'charge';
     dec.units[SAURUS_GUARD]!.chargeDeclared = true;
     expect(reroll(dec, SAURUS_GUARD)).toBe(false);
+  });
+
+  describe('a charge roll is re-rolled once, by Increase Time Flow or Forward to Victory', () => {
+    const failedCharge = (): GameState => {
+      const s = editable(
+        w.engine.apply(setup(), {
+          t: 'ability',
+          unit: COGS,
+          abilityId: MECHANISMS_OF_TIME_ID,
+          choice: 'increase',
+        }).state,
+      );
+      s.phase = 'charge';
+      s.players[1].cp = 3;
+      s.units[SAURUS_GUARD]!.chargeDeclared = true;
+      return s;
+    };
+    const has = (s: GameState, pick: (o: UnitOption) => boolean): boolean =>
+      w.engine.unitOptions(s, SAURUS_GUARD).some(pick);
+    const isFtV = (o: UnitOption) => o.t === 'command' && o.command === 'forwardToVictory';
+    const isTimeFlow = (o: UnitOption) => o.t === 'ability' && o.abilityId === TIME_FLOW_REROLL_ID;
+    const ftv = { t: 'command' as const, command: 'forwardToVictory' as const, unit: SAURUS_GUARD };
+
+    it('Increase Time Flow first: Forward to Victory is then refused and not offered', () => {
+      const s = failedCharge();
+      expect(has(s, isFtV)).toBe(true);
+      const r = applyUntil(
+        w.engine,
+        s,
+        { t: 'ability', unit: SAURUS_GUARD, abilityId: TIME_FLOW_REROLL_ID },
+        (x) => x.state.units[SAURUS_GUARD]!.chargeRerolled === true,
+      );
+      const after = editable(r.state);
+      after.units[SAURUS_GUARD]!.charged = false;
+      after.stack = [];
+      expect(has(after, isFtV)).toBe(false);
+      expect(() => w.engine.apply(after, ftv)).toThrow();
+    });
+
+    it('Forward to Victory first: Increase Time Flow is then refused and not offered', () => {
+      const s = failedCharge();
+      expect(has(s, isTimeFlow)).toBe(true);
+      const r = w.engine.apply(s, ftv);
+      const after = editable(r.state);
+      after.units[SAURUS_GUARD]!.charged = false;
+      after.stack = [];
+      expect(after.units[SAURUS_GUARD]!.chargeRerolled).toBe(true);
+      expect(has(after, isTimeFlow)).toBe(false);
+      expect(() =>
+        w.engine.apply(after, {
+          t: 'ability',
+          unit: SAURUS_GUARD,
+          abilityId: TIME_FLOW_REROLL_ID,
+        }),
+      ).toThrow();
+    });
   });
 
   it('the NPC picks one automatically', () => {
@@ -481,7 +538,10 @@ describe('Soulsnare Shackles: Multiple Parts (9e13-160b-4a87-da4e)', () => {
     const hurt = allocateDamage(ctx, s.units[SHACKLES]!, health - 1, 'test');
     expect(hurt.destroyed).toBe(false);
     expect(s.units[SHACKLES]!.models.filter((m) => m.alive)).toHaveLength(3);
+    // A Maelstrom within 12" gains nothing from the parts: they are not slain one by one (I118).
+    const maelstrom = addManifestation(w, s, 0, WS_MAELSTROM, [[22, 30]], { maelstrom: 1 });
     allocateDamage(ctx, s.units[SHACKLES]!, 1, 'test');
+    expect(s.units[maelstrom]!.maelstrom).toBe(1);
     expect(s.units[SHACKLES]!.status).toBe('destroyed');
     expect(s.units[SHACKLES]!.models.filter((m) => m.alive)).toHaveLength(0);
   });
@@ -504,7 +564,9 @@ describe('Soulsnare Shackles: Bound for the Great Oubliette (6817-e507-443e-1ff4
     ]);
     return s;
   };
-  const use = (s: GameState, targets: UnitId[]) => ({
+  const oublietteTargetsLeft = (st: GameState): UnitId[] =>
+    oublietteTargets(w.scenario, st, st.units[SHACKLES]!);
+  const use = (_s: GameState, targets: UnitId[]) => ({
     t: 'ability' as const,
     unit: SHACKLES,
     abilityId: BOUND_FOR_THE_GREAT_OUBLIETTE_ID,
@@ -547,6 +609,28 @@ describe('Soulsnare Shackles: Bound for the Great Oubliette (6817-e507-443e-1ff4
       .find((o) => o.t === 'ability' && o.abilityId === BOUND_FOR_THE_GREAT_OUBLIETTE_ID);
     expect(again).toBeUndefined();
     expect(() => w.engine.apply(r.state, use(r.state, [DRYADS]))).toThrow();
+  });
+
+  it('is used once per hero phase, in your own phase and as a reaction', () => {
+    const s = setup();
+    const offered = (st: GameState) =>
+      w.engine
+        .unitOptions(st, SHACKLES)
+        .some((o) => o.t === 'ability' && o.abilityId === BOUND_FOR_THE_GREAT_OUBLIETTE_ID);
+    expect(offered(s)).toBe(true);
+    // Own phase: one unit picked, another still in reach, yet it is not offered again.
+    const own = w.engine.apply(s, use(s, [DRYADS])).state;
+    expect(oublietteTargetsLeft(own)).toContain(DURTHU);
+    expect(offered(own)).toBe(false);
+    expect(() => w.engine.apply(own, use(own, [DURTHU]))).toThrow();
+    // The opponent's phase: the reaction is used, and then no longer offered.
+    const theirs = editable(s);
+    theirs.active = 0;
+    const reaction = w.engine.apply(theirs, { t: 'pass' }).state;
+    const used = w.engine.apply(reaction, use(reaction, [DRYADS])).state;
+    const d = w.engine.decision(used);
+    expect(d?.kind === 'reaction' && d.options.some((o) => o.ability === 'oubliette')).toBe(false);
+    expect(() => w.engine.apply(used, use(used, [DURTHU]))).toThrow();
   });
 
   it('cannot pick a unit that is not within 3" of a part, or more units than parts can reach', () => {
