@@ -17,6 +17,7 @@ import {
   footprintsOverlap,
 } from '../geom/index.js';
 import { footprintToPoint } from '../rules/core/objectives.js';
+import { TRUNK_INSET } from '../data/wyldwood.js';
 import { boardPolygon } from './movement.js';
 import { isAwakenedWyldwood } from './overgrowth.js';
 import { DIST_EPS, isFactionTerrainUnit, profileOf, unitFootprints } from './query.js';
@@ -53,15 +54,46 @@ export function canSetUpWyldwood(scenario: Scenario, state: GameState, player: P
   return wyldwoodsOnBattlefield(scenario, state, player).length < MAX_WYLDWOODS;
 }
 
-/** The next piece to set up: a new unit (not yet in the state) using an outline not in play. */
+/** The pieces (numbered 1 to 3) whose outline is not on the battlefield, in numeric order. */
+export function remainingWyldwoodPieces(
+  scenario: Scenario,
+  state: GameState,
+  player: PlayerId,
+): { piece: number; profileId: string; length: number; width: number }[] {
+  const inPlay = new Set(wyldwoodsOnBattlefield(scenario, state, player).map((u) => u.profileId));
+  return wyldwoodPieceProfileIds(scenario, player)
+    .map((profileId, i) => ({ profileId, piece: i + 1 }))
+    .filter((p) => !inPlay.has(p.profileId))
+    .map((p) => ({ ...p, ...pieceSize(scenario, p.profileId) }));
+}
+
+/** Tip-to-tip length and widest width (twice the largest inscribed circle), to 0.1". */
+function pieceSize(scenario: Scenario, profileId: string): { length: number; width: number } {
+  const base = scenario.profiles[profileId]?.models[0]?.base;
+  if (!base || base.kind !== 'outline') return { length: 0, width: 0 };
+  let length = 0;
+  for (const a of base.points)
+    for (const b of base.points) length = Math.max(length, Math.hypot(a[0] - b[0], a[1] - b[1]));
+  const width = base.trunk ? (2 * base.trunk.r) / TRUNK_INSET : 0;
+  const tenth = (n: number) => Math.round(n * 10) / 10;
+  return { length: tenth(length), width: tenth(width) };
+}
+
+/**
+ * The next piece to set up: a new unit (not yet in the state) using an outline not in play.
+ * `piece` (1 to 3) picks the outline; without it, the lowest-numbered one left.
+ */
 export function nextWyldwoodPiece(
   scenario: Scenario,
   state: GameState,
   player: PlayerId,
+  piece?: number,
 ): UnitState {
-  const inPlay = new Set(wyldwoodsOnBattlefield(scenario, state, player).map((u) => u.profileId));
+  const left = remainingWyldwoodPieces(scenario, state, player);
   const ids = wyldwoodPieceProfileIds(scenario, player);
-  const profileId = ids.find((id) => !inPlay.has(id)) ?? ids[0]!;
+  const profileId =
+    (piece !== undefined ? left.find((p) => p.piece === piece)?.profileId : left[0]?.profileId) ??
+    ids[0]!;
   let n = 2;
   while (state.units[`${player}:wyldwood${n}`]) n++;
   return {

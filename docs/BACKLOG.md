@@ -14,14 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### R22 Pick which Wyldwood piece to place
-
-- **Tier**: sonnet
-- **Touches**: ui/prompts, ui/board, engine
-- **Ruling**: owner request (2026-11-22)
-- **Read**: `src/engine/wyldwood.ts` (how the three crescent pieces are set up and in what order), the Wyldwood set-up `place` decision in `src/engine/decisions.ts`, and `src/ui/sheet/PlacePanel.tsx`.
-- **Done when**: when an Awakened Wyldwood is set up, the player chooses which of the remaining pieces (1, 2 or 3, shown with their shape and size) to place next, instead of a fixed order. The NPC keeps a sensible automatic choice. Placement legality is unchanged. Unit tests and an e2e test cover choosing a piece, on phone and desktop. Bump the rules version if replay changes.
-
 ## Waiting on the owner
 
 - The true size of the Awakened Wyldwood pieces: the traced outlines came out 6.6 to 8.5" long and 2.05 to 2.55" wide, below the owner's stated ranges. A real measurement of one piece fixes the scale (`src/data/wyldwood.ts`).
