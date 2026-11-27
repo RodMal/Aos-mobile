@@ -27,6 +27,7 @@ import {
   unitsOf,
 } from './query.js';
 import { modelsOutsideOvergrowth } from './overgrowth.js';
+import { hasMultipleParts, PARTS_RANGE } from './abilities/manifestations.js';
 import { bladeViolations, mayEndMoveInCombat, mustMoveAlongBlade } from './sweep.js';
 import { blockedTerrainViolations, moveCost, pathBlockedModels } from './terrain.js';
 import type {
@@ -214,12 +215,20 @@ export function checkMovePlacement(
     });
   }
 
-  const coherency = checkCoherencyFootprints(alive.map((i) => ends.get(i)!));
+  // Soulsnare Shackles: each part within 3" of at least 1 other part, not the unit's ½".
+  const parts = hasMultipleParts(scenario, unit);
+  const coherency = parts
+    ? checkCoherencyFootprints(
+        alive.map((i) => ends.get(i)!),
+        PARTS_RANGE,
+      )
+    : checkCoherencyFootprints(alive.map((i) => ends.get(i)!));
   if (!coherency.coherent) {
     violations.push({
       code: 'COHERENCY',
-      message:
-        coherency.required === 2
+      message: parts
+        ? 'Each part must be within 3" of at least 1 other part.'
+        : coherency.required === 2
           ? 'Each model must be within ½" of two others in its unit.'
           : 'Each model must be within ½" of another model in its unit.',
       models: coherency.lacking.map((k) => alive[k]!),

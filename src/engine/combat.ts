@@ -12,6 +12,7 @@ import {
   wardRollModifier,
 } from './abilities/effects.js';
 import { recordDartpipeDamage } from './abilities/seraphon.js';
+import { DANCING_BLADES_ID, hasManifestationAbility } from './abilities/manifestations.js';
 import { RerollNeeded } from './attack.js';
 import { applyStarspawned } from './starspawned.js';
 import { glamourRerolls, spendGlamourweave } from './abilities/sylvaneth.js';
@@ -143,7 +144,9 @@ export function expectedWeaponDamage(
   extra: { allOutAttack?: boolean; allOutDefence?: boolean; coveringFire?: boolean } = {},
 ): number {
   const tp = profileOf(scenario, target);
-  const ward = effectiveWard(scenario, state, target) ?? null;
+  const ward = hasManifestationAbility(scenario, attacker, DANCING_BLADES_ID)
+    ? null
+    : (effectiveWard(scenario, state, target) ?? null);
   const attacks = expectedAttacks(
     weapon,
     indices.length,
@@ -330,7 +333,10 @@ export function resolveAttacks(ctx: Ctx, frame: Extract<Frame, { t: 'resolve' }>
     const indices = attackingModels(scenario, attacker, target, weapon, allowedRange);
     if (indices.length === 0) continue;
     const tp = profileOf(scenario, target);
-    const targetWard = effectiveWard(scenario, s, target) ?? null;
+    // Dancing Blades: no ward rolls against the damage of a Quicksilver Swords attack.
+    const targetWard = hasManifestationAbility(scenario, attacker, DANCING_BLADES_ID)
+      ? null
+      : (effectiveWard(scenario, s, target) ?? null);
     const start = ctx.rng.state;
     const attacks = rollAttackCount(
       ctx.rng,

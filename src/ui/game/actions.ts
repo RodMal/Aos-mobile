@@ -93,6 +93,7 @@ export function runOption(unitId: UnitId, o: UnitOption, target?: UnitId): void 
         unit: unitId,
         abilityId: o.abilityId,
         target: target ?? o.targets[0],
+        ...(o.choice ? { choice: o.choice } : {}),
       });
       return;
   }

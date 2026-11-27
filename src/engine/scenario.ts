@@ -4,6 +4,7 @@ import { resolveArmy, type ArmyList } from '../data/lists.js';
 import type { Side } from '../data/map-schema.js';
 import { buildProfile, type UnitProfile } from '../data/profile.js';
 import { WYLDWOOD_PIECES } from '../data/wyldwood.js';
+import { MULTIPLE_PARTS_ID, SOULSNARE_PARTS } from './abilities/manifestations.js';
 import type { Scenario } from './types.js';
 
 export interface ScenarioOptions {
@@ -45,7 +46,12 @@ export function createScenario(
   }
   for (const ws of UNIVERSAL.warscrolls) {
     if (ws.isManifestation && !profiles[ws.id]) {
-      profiles[ws.id] = buildProfile(ws);
+      const profile = buildProfile(ws);
+      // Multiple Parts (Soulsnare Shackles): one model for each of the parts.
+      if (ws.abilities.some((a) => a.id === MULTIPLE_PARTS_ID) && profile.models[0]) {
+        profile.models = Array.from({ length: SOULSNARE_PARTS }, () => profile.models[0]!);
+      }
+      profiles[ws.id] = profile;
     }
   }
   const attackerSide = battlefield.attackerSide;

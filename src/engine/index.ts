@@ -44,6 +44,11 @@ export {
   VENGEFUL_FOREST_SPIRITS_ID,
 } from './factionTerrainActive.js';
 export { SCYTHING_BLADE_ID } from './sweep.js';
+export { TIME_FLOW_REROLL_ID, timeFlowReroll } from './manifestations.js';
+export {
+  BOUND_FOR_THE_GREAT_OUBLIETTE_ID,
+  MECHANISMS_OF_TIME_ID,
+} from './abilities/manifestations.js';
 export { ARMOUR_CRUNCHER_ROLL_ID } from './seraphonActive.js';
 export {
   ARK_OF_SOTEK_ID,

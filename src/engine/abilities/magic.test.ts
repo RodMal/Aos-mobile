@@ -1003,7 +1003,15 @@ describe('M3a Lore Abilities (16 abilities)', () => {
         allowance: 18,
       });
       // Placing within 18" of Kroak and within 9" of Dryads (without overlapping) is legal (range 18", minEnemyGap 0)
-      const placement = { unit: unitId, models: [{ i: 0, x: 24, y: 17, rot: 0 }] };
+      // It has 3 parts (Multiple Parts), each within 3" of another.
+      const placement = {
+        unit: unitId,
+        models: [
+          { i: 0, x: 24, y: 17, rot: 0 },
+          { i: 1, x: 26.5, y: 17, rot: 0 },
+          { i: 2, x: 25, y: 19.5, rot: 0 },
+        ],
+      };
       expect(engine.checkPlacement(r.state, placement)).toEqual([]);
       const st = engine.apply(r.state, { t: 'place', placement }).state;
       expect(st.units[unitId]?.profileId).toBe(WS_SHACKLES);

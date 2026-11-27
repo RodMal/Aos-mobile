@@ -17,13 +17,16 @@ export interface CoherencyResult {
  * others for units of 7+ models), and the unit forms a single group. Gaps are measured so
  * that a true gap above 1/2" is never accepted (see footprintCoherencyGap).
  */
-export function checkCoherencyFootprints(fps: readonly Footprint[]): CoherencyResult {
+export function checkCoherencyFootprints(
+  fps: readonly Footprint[],
+  range: number = COHERENCY_RANGE_IN,
+): CoherencyResult {
   const n = fps.length;
   const required = n <= 1 ? 0 : n >= COHERENCY_TWO_NEIGHBOURS_FROM ? 2 : 1;
   const adj: number[][] = fps.map(() => []);
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
-      if (withinCoherencyRange(fps[i] as Footprint, fps[j] as Footprint, COHERENCY_RANGE_IN)) {
+      if (withinCoherencyRange(fps[i] as Footprint, fps[j] as Footprint, range)) {
         (adj[i] as number[]).push(j);
         (adj[j] as number[]).push(i);
       }
