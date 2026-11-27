@@ -66,6 +66,11 @@ import {
 import { chargePlacement, moveTowards, pileInPlacement, sweepPlacement } from './placement.js';
 import { autoSweepPicks, SCYTHING_BLADE_ID, sweepKind } from '../engine/sweep.js';
 import {
+  BOUND_FOR_THE_GREAT_OUBLIETTE_ID,
+  MECHANISMS_OF_TIME_ID,
+} from '../engine/abilities/manifestations.js';
+import { npcOubliettePicks, npcTimeFlow, TIME_FLOW_REROLL_ID } from '../engine/manifestations.js';
+import {
   GROUNDSHAKER_ID,
   LIFEBLOOM_ID,
   LIVING_BATTERING_RAM_ID,
@@ -311,6 +316,7 @@ const ANY_PHASE_IDS = {
   armourCruncher: ARMOUR_CRUNCHER_ID,
   armourCruncherRoll: ARMOUR_CRUNCHER_ROLL_ID,
   vengefulForestSpirits: VENGEFUL_FOREST_SPIRITS_ID,
+  oubliette: BOUND_FOR_THE_GREAT_OUBLIETTE_ID,
 } as const;
 
 /**
@@ -344,6 +350,12 @@ function anyPhaseReaction(
       return { t: 'ability', unit: o.unit, abilityId };
     }
     if (ranked.length === 0) continue;
+    if (o.ability === 'oubliette') {
+      // One target for each part that can reach it, the likeliest to be finished first.
+      const picks = npcOubliettePicks(engine.scenario, state, state.units[o.unit]!, ranked);
+      if (picks.length === 0) continue;
+      return { t: 'ability', unit: o.unit, abilityId, targets: picks };
+    }
     return o.ability === 'arkOfSotek'
       ? { t: 'ability', unit: o.unit, abilityId, targets: ranked.slice(0, o.maxTargets ?? 1) }
       : { t: 'ability', unit: o.unit, abilityId, target: ranked[0]! };
@@ -584,6 +596,36 @@ function chooseHeroAbilityAction(
       return { t: 'ability', unit: unit.id, abilityId: scry.abilityId };
     }
 
+    // Bound for the Great Oubliette (Soulsnare Shackles) and Mechanisms of Time (Chronomantic
+    // Cogs): free, so used whenever offered (the NPC picks automatically, I113).
+    const oubliette = abilOpts.find((o) => o.abilityId === BOUND_FOR_THE_GREAT_OUBLIETTE_ID);
+    if (oubliette) {
+      const left = (id: string): number => {
+        const t = state.units[id]!;
+        return profileOf(engine.scenario, t).health * aliveIndices(t).length - t.damage;
+      };
+      const ranked = [...oubliette.targets].sort(
+        (a, b) => left(a) - left(b) || points(engine, state, b) - points(engine, state, a),
+      );
+      const picks = npcOubliettePicks(engine.scenario, state, unit, ranked);
+      if (picks.length > 0) {
+        return {
+          t: 'ability',
+          unit: unit.id,
+          abilityId: BOUND_FOR_THE_GREAT_OUBLIETTE_ID,
+          targets: picks,
+        };
+      }
+    }
+    if (abilOpts.some((o) => o.abilityId === MECHANISMS_OF_TIME_ID)) {
+      return {
+        t: 'ability',
+        unit: unit.id,
+        abilityId: MECHANISMS_OF_TIME_ID,
+        choice: npcTimeFlow(engine.scenario, state, unit),
+      };
+    }
+
     // Power Unleashed (Realmshaper Engine): free, so used whenever a group exists; the group of
     // up to 3 enemies around one terrain feature that is worth the most points.
     const power = abilOpts.find((o) => o.abilityId === POWER_UNLEASHED_ID);
@@ -739,6 +781,16 @@ function mainAction(
     case 'charge': {
       const ram = ownAbilityAction(engine, state, player, LIVING_BATTERING_RAM_ID);
       if (ram) return ram;
+      // Increase Time Flow: re-roll a failed charge roll, once.
+      for (const unit of units) {
+        if (
+          engine
+            .unitOptions(state, unit.id)
+            .some((o) => o.t === 'ability' && o.abilityId === TIME_FLOW_REROLL_ID)
+        ) {
+          return { t: 'ability', unit: unit.id, abilityId: TIME_FLOW_REROLL_ID };
+        }
+      }
       const helpers = planHelpers(engine);
       const guardian = sylvanethChargeAction(engine, state, player, helpers, 'guardian');
       if (guardian) return guardian;

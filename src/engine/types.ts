@@ -128,6 +128,18 @@ export interface UnitState {
   summonedBy?: UnitId;
   /** Set while the unit is casting/chanting via Magical Intervention (-1 to the roll). */
   magicalIntervention?: boolean;
+  /** Malevolent Maelstrom: its maelstrom points (Necrotic Vortex), at most 6. */
+  maelstrom?: number;
+  /**
+   * The unit's charge roll was re-rolled this turn (Increase Time Flow): a roll is re-rolled
+   * once only. Cleared at the start of each turn.
+   */
+  chargeRerolled?: boolean;
+  /**
+   * Soulsnare Shackles: the enemy units picked by Bound for the Great Oubliette this turn (the
+   * same unit cannot be picked twice in a turn). Cleared at the start of each turn.
+   */
+  oublietteTargets?: UnitId[];
 }
 
 export type TacticTier = 'affray' | 'strike' | 'domination' | 'completed';
@@ -766,7 +778,8 @@ export interface ReactionOption {
     | 'vengefulForestSpirits'
     | 'armourCruncher'
     | 'armourCruncherRoll'
-    | 'scythingBlade';
+    | 'scythingBlade'
+    | 'oubliette';
   unit: UnitId;
   cost: number;
   /**
@@ -878,6 +891,8 @@ export type UnitOption =
       name: string;
       kind: AbilityOptionKind;
       targetValue?: number;
+      /** One of several ways to use the ability (`Action.choice`), shown as its own button. */
+      choice?: string;
       targets: UnitId[];
       /** Abilities that take several targets: the most that may be picked (`Action.targets`). */
       maxTargets?: number;

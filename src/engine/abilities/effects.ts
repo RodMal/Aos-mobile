@@ -34,11 +34,18 @@ const REGISTRY = new Map<string, AbilityDefinition>();
 
 let auraCache: AbilityDefinition[] | null = null;
 let lateAuraCache: AbilityDefinition[] | null = null;
+let areaCache: AbilityDefinition[] | null = null;
 
 export function registerAbility(def: AbilityDefinition): void {
   REGISTRY.set(def.id, def);
   auraCache = null;
   lateAuraCache = null;
+  areaCache = null;
+}
+
+function areaDefinitions(): AbilityDefinition[] {
+  areaCache ??= [...REGISTRY.values()].filter((d) => d.areaModifiers);
+  return areaCache;
 }
 
 function auraDefinitions(): AbilityDefinition[] {
@@ -383,6 +390,18 @@ export function abilityAttackModifiers(
     const def = REGISTRY.get(ab.id);
     if (def?.offenceModifiers)
       out.push(...def.offenceModifiers(sit.attacker, sit, scenario, state));
+  }
+
+  // Manifestations that modify every attack near them (Pull of the Nadir).
+  if (areaDefinitions().length > 0) {
+    for (const id of state.unitOrder) {
+      const source = state.units[id]!;
+      if (!source.isManifestation || source.status !== 'battlefield') continue;
+      for (const ab of profileOf(scenario, source).abilities) {
+        const def = REGISTRY.get(ab.id);
+        if (def?.areaModifiers) out.push(...def.areaModifiers(source, sit, scenario, state));
+      }
+    }
   }
 
   // Faction terrain acts for its army through its abilities (I74): one lookup per attack.

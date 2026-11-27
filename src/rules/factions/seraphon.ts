@@ -253,7 +253,7 @@ export function moveOf(scenario: Scenario, state: GameState, unit: UnitState): n
   if (move <= 0) return move;
   let bonus = unitGrants(scenario, state, unit).moveBonus ?? 0;
   if (isProphesied(state, unit.owner, SOTEK_ID) && isSeraphon(scenario, unit)) bonus += 2;
-  return move + bonus;
+  return Math.max(0, move + bonus);
 }
 
 /** Tepok the Seer: +1 to casting rolls. */

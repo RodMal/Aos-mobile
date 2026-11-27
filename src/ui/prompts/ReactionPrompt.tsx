@@ -5,6 +5,7 @@ import {
   ARK_OF_SOTEK_ID,
   ARMOUR_CRUNCHER_ID,
   ARMOUR_CRUNCHER_ROLL_ID,
+  BOUND_FOR_THE_GREAT_OUBLIETTE_ID,
   CELESTIAL_CONDUIT_ID,
   COATL_FAMILIAR_ID,
   GROUNDSHAKER_ID,
@@ -177,15 +178,20 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
               </button>
             );
           }
-          if (o.ability === 'arkOfSotek') {
+          if (o.ability === 'arkOfSotek' || o.ability === 'oubliette') {
+            const oubliette = o.ability === 'oubliette';
             const max = o.maxTargets ?? 1;
             const mine = ark.filter((t) => o.targets?.includes(t));
             return (
-              <div key={i} className="stack" data-testid="ark-of-sotek">
+              <div
+                key={i}
+                className="stack"
+                data-testid={oubliette ? 'bound-oubliette' : 'ark-of-sotek'}
+              >
                 <div
                   className="row-chips"
                   role="group"
-                  aria-label={`Ark of Sotek targets, up to ${max}`}
+                  aria-label={`${oubliette ? 'Bound for the Great Oubliette' : 'Ark of Sotek'} targets, up to ${max}`}
                 >
                   {(o.targets ?? []).map((t) => (
                     <button
@@ -203,20 +209,21 @@ export function ReactionPrompt({ d }: { d: Extract<Decision, { kind: 'reaction' 
                 </div>
                 <button
                   className="btn wide"
-                  data-testid="ark-of-sotek-use"
+                  data-testid={oubliette ? 'bound-oubliette-use' : 'ark-of-sotek-use'}
                   disabled={mine.length === 0}
                   {...hover}
                   onClick={() => {
                     dispatch({
                       t: 'ability',
                       unit: o.unit,
-                      abilityId: ARK_OF_SOTEK_ID,
+                      abilityId: oubliette ? BOUND_FOR_THE_GREAT_OUBLIETTE_ID : ARK_OF_SOTEK_ID,
                       targets: mine,
                     });
                     setArk([]);
                   }}
                 >
-                  Ark of Sotek · {unitName} · {mine.length} of up to {max} targets · Free
+                  {oubliette ? 'Bound for the Great Oubliette' : 'Ark of Sotek'} · {unitName} ·{' '}
+                  {mine.length} of up to {max} targets · Free
                 </button>
               </div>
             );

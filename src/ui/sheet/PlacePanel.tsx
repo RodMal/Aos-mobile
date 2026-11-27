@@ -1,6 +1,7 @@
 /** Placing a unit (move, run, retreat, charge, pile-in): status, re-form tools, confirm. */
 import { HIDDEN_HUNTERS_ID } from '../../engine/abilities/seraphon.js';
 import { commandBlocker } from '../../rules/core/commands.js';
+import { TIME_FLOW_REROLL_ID, timeFlowReroll } from '../../engine/index.js';
 import { dispatch } from '../game/actions.js';
 import { beginDraft, editDraft, engageDraft, isChameleon } from '../game/draftActions.js';
 import { scenario } from '../game/engine.js';
@@ -118,6 +119,9 @@ export function PlacePanel() {
     !commandBlocker(state, d.player, 'forwardToVictory', unit) &&
     !state.players[d.player].commandsUsed?.includes('forwardToVictory');
 
+  // Increase Time Flow: the charge roll may be re-rolled once (free).
+  const canReroll = d.reason === 'charge' && timeFlowReroll(scenario, state, unit);
+
   const confirm = () => {
     if (draft.violations.length > 0) return;
     if (dispatch({ t: 'place', placement: draft.placement })) setDraft(null);
@@ -232,6 +236,19 @@ export function PlacePanel() {
           data-testid="forward-to-victory"
         >
           Forward to Victory · 1 CP
+        </button>
+      )}
+      {canReroll && (
+        <button
+          className="btn wide"
+          onClick={() => {
+            if (dispatch({ t: 'ability', unit: d.unit, abilityId: TIME_FLOW_REROLL_ID })) {
+              setDraft(null);
+            }
+          }}
+          data-testid="time-flow-reroll"
+        >
+          Re-roll the charge · Increase Time Flow
         </button>
       )}
       {d.reason === 'deploy' && d.canAmbush && (

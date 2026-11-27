@@ -140,6 +140,16 @@ export interface AbilityDefinition {
     scenario: Scenario,
     state: GameState,
   ) => Modifier[];
+  /**
+   * Attack modifiers from a manifestation `source` on the battlefield, whose warscroll has this
+   * ability, for any attack (Pull of the Nadir: units within 3" of it). It decides the range.
+   */
+  areaModifiers?: (
+    source: UnitState,
+    sit: AttackSituation,
+    scenario: Scenario,
+    state: GameState,
+  ) => Modifier[];
   /** The weapon as `unit` (whose warscroll has this ability) uses it. */
   weaponFor?: (unit: UnitState, weapon: Weapon, scenario: Scenario, state: GameState) => Weapon;
   /** Trigger fired at `triggerWindow` while an ActiveEffect with `effect.id === def.id` is in play. */

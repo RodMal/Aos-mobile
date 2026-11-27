@@ -16,6 +16,7 @@ import {
   type Footprint,
 } from '../geom/index.js';
 import { effectiveWard, wardRollModifier } from './abilities/effects.js';
+import { hasMultipleParts, vortexSlain } from './abilities/manifestations.js';
 import { rollWard } from './attack.js';
 import { rollD3, type Ctx } from './ctx.js';
 import { closestFeatureWithoutToken, giveOvergrownToken } from './overgrowth.js';
@@ -63,12 +64,22 @@ export function allocateDamage(
   let slain = 0;
   unit.damage += amount;
   const onBattlefield = (): boolean => unit.status === 'battlefield';
+  // Multiple Parts (Soulsnare Shackles): the damage points are for the whole manifestation, and
+  // it is destroyed with all its parts at once.
+  const parts = hasMultipleParts(ctx.scenario, unit);
   while (unit.damage >= health && onBattlefield()) {
     unit.damage -= health;
-    removeModel(ctx.s, unit, pickCasualty(ctx.scenario, ctx.s, unit));
-    slain++;
+    if (parts) {
+      for (const i of aliveIndices(unit)) {
+        removeModel(ctx.scenario, ctx.s, unit, i);
+        slain++;
+      }
+    } else {
+      removeModel(ctx.scenario, ctx.s, unit, pickCasualty(ctx.scenario, ctx.s, unit));
+      slain++;
+    }
   }
-  if (onBattlefield()) slain += restoreCoherency(ctx.scenario, ctx.s, unit);
+  if (onBattlefield() && !parts) slain += restoreCoherency(ctx.scenario, ctx.s, unit);
   const destroyed = !onBattlefield();
   if (destroyed) {
     recordUnitDestroyedForTactics(ctx.scenario, ctx.s, unit);
@@ -210,7 +221,9 @@ function destroySummoned(ctx: Ctx, caster: UnitState): void {
   }
 }
 
-function removeModel(state: GameState, unit: UnitState, i: number): void {
+function removeModel(scenario: Scenario, state: GameState, unit: UnitState, i: number): void {
+  // Necrotic Vortex: a model is slain within 12" of a Malevolent Maelstrom (measured before it goes).
+  vortexSlain(scenario, state, unit, i);
   unit.models[i]!.alive = false;
   if (aliveIndices(unit).length === 0) {
     unit.status = 'destroyed';
@@ -310,7 +323,7 @@ export function restoreCoherency(scenario: Scenario, state: GameState, unit: Uni
       const lacking = new Set(result.lacking.map((k) => alive[k]!));
       victim = order.find((i) => lacking.has(i)) ?? order[0]!;
     }
-    removeModel(state, unit, victim);
+    removeModel(scenario, state, unit, victim);
     removed++;
   }
 }

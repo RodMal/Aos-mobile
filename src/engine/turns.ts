@@ -32,6 +32,7 @@ import {
   vengeanceCandidates,
 } from '../rules/factions/kroak.js';
 import { healUnit, destroyUnit } from './damage.js';
+import { morbidDetonations } from './manifestations.js';
 import { AMBUSH_DESTROYED_ROUND, destroyAmbushUnits } from './reserve.js';
 import { PHASES, type Action, type PlayerId, type ReactionOption } from './types.js';
 
@@ -47,6 +48,8 @@ export function startTurn(ctx: Ctx): void {
     u.fought = false;
     u.declinedTerrainFight = false;
     u.chargeDeclared = false;
+    delete u.chargeRerolled;
+    delete u.oublietteTargets;
     u.allOutAttack = false;
     u.castsUsed = 0;
     u.miscast = false;
@@ -293,6 +296,7 @@ export function endGame(ctx: Ctx): void {
 export function endTurn(ctx: Ctx): void {
   const { s, scenario } = ctx;
   deadForInnumerableAges(ctx);
+  morbidDetonations(ctx);
   // "For the rest of the turn" lasts through objective control (Celestial Conduit), which is
   // why the turn's effects are cleared after it.
   for (const change of resolveControl(scenario, s)) {

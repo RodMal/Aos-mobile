@@ -5,8 +5,10 @@ import {
   footprintInsidePolygon,
   footprintOuterRadius,
   footprintOverlapsPolygon,
+  type Footprint,
 } from '../../geom/index.js';
 import { canStandOn } from '../../data/battlefield.js';
+import { NECROTIC_VORTEX_ID, vortexCast } from './manifestations.js';
 import { reapingBonus } from '../../rules/factions/seasons.js';
 import {
   ARCANE_VASSAL_ID,
@@ -145,16 +147,21 @@ export function isManifestationInPlayOrBanished(
   return Boolean(existing && existing.status === 'battlefield');
 }
 
+/** Where a manifestation is set up: its first part, and the others when it has several parts. */
+export interface SummonSpot {
+  x: number;
+  y: number;
+  rot: number;
+  more?: { x: number; y: number; rot: number }[];
+}
+
 /**
  * Memo for `findSummonPlacement`, keyed by everything the search reads: the arguments and the
  * position and status of every model on the battlefield. The search is pure, so a hit returns
  * exactly what a fresh search would; it only saves time (unit options are asked for the same
  * position many times). Bounded, and per scenario.
  */
-const summonMemo = new WeakMap<
-  Scenario,
-  Map<string, { x: number; y: number; rot: number } | null>
->();
+const summonMemo = new WeakMap<Scenario, Map<string, SummonSpot | null>>();
 
 function summonKey(
   state: GameState,
@@ -182,7 +189,7 @@ export function findSummonPlacement(
   warscrollId: string,
   range: number,
   minEnemyGap: number,
-): { x: number; y: number; rot: number } | null {
+): SummonSpot | null {
   let memo = summonMemo.get(scenario);
   if (!memo) {
     memo = new Map();
@@ -204,7 +211,7 @@ function searchSummonPlacement(
   warscrollId: string,
   range: number,
   minEnemyGap: number,
-): { x: number; y: number; rot: number } | null {
+): SummonSpot | null {
   const profile = scenario.profiles[warscrollId];
   if (!profile || profile.models.length === 0) return null;
   const base = profile.models[0]!.base;
@@ -252,41 +259,64 @@ function searchSummonPlacement(
     }
   }
   positions.sort((a, b) => b.score - a.score);
+  const legal = (fp: Footprint): boolean => {
+    // The board is a rectangle: a base whose outer circle (the one the exact tests use)
+    // is inside it needs no polygon test, and one whose centre is off it is never inside.
+    const br = footprintOuterRadius(fp);
+    const x = fp.cx;
+    const y = fp.cy;
+    const clearOfEdges = x - br >= 0 && y - br >= 0 && x + br <= boardW && y + br <= boardH;
+    if (!clearOfEdges) {
+      if (x < 0 || y < 0 || x > boardW || y > boardH) return false;
+      if (!footprintInsidePolygon(fp, board)) return false;
+    }
+    if (minEnemyGap > 0) {
+      // Circles first; the exact gap only for enemy bases that could be close enough.
+      const limit = minEnemyGap + DIST_EPS;
+      for (const efp of enemyFps) {
+        const d = Math.hypot(fp.cx - efp.cx, fp.cy - efp.cy);
+        if (d - br - footprintOuterRadius(efp) > limit) continue;
+        if (footprintGap(fp, efp) <= limit) return false;
+      }
+    }
+    if (!footprintWhollyWithin(fp, casterFps, range)) return false;
+    // Never on a feature models cannot stand on (the spires).
+    if (
+      scenario.battlefield.terrain.some(
+        (f) => !canStandOn(scenario.battlefield, f) && footprintOverlapsPolygon(fp, f.polygon),
+      )
+    ) {
+      return false;
+    }
+    return !nearbyFps.some((ofp) => !footprintGapAtLeast(fp, ofp, 0.05));
+  };
+  // A manifestation with several parts (Soulsnare Shackles) is set up as a cluster: each part
+  // within 3" of another, here side by side, touching distance apart.
+  const parts = profile.models.length;
+  const pitch = 2 * footprintOuterRadius(baseFootprint(base, 0, 0, 0)) + 0.2;
+  const offsets = Array.from({ length: parts }, (_, k) => ({
+    dx: k === 2 ? pitch / 2 : k * pitch,
+    dy: k === 2 ? pitch * 0.866 : 0,
+  }));
   for (const { x, y } of positions) {
     for (const rot of [0, 90]) {
-      const fp = baseFootprint(base, x, y, rot);
-      // The board is a rectangle: a base whose outer circle (the one the exact tests use)
-      // is inside it needs no polygon test, and one whose centre is off it is never inside.
-      const br = footprintOuterRadius(fp);
-      const clearOfEdges = x - br >= 0 && y - br >= 0 && x + br <= boardW && y + br <= boardH;
-      if (!clearOfEdges) {
-        if (x < 0 || y < 0 || x > boardW || y > boardH) continue;
-        if (!footprintInsidePolygon(fp, board)) continue;
+      const fps = offsets.map((o) => baseFootprint(base, x + o.dx, y + o.dy, rot));
+      if (!fps.every(legal)) continue;
+      // The parts must not touch one another.
+      if (parts > 1) {
+        const touching = fps.some((a, i) =>
+          fps.some((b, j) => j > i && !footprintGapAtLeast(a, b, 0.05)),
+        );
+        if (touching) continue;
       }
-      if (minEnemyGap > 0) {
-        // Circles first; the exact gap only for enemy bases that could be close enough.
-        const limit = minEnemyGap + DIST_EPS;
-        let tooClose = false;
-        for (const efp of enemyFps) {
-          const d = Math.hypot(fp.cx - efp.cx, fp.cy - efp.cy);
-          if (d - br - footprintOuterRadius(efp) > limit) continue;
-          if (footprintGap(fp, efp) <= limit) {
-            tooClose = true;
-            break;
-          }
-        }
-        if (tooClose) continue;
-      }
-      if (!footprintWhollyWithin(fp, casterFps, range)) continue;
-      // Never on a feature models cannot stand on (the spires).
-      if (
-        scenario.battlefield.terrain.some(
-          (f) => !canStandOn(scenario.battlefield, f) && footprintOverlapsPolygon(fp, f.polygon),
-        )
-      )
-        continue;
-      if (nearbyFps.some((ofp) => !footprintGapAtLeast(fp, ofp, 0.05))) continue;
-      return { x, y, rot };
+      return {
+        x,
+        y,
+        rot,
+        ...(parts > 1
+          ? { more: offsets.slice(1).map((o) => ({ x: x + o.dx, y: y + o.dy, rot })) }
+          : {}),
+      };
     }
   }
   return null;
@@ -926,6 +956,8 @@ export function resolveSpellOrSummon(
   roll: number,
   targets?: UnitState[],
 ): void {
+  // Necrotic Vortex: a unit has successfully cast a spell (a summon is a spell).
+  vortexCast(ctx.scenario, ctx.s, caster);
   if (def.kind === 'summon' && def.summonWarscrollId) {
     const warscrollId = def.summonWarscrollId;
     const range = def.summonRange ?? 12;
@@ -940,7 +972,12 @@ export function resolveSpellOrSummon(
       profileId: warscrollId,
       name: profile.name,
       armyIndex: 99,
-      models: [{ x: pos.x, y: pos.y, rot: pos.rot, alive: true }],
+      models: [pos, ...(pos.more ?? [])].map((m) => ({
+        x: m.x,
+        y: m.y,
+        rot: m.rot,
+        alive: true,
+      })),
       damage: 0,
       status: 'battlefield',
       moved: null,
@@ -950,6 +987,8 @@ export function resolveSpellOrSummon(
       setUpThisTurn: true,
       isManifestation: true,
       summonedBy: caster.id,
+      // Necrotic Vortex: a point each time the Maelstrom is set up.
+      ...(profile.abilities.some((a) => a.id === NECROTIC_VORTEX_ID) ? { maelstrom: 1 } : {}),
     };
     ctx.s.units[unitId] = unitState;
     if (!ctx.s.unitOrder.includes(unitId)) {

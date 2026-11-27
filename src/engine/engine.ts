@@ -1,6 +1,7 @@
 import './abilities/lores.js';
 import './abilities/sylvaneth.js';
 import './abilities/seraphon.js';
+import './abilities/manifestation-defs.js';
 import { GLAMOURWEAVE_REROLL_ID } from './abilities/sylvaneth.js';
 import { declareAbility } from './abilities/magic.js';
 import { illegal, type Ctx } from './ctx.js';
@@ -30,6 +31,17 @@ import { POWER_UNLEASHED_ID, VENGEFUL_FOREST_SPIRITS_ID } from './factionTerrain
 import { SERAPHON_ACTIVATED_IDS, chooseScry, useSeraphonAbility } from './seraphonActive.js';
 import { SYLVANETH_ACTIVATED_IDS, useSylvanethAbility } from './sylvanethActive.js';
 import { SET_UP_ABILITY_IDS } from './relocate.js';
+import {
+  oublietteOptions,
+  rerollCharge,
+  TIME_FLOW_REROLL_ID,
+  useMechanisms,
+  useOubliette,
+} from './manifestations.js';
+import {
+  BOUND_FOR_THE_GREAT_OUBLIETTE_ID,
+  MECHANISMS_OF_TIME_ID,
+} from './abilities/manifestations.js';
 import { choosePrayer } from './abilities/magic.js';
 import { chooseVengeance } from './vengeance.js';
 import {
@@ -165,6 +177,23 @@ export function createEngine(scenario: Scenario): Engine {
           useSeraphonAbility(ctx, action);
         } else if (action.t === 'ability' && SYLVANETH_ACTIVATED_IDS.includes(action.abilityId)) {
           useSylvanethAbility(ctx, action);
+        } else if (action.t === 'ability' && action.abilityId === MECHANISMS_OF_TIME_ID) {
+          useMechanisms(ctx, action);
+        } else if (
+          action.t === 'ability' &&
+          action.abilityId === BOUND_FOR_THE_GREAT_OUBLIETTE_ID
+        ) {
+          const cogs = s.units[action.unit]!;
+          if (oublietteOptions(scenario, s, cogs).length === 0) {
+            illegal('Bound for the Great Oubliette cannot be used now.');
+          }
+          useOubliette(ctx, cogs, action.targets ?? (action.target ? [action.target] : []));
+        } else if (
+          action.t === 'ability' &&
+          action.abilityId === TIME_FLOW_REROLL_ID &&
+          d.phase === 'charge'
+        ) {
+          rerollCharge(ctx, action.unit);
         } else if (action.t === 'ability' && action.abilityId === 'place-of-power') {
           illegal('A Place of Power can only be activated at the start of a turn.');
         } else if (action.t === 'ability' && d.phase === 'hero') {
@@ -266,6 +295,13 @@ export function createEngine(scenario: Scenario): Engine {
           action.unit === d.unit
         ) {
           forwardToVictory(ctx, action.unit);
+        } else if (
+          action.t === 'ability' &&
+          action.abilityId === TIME_FLOW_REROLL_ID &&
+          d.reason === 'charge' &&
+          action.unit === d.unit
+        ) {
+          rerollCharge(ctx, action.unit);
         } else if (
           action.t === 'ability' &&
           action.abilityId === HIDDEN_HUNTERS_ID &&

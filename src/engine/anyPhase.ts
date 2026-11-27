@@ -42,6 +42,8 @@ import {
   useLifebloom,
 } from './sylvanethActive.js';
 import { unitsOf } from './query.js';
+import { BOUND_FOR_THE_GREAT_OUBLIETTE_ID } from './abilities/manifestations.js';
+import { oublietteReaction, useOubliette } from './manifestations.js';
 import { canScythingBlade, moveOptions } from './eligibility.js';
 import { SCYTHING_BLADE_ID } from './sweep.js';
 import type {
@@ -67,6 +69,7 @@ const KIND_OF: Readonly<Record<string, Kind>> = {
   [ARMOUR_CRUNCHER_ROLL_ID]: 'armourCruncherRoll',
   [VENGEFUL_FOREST_SPIRITS_ID]: 'vengefulForestSpirits',
   [SCYTHING_BLADE_ID]: 'scythingBlade',
+  [BOUND_FOR_THE_GREAT_OUBLIETTE_ID]: 'oubliette',
 };
 
 /** The reaction kind of an `ability` action's id (Rhythm of the Chase included), if it has one. */
@@ -114,6 +117,10 @@ function current(
     }
     case 'scythingBlade':
       return canScythingBlade(scenario, state, unit) ? base : null;
+    case 'oubliette': {
+      const found = oublietteReaction(scenario, state, unit);
+      return found ? { ...base, targets: found.targets, maxTargets: found.max } : null;
+    }
     case 'rhythmOfTheChase': {
       const targets = rhythmTargets(scenario, state, unit);
       return targets.length > 0 ? { ...base, targets } : null;
@@ -168,13 +175,18 @@ export function endOfPhaseAbilities(
   state: GameState,
   player: PlayerId,
 ): ReactionOption[] {
-  const kind: Kind | null =
-    state.phase === 'hero' ? 'lifebloom' : state.phase === 'charge' ? 'livingBatteringRam' : null;
-  if (!kind) return [];
-  return unitsOf(state, player).flatMap((u) => {
-    const o = current(scenario, state, kind, u);
-    return o ? [o] : [];
-  });
+  const kinds: Kind[] =
+    state.phase === 'hero'
+      ? ['lifebloom', 'oubliette']
+      : state.phase === 'charge'
+        ? ['livingBatteringRam']
+        : [];
+  return unitsOf(state, player).flatMap((u) =>
+    kinds.flatMap((kind) => {
+      const o = current(scenario, state, kind, u);
+      return o ? [o] : [];
+    }),
+  );
 }
 
 /**
@@ -263,6 +275,16 @@ export function useReactionAbility(
     case 'armourCruncher':
     case 'armourCruncherRoll':
       armourCruncher(ctx, unit, one(), kind === 'armourCruncher');
+      break;
+    case 'oubliette':
+      useOubliette(
+        ctx,
+        unit,
+        pick(
+          action.targets ?? (action.target ? [action.target] : targets.slice(0, 1)),
+          opt.maxTargets ?? 1,
+        ).map((t) => t.id),
+      );
       break;
     default:
       arkOfSotek(

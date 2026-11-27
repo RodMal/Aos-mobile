@@ -13,6 +13,7 @@ import { VENGEANCE_MAX, vengeanceCandidates, vengeanceFoes } from '../rules/fact
 import { asterismOptions } from '../rules/factions/seraphon.js';
 import { scryOptions, starVenomOptions } from './seraphonActive.js';
 import { batteringRamOptions, lifebloomOptions } from './sylvanethActive.js';
+import { mechanismsOptions, oublietteOptions, timeFlowRerollOptions } from './manifestations.js';
 import { powerUnleashedOptions } from './factionTerrainActive.js';
 import { refreshOption, startOfCombatAbilities } from './anyPhase.js';
 import { burgeoningOptions, seasonsAllowed } from '../rules/factions/seasons.js';
@@ -322,7 +323,12 @@ export function unitOptionsInner(
       if (canRally(scenario, state, unit)) {
         opts.push({ t: 'command', command: 'rally', cost: 1 });
       }
-      opts.push(...scryOptions(scenario, state, unit), ...lifebloomOptions(scenario, state, unit));
+      opts.push(
+        ...scryOptions(scenario, state, unit),
+        ...lifebloomOptions(scenario, state, unit),
+        ...mechanismsOptions(scenario, state, unit),
+        ...oublietteOptions(scenario, state, unit),
+      );
       return opts;
     }
     case 'movement': {
@@ -364,6 +370,7 @@ export function unitOptionsInner(
       opts.push(
         ...chargeSetUpOptions(scenario, state, unit),
         ...batteringRamOptions(scenario, state, unit),
+        ...timeFlowRerollOptions(scenario, state, unit),
       );
       return opts;
     }
