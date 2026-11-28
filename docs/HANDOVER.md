@@ -68,6 +68,14 @@ Things that cost time before:
 - **Git.** Conventional commits; never force-push; one task per branch `task/<id>` off `origin/main`, one PR per task into `main`.
 - **Proving no behaviour change.** `pnpm game-hashes --save` before a refactor or optimisation, `pnpm game-hashes` after: it must print `IDENTICAL`.
 
+## NPC self-play and timings
+
+`pnpm selfplay A=champion B=baseline N=40` plays each seed twice with the sides swapped (`src/ai/selfplay.ts`, `scripts/selfplay.ts`) and prints A's win/draw/loss, the mean VP margin and the Node timings. Results are deterministic; only timings vary. There are no difficulty levels: the harness compares NPC configs.
+
+Measured in Node 22 on a 2.3 GHz Xeon sandbox (80 games, champion v0 = baseline, 2026-11-28): about 700 ms per game (about 800 ms in `game-hashes`); per decision mean 0.9 ms, p95 3.8 ms, max 107 ms; max 210 ms per NPC turn. Champion v0 against baseline wins 50% with margin 0, as it should (it is the baseline).
+
+**Estimated Node-to-phone factor: 2** (phone is about 2 times slower than this Node run), so the budget is Node ms = phone ms / 2. This is an estimate, not a measurement: no phone was available. Basis: the sandbox core is an older server Xeon at 2.3 GHz; a Pixel-class big core in Chrome's V8 is roughly equal to it on single-thread JS, and the NPC runs in a Web Worker on a phone that may throttle under sustained load, so 2 is a cautious allowance. Replace it with a real figure by timing `pnpm build` output with `?e2e&npc=champion` on the device (M5n/M5g).
+
 ## Saved games and the rules version
 
 A saved game is its seed plus its actions, replayed on load, so a rules change can make old actions mean something else. `GameRecord.rules` (`RULES_VERSION` in `src/ui/game/rulesVersion.ts`) says which rules it was played under. On load, a save with an older version, or one whose replay throws, gives the start screen a notice ("This saved game is from an older version — start a new game?") and no Continue; it is never silently replaced or replayed into a different game.
