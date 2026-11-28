@@ -5,6 +5,7 @@
  * If a worker cannot be started, or it fails, the same NPC runs on the main thread instead.
  */
 import { chooseAction } from '../../ai/baseline.js';
+import { chooseNpcAction, loadChampion } from '../../ai/index.js';
 import type { Action, Engine, GameState } from '../../engine/index.js';
 import type { NpcRequest, NpcResponse } from '../../worker/npc.worker.js';
 
@@ -13,8 +14,24 @@ export interface NpcClient {
   dispose(): void;
 }
 
-export function createNpcClient(engine: Engine): NpcClient {
-  const local = (state: GameState): Action => chooseAction(engine, state);
+/**
+ * Which NPC plays. Normal play always uses the champion and ignores the URL. Only the test-only
+ * `?e2e` page honours `npc=`: it plays the baseline unless the URL says `npc=champion`.
+ */
+export function npcChoice(search: string): 'champion' | 'baseline' {
+  const params = new URLSearchParams(search);
+  if (!params.has('e2e')) return 'champion';
+  return params.get('npc') === 'champion' ? 'champion' : 'baseline';
+}
+
+export function createNpcClient(
+  engine: Engine,
+  which: 'champion' | 'baseline' = npcChoice(window.location.search),
+): NpcClient {
+  const local = (state: GameState): Action =>
+    which === 'baseline'
+      ? chooseAction(engine, state)
+      : chooseNpcAction(engine, state, loadChampion());
   let worker: Worker | null = null;
   let nextId = 1;
   const pending = new Map<
@@ -71,7 +88,7 @@ export function createNpcClient(engine: Engine): NpcClient {
       const id = nextId++;
       return new Promise<Action>((resolve, reject) => {
         pending.set(id, { state, resolve, reject });
-        const request: NpcRequest = { id, state };
+        const request: NpcRequest = { id, state, npc: which };
         worker!.postMessage(request);
       });
     },

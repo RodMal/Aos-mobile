@@ -6,14 +6,17 @@
  *   pnpm game-hashes --save        # record the baseline (scripts/.game-hashes.txt, gitignored)
  *   pnpm game-hashes               # compare with the baseline: prints IDENTICAL or the diff
  *   N=40 pnpm game-hashes          # more seeds (default 20)
+ *   NPC=champion pnpm game-hashes  # play the shipped champion instead of the baseline
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { chooseAction } from '../src/ai/baseline.js';
+import { chooseNpcAction, loadChampion } from '../src/ai/index.js';
 import { SERAPHON_SUNCLAW_STARHOST, SYLVANETH_LORDS_OF_THE_CLAN } from '../src/data/lists.js';
 import { createEngine, createScenario } from '../src/engine/index.js';
 import { startGame } from '../src/engine/test-helpers.js';
 
+const champion = process.env.NPC === 'champion' ? loadChampion() : null;
 const N = Number(process.env.N ?? 20);
 const file = new URL('./.game-hashes.txt', import.meta.url).pathname;
 const engine = createEngine(
@@ -28,7 +31,10 @@ for (let seed = 1; seed <= N; seed++) {
   let state = startGame(engine, seed);
   let steps = 0;
   while (engine.decision(state)) {
-    state = engine.apply(state, chooseAction(engine, state)).state;
+    const action = champion
+      ? chooseNpcAction(engine, state, champion)
+      : chooseAction(engine, state);
+    state = engine.apply(state, action).state;
     steps++;
   }
   total += performance.now() - t0;
