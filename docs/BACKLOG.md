@@ -14,13 +14,6 @@ Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat 
 
 ## Ready
 
-### M5b Self-play harness and timings
-
-- **Tier**: sonnet
-- **Touches**: ai, ci
-- **Read**: `scripts/game-hashes.ts`, `tests/sim/full-game.test.ts`, `src/engine/test-helpers.ts`, `package.json`
-- **Done when**: pure `src/ai/selfplay.ts` `playMatch(engine, seed, [npcA, npcB], opts)` returns the winner, VP, decision count and search steps per side. `pnpm selfplay A=<config|baseline> B=<…> N=40` (the script already named in `package.json`; `scripts/selfplay.ts` does not exist yet) plays each seed with sides swapped and prints A's win/draw/loss, mean VP margin, ms per decision (mean, p95, max) and max ms per NPC turn. Repeated runs give identical results. Unit test: baseline vs baseline on seed 1 matches game-hashes. HANDOVER records the measured ms per game and per decision, and an estimated Node-to-phone factor.
-
 ### M5c Position evaluation with configurable weights
 
 - **Tier**: sonnet+review
