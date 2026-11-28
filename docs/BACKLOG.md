@@ -6,21 +6,13 @@ Task fields:
 
 - **Tier**: who does it. `haiku` (mechanical: docs, renames, test expectations), `sonnet` (most features and fixes), `sonnet+review` (rules or engine changes: Sonnet implements, Opus reviews the diff before the PR), `opus` (only when the task needs design across many modules).
 - **Read**: the files to start from, so the agent does not explore.
-- **Touches**: short area tags (`engine`, `rules`, `ai`, `ui/prompts`, `ui/board`, `ui/sheet`, `ui/drawers`, `e2e`, `ci`, `docs`) derived from Read. The loop runs Ready tasks in parallel only when their Touches do not overlap.
+- **Touches**: short area tags (`engine`, `rules`, `ai`, `ui/prompts`, `ui/board`, `ui/sheet`, `ui/drawers`, `ui/npc` (`src/worker`, `src/ui/npc`), `e2e`, `ci`, `docs`) derived from Read. The loop runs Ready tasks in parallel only when their Touches do not overlap.
 - **Done when**: the tests that must exist and pass.
 - **Ruling**: the owner's words, where a rule is involved. Rulings are final; record them in `docs/RULES-DECISIONS.md` when implemented.
 
 Rules for every task are in `CLAUDE.md`; agents read it, so tasks do not repeat them.
 
 ## Ready
-
-### M5a NPC entry point and champion config
-
-- **Tier**: sonnet
-- **Touches**: ai, ui/npc, docs
-- **Ruling**: Owner (2026-11-28): one NPC, no difficulty levels, never adjustable; it gets stronger over time, pre-trained by self-play and later adapting to the owner's games. NPC think time up to ~1.5 s per decision and under ~20 s per NPC turn, reference phone Pixel 11 Pro XL.
-- **Read**: `src/ai/baseline.ts`, `src/worker/npc.worker.ts`, `src/ui/npc/npcClient.ts`, `src/ui/testHooks.ts`, `src/ui/App.tsx`, `scripts/game-hashes.ts`
-- **Done when**: `src/ai/index.ts` exports `chooseNpcAction(engine, state, config)` and `loadChampion()`; `src/ai/params/schema.ts` (zod) defines `NpcConfig` = `{ version, weights, priors, features }`; `src/ai/params/champion.json` is version 0 with every feature switch off, so the NPC behaves exactly as the baseline. The worker and the main-thread fallback use the champion. On the test-only `?e2e` page the NPC is the baseline unless the URL says `npc=champion`; normal play ignores `npc=`. `pnpm game-hashes` prints IDENTICAL and `NPC=champion pnpm game-hashes` runs. Tests: the schema rejects a bad config; with the version-0 champion, `chooseNpcAction` gives the same action as the baseline on 3 seeds. Add `ui/npc` (`src/worker`, `src/ui/npc`) to the Touches legend in this file. Record the 2026-11-28 decisions in the HANDOVER decisions table.
 
 ### M5b Self-play harness and timings
 
